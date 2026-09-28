@@ -1,0 +1,18 @@
+# Basis-Compose-Datei: nur, was Dev- und Live-Profil teilen. Umgebungsspezifisches steckt in
+# docker-compose.dev.yml / docker-compose.live.yml - gestartet wird immer ueber start.ps1 -Env.
+#
+# Hinweis: Das eigentliche Produkt ist eine native Windows-App (Tray + WebView2, siehe README).
+# Dieser Stack dient der Entwicklung (dev) bzw. dem Test des headless Dienstes (live).
+
+services:
+  backend:
+    environment:
+      Deck__DataDir: /data
+      # OBS laeuft auf dem Windows-Host, nicht im Container.
+      Deck__ObsDefaultHost: host.docker.internal
+      # Adresse, die in QR-Codes landet (LAN-IP des PCs, von start.ps1 ermittelt).
+      Deck__PublicHost: ${LAN_IP:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./branding.json:/branding.json:ro

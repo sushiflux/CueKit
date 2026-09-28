@@ -1,0 +1,39 @@
+#!/bin/sh
+# Aktualisiert version.txt nach jedem Commit und stempelt die neueste CHANGELOG.dev.md-
+# Ueberschrift mit Datum/Uhrzeit (siehe globale CLAUDE.md "Versioning scheme" / "Changelogs").
+#
+# Versionsformat: vJahr.Monat.CommitDesJahres (kein Zero-Padding). Der letzte Teil zaehlt die
+# Commits seit Jahresbeginn und startet jedes Kalenderjahr wieder bei 1.
+#
+# version.txt laeuft dem letzten Commit bewusst um einen Stand voraus: der Hook schreibt NACH dem
+# Commit, der naechste Commit nimmt die Aenderung mit. Kein "git add"/"--amend" hier (das wuerde
+# post-commit rekursiv erneut ausloesen).
+
+set -e
+
+repo_root=$(git rev-parse --show-toplevel)
+year=$(date +%Y)
+date_part=$(date +%Y.%-m)
+commits_this_year=$(git rev-list --count HEAD --since="${year}-01-01T00:00:00")
+
+version="v${date_part}.${commits_this_year}"
+
+printf '%s' "$version" > "$repo_root/version.txt"
+# Auch neben das Backend legen: im Docker-Dev-Stack ist nur ./backend eingehaengt, der Dienst
+# liest die Version live bei jeder Anfrage (siehe backend/Services/AppInfo.cs).
+cp "$repo_root/version.txt" "$repo_root/backend/version.txt" 2>/dev/null || true
+
+changelog="$repo_root/CHANGELOG.dev.md"
+if [ -f "$changelog" ]; then
+    stamp=$(date "+%Y-%m-%d %H:%M")
+    tmp=$(mktemp)
+    awk -v ver="$version" -v stamp="$stamp" '
+        /^# / { in_section = 1; stamped = 0 }
+        in_section && !stamped && /^## v/ {
+            print "## " ver " - " stamp
+            stamped = 1
+            next
+        }
+        { print }
+    ' "$changelog" > "$tmp" && mv "$tmp" "$changelog"
+fi

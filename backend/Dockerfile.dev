@@ -1,0 +1,11 @@
+# Dev-Image: dotnet watch mit Hot-Reload auf dem per Bind-Mount eingehaengten Quellcode.
+FROM mcr.microsoft.com/dotnet/sdk:10.0
+
+WORKDIR /app
+# Bind-Mounts von Windows liefern keine inotify-Events -> Polling.
+ENV DOTNET_USE_POLLING_FILE_WATCHER=1 \
+    DOTNET_WATCH_RESTART_ON_RUDE_EDIT=1 \
+    DOTNET_CLI_TELEMETRY_OPTOUT=1
+
+EXPOSE 8080
+CMD ["dotnet", "watch", "run", "--no-launch-profile", "--non-interactive"]

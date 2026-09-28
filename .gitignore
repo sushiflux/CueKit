@@ -1,0 +1,30 @@
+# Build-Artefakte
+**/bin/
+**/obj/
+**/node_modules/
+frontend/dist/
+backend/wwwroot/
+
+# Lokale Umgebung (von start.ps1 erzeugt)
+.env
+.env.*
+!.env.example
+
+# Laufzeitdaten (SQLite, DataProtection-Schluessel) - nie committen
+*.db
+*.db-shm
+*.db-wal
+data/
+keys/
+secrets/
+
+# Playwright
+frontend/e2e/test-results/
+frontend/e2e/playwright-report/
+
+# Editoren/OS
+.vs/
+.idea/
+*.user
+.DS_Store
+Thumbs.db

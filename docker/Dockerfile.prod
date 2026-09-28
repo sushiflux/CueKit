@@ -1,0 +1,28 @@
+# "Live"-Image: baut die Oberflaeche und liefert sie ueber den .NET-Dienst aus (wwwroot) - so
+# wie spaeter die installierte Windows-App, nur headless im Container. Build-Kontext: Repo-Wurzel.
+
+FROM node:24-alpine AS frontend
+WORKDIR /src/frontend
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm ci
+COPY frontend/ ./
+COPY branding.json /src/branding.json
+RUN npm run build
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend
+WORKDIR /src
+COPY backend/Deck.Server.csproj backend/
+RUN dotnet restore backend/Deck.Server.csproj
+COPY backend/ backend/
+RUN dotnet publish backend/Deck.Server.csproj -c Release -o /out --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
+WORKDIR /app
+COPY --from=backend /out ./
+COPY --from=frontend /src/frontend/dist ./wwwroot
+COPY branding.json ./branding.json
+COPY version.tx[t] ./
+ENV ASPNETCORE_URLS=http://0.0.0.0:8080 \
+    Deck__DataDir=/data
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "Deck.Server.dll"]

@@ -1,0 +1,109 @@
+using System.Text.Json;
+using Deck.Server.Actions;
+using Deck.Server.Auth;
+using Deck.Server.Automation;
+using Deck.Server.Data;
+using Deck.Server.Plugins;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace Deck.Server.Controllers;
+
+[ApiController]
+[Route("api/automations")]
+[Authorize(AuthenticationSchemes = DeviceAuth.Scheme, Policy = DeviceAuth.OwnerPolicy)]
+public class AutomationsController(AppDbContext db, AutomationEngine engine, ActionExecutor executor) : ControllerBase
+{
+    private static readonly JsonSerializerOptions Json = AutomationEngine.Json;
+
+    [HttpGet]
+    public async Task<IReadOnlyList<AutomationDto>> List()
+    {
+        var list = await db.Automations.AsNoTracking().OrderBy(a => a.Id).ToListAsync();
+        return list.Select(ToDto).ToList();
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<AutomationDto>> Create(AutomationInput input)
+    {
+        if (Validate(input) is { } error) return BadRequest(new { error });
+        var entity = new AutomationEntity();
+        Apply(entity, input);
+        db.Automations.Add(entity);
+        await db.SaveChangesAsync();
+        engine.Invalidate();
+        return ToDto(entity);
+    }
+
+    [HttpPut("{id:int}")]
+    public async Task<ActionResult<AutomationDto>> Update(int id, AutomationInput input)
+    {
+        var entity = await db.Automations.FirstOrDefaultAsync(a => a.Id == id);
+        if (entity is null) return NotFound(new { error = "Automation nicht gefunden." });
+        if (Validate(input) is { } error) return BadRequest(new { error });
+        Apply(entity, input);
+        await db.SaveChangesAsync();
+        engine.Invalidate();
+        return ToDto(entity);
+    }
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var deleted = await db.Automations.Where(a => a.Id == id).ExecuteDeleteAsync();
+        if (deleted == 0) return NotFound(new { error = "Automation nicht gefunden." });
+        engine.Invalidate();
+        return NoContent();
+    }
+
+    /// <summary>Fuehrt nur die Aktionen einmal aus (ohne Ausloeser/Bedingungen) - zum Testen im Editor.</summary>
+    [HttpPost("{id:int}/test")]
+    public async Task<IActionResult> Test(int id, CancellationToken ct)
+    {
+        var entity = await db.Automations.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id, ct);
+        if (entity is null) return NotFound(new { error = "Automation nicht gefunden." });
+        try
+        {
+            await executor.ExecuteAsync(JsonSerializer.Deserialize<List<ActionStep>>(entity.ActionsJson, Json) ?? [], $"Test '{entity.Name}'", ct);
+            return NoContent();
+        }
+        catch (ActionExecutionException ex)
+        {
+            return UnprocessableEntity(new { error = ex.Message });
+        }
+    }
+
+    private static string? Validate(AutomationInput input)
+    {
+        if (!AutomationCatalog.Triggers.Any(t => t.Type == input.Trigger.Type)) return $"Unbekannter Auslöser '{input.Trigger.Type}'.";
+        var badCondition = input.Conditions?.FirstOrDefault(c => !AutomationCatalog.Conditions.Any(d => d.Type == c.Type));
+        if (badCondition is not null) return $"Unbekannte Bedingung '{badCondition.Type}'.";
+        var actions = input.Actions ?? [];
+        if (actions.Count == 0) return "Eine Automation braucht mindestens eine Aktion.";
+        if (actions.Count > 20) return "Höchstens 20 Aktionen pro Automation.";
+        var badAction = actions.FirstOrDefault(s =>
+            ActionCatalog.IsClientSide(s.Type) || (!ActionCatalog.BuiltIn.Any(d => d.Type == s.Type) && !PluginHost.TryParseActionType(s.Type, out _, out _)));
+        if (badAction is not null)
+            return ActionCatalog.IsClientSide(badAction.Type)
+                ? "Deck-Navigation (Ordner öffnen/zurück) geht nur auf Buttons, nicht in Automationen."
+                : $"Unbekannte Aktion '{badAction.Type}'.";
+        return null;
+    }
+
+    private static void Apply(AutomationEntity e, AutomationInput input)
+    {
+        e.Name = input.Name.Trim();
+        e.Enabled = input.Enabled;
+        e.TriggerJson = JsonSerializer.Serialize(input.Trigger, Json);
+        e.ConditionsJson = JsonSerializer.Serialize(input.Conditions ?? [], Json);
+        e.ActionsJson = JsonSerializer.Serialize(input.Actions ?? [], Json);
+    }
+
+    private AutomationDto ToDto(AutomationEntity e) => new(
+        e.Id, e.Name, e.Enabled,
+        JsonSerializer.Deserialize<AutomationPart>(e.TriggerJson, Json) ?? new AutomationPart("", null),
+        JsonSerializer.Deserialize<List<AutomationPart>>(e.ConditionsJson, Json) ?? [],
+        JsonSerializer.Deserialize<List<ActionStep>>(e.ActionsJson, Json) ?? [],
+        engine.LastRuns.TryGetValue(e.Id, out var run) ? run : null);
+}

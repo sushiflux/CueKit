@@ -1,5 +1,8 @@
 # Plugin-Protokoll (v1)
 
+> Dieses Dokument und das Plugin-SDK unter `plugins/` stehen unter der [MIT-Lizenz](../plugins/LICENSE).
+> Eigene Plugins dürfen unter beliebiger Lizenz veröffentlicht werden.
+
 Plugins sind **eigenständige Programme** in beliebiger Sprache (TypeScript/Node, Python, C#, Go …),
 die sich per WebSocket beim Dienst anmelden – nach dem Vorbild des Stream-Deck-SDK. Stürzt ein
 Plugin ab, läuft der Dienst unbeeinträchtigt weiter.

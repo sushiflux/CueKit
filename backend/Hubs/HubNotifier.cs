@@ -20,6 +20,9 @@ public sealed class HubNotifier(
 
     public Task DecksChangedAsync() => hub.Clients.All.SendAsync("decksChanged");
 
+    /// <summary>Automationen angelegt/geaendert/an- oder ausgeschaltet -> Tasten-LEDs aktualisieren.</summary>
+    public void AutomationsChanged() => _ = hub.Clients.All.SendAsync("automationsChanged");
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         obs.StateChanged += OnObsStateChanged;

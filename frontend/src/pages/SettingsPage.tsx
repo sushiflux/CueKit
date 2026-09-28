@@ -1,6 +1,7 @@
-import { IconBroadcast, IconCheck, IconNetwork, IconRefresh } from '@tabler/icons-react'
+import { IconBroadcast, IconCheck, IconNetwork, IconRefresh, IconSearch, IconSparkles } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
 import { api, errorMessage } from '../api/client'
+import { AboutCard } from '../components/AboutCard'
 import { AppShell } from '../components/AppShell'
 import { toast } from '../components/Toasts'
 import { useStore } from '../state/store'
@@ -9,6 +10,13 @@ interface ObsSettings {
   host: string
   port: number
   hasPassword: boolean
+}
+
+interface FoundObs {
+  host: string
+  port: number
+  webSocketVersion: string | null
+  isLocal: boolean
 }
 
 interface GeneralSettings {
@@ -23,11 +31,32 @@ function ObsCard() {
   const [password, setPassword] = useState('')
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
+  const [searching, setSearching] = useState(false)
+  const [found, setFound] = useState<FoundObs[]>([])
+
+  const load = () =>
     api<ObsSettings>('/api/settings/obs')
       .then(setForm)
       .catch((e) => toast(`OBS-Einstellungen konnten nicht geladen werden: ${errorMessage(e)}`, 'error'))
+
+  useEffect(() => {
+    void load()
   }, [])
+
+  const discover = async () => {
+    setSearching(true)
+    setFound([])
+    try {
+      const res = await api<{ applied: boolean; message: string; found: FoundObs[] }>('/api/settings/obs/discover', { method: 'POST' })
+      toast(res.message, res.applied || res.found.length > 0 ? 'success' : 'error')
+      setFound(res.found)
+      if (res.applied) await load()
+    } catch (e) {
+      toast(`Automatische Suche fehlgeschlagen: ${errorMessage(e)}`, 'error')
+    } finally {
+      setSearching(false)
+    }
+  }
 
   const save = async (clearPassword = false) => {
     if (!form) return
@@ -35,7 +64,8 @@ function ObsCard() {
     try {
       await api('/api/settings/obs', { method: 'PUT', body: { host: form.host, port: form.port, password: password || null, clearPassword } })
       setPassword('')
-      setForm({ ...form, hasPassword: clearPassword ? false : form.hasPassword || !!password })
+      // Der Dienst normalisiert Eingaben wie "ws://host:4455" - den gespeicherten Stand anzeigen.
+      await load()
       toast('Gespeichert – verbinde neu mit OBS …', 'success')
     } catch (e) {
       toast(`OBS-Einstellungen konnten nicht gespeichert werden: ${errorMessage(e)}`, 'error')
@@ -67,6 +97,38 @@ function ObsCard() {
       </div>
 
       {status !== 'connected' && obs?.error && <p className="mb-4 rounded-ctl bg-danger-soft px-3 py-2 text-sm text-danger">{obs.error}</p>}
+
+      {status !== 'connected' && (
+        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-card border border-brand/30 bg-brand-soft px-4 py-3">
+          <IconSparkles size={20} className="shrink-0 text-brand" />
+          <p className="min-w-0 flex-1 text-sm text-ink">
+            <strong>Automatisch einrichten:</strong> übernimmt Port und Passwort direkt aus OBS auf diesem PC – oder sucht OBS im Netzwerk.
+          </p>
+          <button className="btn btn-create" onClick={() => void discover()} disabled={searching}>
+            <IconSearch size={16} /> {searching ? 'Suche läuft …' : 'Automatisch finden'}
+          </button>
+        </div>
+      )}
+
+      {found.length > 0 && (
+        <div className="mb-5 space-y-2">
+          <span className="label">Gefunden – zum Übernehmen anklicken</span>
+          {found.map((f) => (
+            <button
+              key={`${f.host}:${f.port}`}
+              className="chip-select h-auto w-full justify-between px-3 py-2"
+              aria-pressed={form?.host === f.host && form?.port === f.port}
+              onClick={() => form && setForm({ ...form, host: f.host, port: f.port })}
+            >
+              <span className="font-mono">
+                {f.host}:{f.port}
+              </span>
+              <span className="text-xs font-medium">{f.isLocal ? 'dieser PC' : 'im Netzwerk'} · obs-websocket {f.webSocketVersion ?? '?'}</span>
+            </button>
+          ))}
+          <p className="text-xs text-ink-faint">Danach unten das WebSocket-Passwort dieses OBS eintragen und speichern.</p>
+        </div>
+      )}
 
       <ol className="mb-5 list-decimal space-y-1 pl-5 text-sm text-ink-muted">
         <li>In OBS: <strong className="text-ink">Werkzeuge → WebSocket-Server-Einstellungen</strong></li>
@@ -197,6 +259,7 @@ export function SettingsPage() {
       <div className="mx-auto max-w-3xl space-y-6 p-4 lg:p-8">
         <ObsCard />
         <GeneralCard />
+        <AboutCard />
       </div>
     </AppShell>
   )

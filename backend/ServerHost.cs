@@ -57,6 +57,7 @@ public static class ServerHost
         builder.Services.AddSingleton<PluginHost>();
         builder.Services.AddSingleton<PreviewSubscribers>();
         builder.Services.AddSingleton<ActionExecutor>();
+        builder.Services.AddSingleton<ObsDiscovery>();
         AddHostedSingleton<ObsService>(builder.Services);
         AddHostedSingleton<AutomationEngine>(builder.Services);
         AddHostedSingleton<HubNotifier>(builder.Services);
@@ -151,6 +152,8 @@ public static class ServerHost
             }
         }
         await services.GetRequiredService<SettingsService>().LoadAsync();
+        // Erster Start: OBS auf diesem PC ohne jede Eingabe verbinden (Port + Passwort aus OBS' Konfiguration).
+        await services.GetRequiredService<ObsDiscovery>().AutoConfigureOnFirstRunAsync();
     }
 
     private static void AddHostedSingleton<T>(IServiceCollection services) where T : class, IHostedService

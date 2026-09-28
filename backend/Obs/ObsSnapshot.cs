@@ -6,7 +6,13 @@ public record ObsSceneItem(int Id, string SourceName, bool Enabled, bool IsGroup
 
 public record ObsScene(string Name, IReadOnlyList<ObsSceneItem> Items);
 
-public record ObsAudioInput(string Name, bool Muted);
+/// <summary>Audiofaehige Quelle. VolumeDb: -100 (stumm/Regler ganz unten) bis 0 (voll).</summary>
+public record ObsAudioInput(string Name, bool Muted, double VolumeDb);
+
+/// <summary>Jede Quelle (Input) mit ihrer Art, z.B. "browser_source", "ffmpeg_source".</summary>
+public record ObsInput(string Name, string Kind);
+
+public record ObsMediaInput(string Name, bool Playing);
 
 /// <summary>
 /// Unveraenderlicher Schnappschuss des OBS-Zustands - wird komplett an alle Clients gepusht,
@@ -22,6 +28,14 @@ public record ObsSnapshot(
     bool StudioMode,
     IReadOnlyList<ObsScene> Scenes,
     IReadOnlyList<ObsAudioInput> AudioInputs,
+    IReadOnlyList<ObsInput> Inputs,
+    IReadOnlyList<ObsMediaInput> MediaInputs,
+    IReadOnlyList<string> Transitions,
+    string? CurrentTransition,
+    IReadOnlyList<string> SceneCollections,
+    string? CurrentSceneCollection,
+    IReadOnlyList<string> Profiles,
+    string? CurrentProfile,
     bool Streaming,
     DateTimeOffset? StreamStartedAt,
     bool Recording,
@@ -31,5 +45,7 @@ public record ObsSnapshot(
     bool VirtualCam)
 {
     public static readonly ObsSnapshot Empty = new(
-        ObsConnectionStatus.Disconnected, null, null, null, null, null, false, [], [], false, null, false, false, null, false, false);
+        ObsConnectionStatus.Disconnected, null, null, null, null, null, false,
+        [], [], [], [], [], null, [], null, [], null,
+        false, null, false, false, null, false, false);
 }

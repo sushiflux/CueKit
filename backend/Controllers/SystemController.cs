@@ -72,16 +72,69 @@ public class SettingsController(SettingsService settings, ObsService obs, Plugin
     [HttpPut("obs")]
     public async Task<IActionResult> SaveObs(ObsSettingsInput input)
     {
+        // Typische Eingaben wie "ws://192.168.1.5:4455/" oder "localhost:4455" freundlich zerlegen,
+        // statt eine ungueltige Adresse zu speichern.
         var host = input.Host.Trim();
-        if (host.Contains('/') || host.Contains(' '))
-            return BadRequest(new { error = "Bitte nur den Rechnernamen oder die IP eintragen (z.B. 127.0.0.1), ohne ws:// und ohne Pfad." });
+        var port = input.Port;
+        foreach (var scheme in new[] { "ws://", "wss://", "http://", "https://" })
+            if (host.StartsWith(scheme, StringComparison.OrdinalIgnoreCase)) host = host[scheme.Length..];
+        host = host.TrimEnd('/');
+        if (host.StartsWith('[') && host.IndexOf("]:", StringComparison.Ordinal) is var close and > 0)
+        {
+            // IPv6 mit Port: [fe80::1]:4455
+            if (int.TryParse(host[(close + 2)..], out var v6Port)) port = v6Port;
+            host = host[1..close];
+        }
+        else
+        {
+            host = host.Trim('[', ']');
+            var colon = host.LastIndexOf(':');
+            // Genau ein Doppelpunkt = "host:port" (IPv6-Adressen haben mehrere und bleiben unangetastet).
+            if (colon > 0 && host.IndexOf(':') == colon && int.TryParse(host[(colon + 1)..], out var embeddedPort))
+            {
+                host = host[..colon];
+                port = embeddedPort;
+            }
+        }
+        if (host.Length == 0 || host.Contains('/') || host.Contains(' ') || Uri.CheckHostName(host) == UriHostNameType.Unknown)
+            return BadRequest(new { error = $"„{input.Host}“ ist keine gültige Adresse. Bitte nur IP oder Rechnernamen eintragen, z.B. 127.0.0.1." });
+        if (port is < 1 or > 65535)
+            return BadRequest(new { error = "Der Port muss zwischen 1 und 65535 liegen (OBS-Standard: 4455)." });
 
         await settings.SetAsync(SettingKeys.ObsHost, host);
-        await settings.SetAsync(SettingKeys.ObsPort, input.Port.ToString());
+        await settings.SetAsync(SettingKeys.ObsPort, port.ToString());
         if (input.ClearPassword) await settings.SetObsPasswordAsync(null);
         else if (!string.IsNullOrEmpty(input.Password)) await settings.SetObsPasswordAsync(input.Password);
         obs.Reconnect();
         return NoContent();
+    }
+
+    /// <summary>OBS automatisch finden: lokale OBS-Konfiguration uebernehmen, sonst im Netzwerk suchen.</summary>
+    [HttpPost("obs/discover")]
+    public async Task<DiscoveryResult> DiscoverObs([FromServices] ObsDiscovery discovery, CancellationToken ct)
+    {
+        var result = await discovery.DiscoverAsync(ct);
+        if (result.Applied) obs.Reconnect();
+        return result;
+    }
+
+    /// <summary>Filter einer Quelle/Szene - fuer die Auswahl im Editor ("Filter ein/aus").</summary>
+    [HttpGet("obs/filters")]
+    public async Task<IActionResult> GetFilters([FromQuery] string source, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(source)) return BadRequest(new { error = "Bitte zuerst eine Quelle wählen." });
+        try
+        {
+            var result = await obs.RequestAsync("GetSourceFilterList", new { sourceName = source }, ct);
+            var filters = result?["filters"]?.AsArray()
+                .Select(f => new { name = f!["filterName"]!.GetValue<string>(), enabled = f["filterEnabled"]?.GetValue<bool>() ?? false })
+                .ToList();
+            return Ok(filters ?? []);
+        }
+        catch (Exception ex) when (ex is ObsRequestException or InvalidOperationException)
+        {
+            return UnprocessableEntity(new { error = $"Filter von „{source}“ konnten nicht geladen werden: {ex.Message}" });
+        }
     }
 
     [HttpPost("obs/reconnect")]

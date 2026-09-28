@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { Catalog, DeckModel, Me, ObsSnapshot } from '../api/types'
+import type { AutomationState, Catalog, DeckModel, Me, ObsSnapshot } from '../api/types'
 
 export type LinkStatus = 'connecting' | 'online' | 'offline'
 
@@ -7,6 +7,7 @@ export interface AppState {
   me: Me | null
   decks: DeckModel[]
   catalog: Catalog | null
+  automations: AutomationState[]
   obs: ObsSnapshot | null
   link: LinkStatus
   preview: string | null
@@ -17,6 +18,7 @@ let state: AppState = {
   me: null,
   decks: [],
   catalog: null,
+  automations: [],
   obs: null,
   link: 'connecting',
   preview: null,

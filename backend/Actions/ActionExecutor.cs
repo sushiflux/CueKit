@@ -1,12 +1,16 @@
+using Deck.Server.Automation;
+using Deck.Server.Data;
+using Deck.Server.Hubs;
 using Deck.Server.Obs;
 using Deck.Server.Plugins;
+using Microsoft.EntityFrameworkCore;
 
 namespace Deck.Server.Actions;
 
 public class ActionExecutionException(string message, Exception? inner = null) : Exception(message, inner);
 
 /// <summary>Fuehrt Aktionsschritte nacheinander aus - von Buttons wie von Automationen.</summary>
-public class ActionExecutor(ObsService obs, PluginHost plugins, ILogger<ActionExecutor> log)
+public class ActionExecutor(ObsService obs, PluginHost plugins, IServiceProvider services, ILogger<ActionExecutor> log)
 {
     public async Task ExecuteAsync(IReadOnlyList<ActionStep> steps, string origin, CancellationToken ct = default)
     {
@@ -98,6 +102,90 @@ public class ActionExecutor(ObsService obs, PluginHost plugins, ILogger<ActionEx
                 await Output(step.Mode, obs.State.VirtualCam, "ToggleVirtualCam", "StartVirtualCam", "StopVirtualCam", ct);
                 break;
 
+            case "obs.audio.volume":
+            {
+                var input = Required(step, "input");
+                double target;
+                if (step.Str("mode") == "set")
+                {
+                    target = step.Dbl("value") ?? throw new ActionExecutionException("Zielwert in dB fehlt.");
+                }
+                else
+                {
+                    var current = await obs.RequestAsync("GetInputVolume", new { inputName = input }, ct);
+                    var db = current?["inputVolumeDb"]?.GetValue<double>() ?? -100;
+                    if (!double.IsFinite(db)) db = -100;
+                    var stepDb = Math.Abs(step.Dbl("step") ?? 3);
+                    // Vom ganz heruntergezogenen Regler aus nicht ewig in -100-dB-Schritten "lauter" klicken.
+                    if (db < -60 && step.Str("mode") != "down") db = -60 - stepDb;
+                    target = step.Str("mode") == "down" ? db - stepDb : Math.Min(db + stepDb, Math.Max(0, db));
+                }
+                await obs.RequestAsync("SetInputVolume", new { inputName = input, inputVolumeDb = Math.Clamp(target, -100, 26) }, ct);
+                break;
+            }
+
+            case "obs.media":
+            {
+                var input = Required(step, "input");
+                var mode = step.Str("mode") ?? "playpause";
+                if (mode == "playpause")
+                    mode = obs.State.MediaInputs.FirstOrDefault(m => m.Name == input)?.Playing == true ? "pause" : "play";
+                var mediaAction = mode switch
+                {
+                    "play" => "PLAY", "pause" => "PAUSE", "stop" => "STOP", "restart" => "RESTART",
+                    "next" => "NEXT", "previous" => "PREVIOUS",
+                    _ => throw new ActionExecutionException($"Unbekannte Medien-Aktion '{mode}'."),
+                };
+                await obs.RequestAsync("TriggerMediaInputAction", new { inputName = input, mediaAction = $"OBS_WEBSOCKET_MEDIA_INPUT_ACTION_{mediaAction}" }, ct);
+                break;
+            }
+
+            case "obs.source.refresh":
+                await obs.RequestAsync("PressInputPropertiesButton", new { inputName = Required(step, "input"), propertyName = "refreshnocache" }, ct);
+                break;
+
+            case "obs.filter":
+            {
+                var source = Required(step, "source");
+                var filter = Required(step, "filter");
+                var enabled = step.Mode switch
+                {
+                    "on" => true,
+                    "off" => false,
+                    _ => !((await obs.RequestAsync("GetSourceFilter", new { sourceName = source, filterName = filter }, ct))?["filterEnabled"]?.GetValue<bool>() ?? false),
+                };
+                await obs.RequestAsync("SetSourceFilterEnabled", new { sourceName = source, filterName = filter, filterEnabled = enabled }, ct);
+                break;
+            }
+
+            case "obs.transition.set":
+                await obs.RequestAsync("SetCurrentSceneTransition", new { transitionName = Required(step, "transition") }, ct);
+                if (step.Int("duration") is > 0 and var duration)
+                    await obs.RequestAsync("SetCurrentSceneTransitionDuration", new { transitionDuration = Math.Clamp(duration, 50, 20000) }, ct);
+                break;
+
+            case "obs.collection":
+                await obs.RequestAsync("SetCurrentSceneCollection", new { sceneCollectionName = Required(step, "collection") }, ct);
+                break;
+
+            case "obs.profile":
+                await obs.RequestAsync("SetCurrentProfile", new { profileName = Required(step, "profile") }, ct);
+                break;
+
+            case "obs.record.chapter":
+                if (!obs.State.Recording) throw new ActionExecutionException("Es läuft keine Aufnahme – Kapitelmarken gehen nur während der Aufnahme.");
+                await obs.RequestAsync("CreateRecordChapter", step.Str("name") is { Length: > 0 } chapter ? new { chapterName = chapter } : null, ct);
+                break;
+
+            case "obs.record.split":
+                if (!obs.State.Recording) throw new ActionExecutionException("Es läuft keine Aufnahme, die geteilt werden könnte.");
+                await obs.RequestAsync("SplitRecordFile", ct: ct);
+                break;
+
+            case "automation.toggle":
+                await ToggleAutomationAsync(step, ct);
+                break;
+
             case "obs.hotkey":
                 await obs.RequestAsync("TriggerHotkeyByName", new { hotkeyName = Required(step, "name") }, ct);
                 break;
@@ -114,6 +202,20 @@ public class ActionExecutor(ObsService obs, PluginHost plugins, ILogger<ActionEx
                 }
                 throw new ActionExecutionException($"Unbekannte Aktion '{step.Type}'.");
         }
+    }
+
+    private async Task ToggleAutomationAsync(ActionStep step, CancellationToken ct)
+    {
+        var id = step.Int("automation") ?? throw new ActionExecutionException("Keine Automation ausgewählt.");
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var automation = await db.Automations.FirstOrDefaultAsync(a => a.Id == id, ct)
+                         ?? throw new ActionExecutionException("Diese Automation gibt es nicht mehr.");
+        automation.Enabled = step.Mode switch { "on" => true, "off" => false, _ => !automation.Enabled };
+        await db.SaveChangesAsync(ct);
+        // Aufgeloest erst hier: AutomationEngine haengt selbst vom ActionExecutor ab.
+        services.GetRequiredService<AutomationEngine>().Invalidate();
+        services.GetRequiredService<HubNotifier>().AutomationsChanged();
     }
 
     private async Task Output(string mode, bool active, string toggle, string start, string stop, CancellationToken ct)

@@ -3,6 +3,7 @@ using Deck.Server.Actions;
 using Deck.Server.Auth;
 using Deck.Server.Automation;
 using Deck.Server.Data;
+using Deck.Server.Hubs;
 using Deck.Server.Plugins;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,7 +14,7 @@ namespace Deck.Server.Controllers;
 [ApiController]
 [Route("api/automations")]
 [Authorize(AuthenticationSchemes = DeviceAuth.Scheme, Policy = DeviceAuth.OwnerPolicy)]
-public class AutomationsController(AppDbContext db, AutomationEngine engine, ActionExecutor executor) : ControllerBase
+public class AutomationsController(AppDbContext db, AutomationEngine engine, ActionExecutor executor, HubNotifier notifier) : ControllerBase
 {
     private static readonly JsonSerializerOptions Json = AutomationEngine.Json;
 
@@ -33,6 +34,7 @@ public class AutomationsController(AppDbContext db, AutomationEngine engine, Act
         db.Automations.Add(entity);
         await db.SaveChangesAsync();
         engine.Invalidate();
+        notifier.AutomationsChanged();
         return ToDto(entity);
     }
 
@@ -45,6 +47,7 @@ public class AutomationsController(AppDbContext db, AutomationEngine engine, Act
         Apply(entity, input);
         await db.SaveChangesAsync();
         engine.Invalidate();
+        notifier.AutomationsChanged();
         return ToDto(entity);
     }
 
@@ -54,6 +57,7 @@ public class AutomationsController(AppDbContext db, AutomationEngine engine, Act
         var deleted = await db.Automations.Where(a => a.Id == id).ExecuteDeleteAsync();
         if (deleted == 0) return NotFound(new { error = "Automation nicht gefunden." });
         engine.Invalidate();
+        notifier.AutomationsChanged();
         return NoContent();
     }
 
@@ -80,7 +84,8 @@ public class AutomationsController(AppDbContext db, AutomationEngine engine, Act
         var badCondition = input.Conditions?.FirstOrDefault(c => !AutomationCatalog.Conditions.Any(d => d.Type == c.Type));
         if (badCondition is not null) return $"Unbekannte Bedingung '{badCondition.Type}'.";
         var actions = input.Actions ?? [];
-        if (actions.Count == 0) return "Eine Automation braucht mindestens eine Aktion.";
+        // Entwuerfe (frisch per Taste angelegt) duerfen leer sein, solange sie ausgeschaltet sind.
+        if (actions.Count == 0 && input.Enabled) return "Eine Automation braucht mindestens eine Aktion („dann …“), bevor sie eingeschaltet werden kann.";
         if (actions.Count > 20) return "Höchstens 20 Aktionen pro Automation.";
         var badAction = actions.FirstOrDefault(s =>
             ActionCatalog.IsClientSide(s.Type) || (!ActionCatalog.BuiltIn.Any(d => d.Type == s.Type) && !PluginHost.TryParseActionType(s.Type, out _, out _)));
@@ -106,4 +111,15 @@ public class AutomationsController(AppDbContext db, AutomationEngine engine, Act
         JsonSerializer.Deserialize<List<AutomationPart>>(e.ConditionsJson, Json) ?? [],
         JsonSerializer.Deserialize<List<ActionStep>>(e.ActionsJson, Json) ?? [],
         engine.LastRuns.TryGetValue(e.Id, out var run) ? run : null);
+}
+
+/// <summary>Nur Name + an/aus fuer alle Geraete - damit Automations-Tasten auf jedem Deck richtig leuchten.</summary>
+[ApiController]
+[Route("api/automation-states")]
+[Authorize(AuthenticationSchemes = DeviceAuth.Scheme)]
+public class AutomationStatesController(AppDbContext db) : ControllerBase
+{
+    [HttpGet]
+    public async Task<object> List() =>
+        await db.Automations.AsNoTracking().OrderBy(a => a.Id).Select(a => new { a.Id, a.Name, a.Enabled }).ToListAsync();
 }

@@ -11,14 +11,18 @@ namespace Deck.Server.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public class AuthController(AppDbContext db, PairingService pairing, BootstrapPolicy bootstrap, DeviceTokenCache cache) : ControllerBase
+public class AuthController(AppDbContext db, PairingService pairing, BootstrapPolicy bootstrap, DeviceTokenCache cache, IConfiguration config) : ControllerBase
 {
     /// <summary>Oeffentlich: muss noch ein Besitzer eingerichtet werden, und darf dieses Geraet das?</summary>
     [HttpGet("status")]
     public async Task<object> Status()
     {
         var needsSetup = !await db.Devices.AnyAsync(d => d.Role == DeviceRole.Owner);
-        return new { needsSetup, canBootstrap = needsSetup && bootstrap.IsAllowed(HttpContext.Connection.RemoteIpAddress) };
+        var canBootstrap = needsSetup && bootstrap.IsAllowed(HttpContext.Connection.RemoteIpAddress);
+        // PC-Name als Vorschlag fuer den Geraetenamen - nur fuer den PC selbst, nicht fuers ganze Netz.
+        // Im Docker-Container liefert MachineName die Container-ID, daher der Windows-Name per Konfiguration.
+        var hostName = canBootstrap ? (config["Deck:HostName"] is { Length: > 0 } h ? h : Environment.MachineName) : null;
+        return new { needsSetup, canBootstrap, hostName };
     }
 
     /// <summary>

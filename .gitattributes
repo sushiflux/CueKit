@@ -1,0 +1,10 @@
+# Standard: Git normalisiert Textdateien.
+* text=auto
+
+# Shell-Skripte/Git-Hooks laufen unter sh (Git Bash, Docker) und brauchen LF - mit CRLF bricht
+# der post-commit-Versions-Hook ab.
+scripts/git-hooks/* text eol=lf
+*.sh text eol=lf
+
+# PowerShell-Skripte bleiben Windows-typisch.
+*.ps1 text eol=crlf

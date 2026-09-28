@@ -41,26 +41,32 @@ Voraussetzungen: Docker Desktop, OBS ≥ 28.
 
 1. In OBS **Werkzeuge → WebSocket-Server-Einstellungen → aktivieren**.
 2. `http://localhost:5200` öffnen → „Einrichten“ (dieser PC wird Besitzer-Gerät).
-3. **Einstellungen → OBS-Verbindung**: Passwort eintragen.
-4. **Editor → „Aus OBS befüllen“** – fertig ist das erste Deck.
+3. OBS verbindet sich automatisch (Port und Passwort werden aus OBS gelesen) – sonst
+   **Einstellungen → „Automatisch finden“**.
+4. Im Deck auf den **Bleistift** → „Aus OBS befüllen“ – fertig ist das erste Deck.
 5. **Geräte → Gerät koppeln**: QR-Code mit dem Handy scannen.
 
 Ports kommen fest aus der globalen Registry (`baton`: 5200 Frontend, 5201 Backend, 5202 Live).
 
 ## Status
 
-Fertig: Dienst, OBS-Anbindung, Deck, Editor (Drag & Drop, Ordner, Icons, Farben, Multi-Aktionen),
-Automationen, Geräte-Kopplung per QR, Live-Vorschau, Plugin-Schnittstelle.
+Fertig: Dienst, OBS-Anbindung (automatische Einrichtung aus der OBS-Konfiguration), Deck mit
+integriertem Bearbeiten-Modus (Bleistift): Palette nach Programm gruppiert (OBS › Szenen, Quellen,
+Audio, Medien, Stream & Aufnahme, Studio & Übergänge, Profile · Deck · Plugins), Drag & Drop,
+Tasten-Menü (Einzelne Aktion, Multifunktion, Automation, Ordner), Automationen als Tasten,
+Geräte-Kopplung per QR, Live-Vorschau, Plugin-Schnittstelle.
 
 Geplant: Windows-Desktop-Hülle (Tray + WebView2 + Autostart) mit Installer (WiX + eigene WPF-
 Oberfläche), erste offizielle Plugins (Photoshop, Lightroom, DaVinci Resolve), Mehrsprachigkeit.
 
 ## Lizenz
 
-- Baton selbst: [GPL v3](LICENSE) – Forks müssen quelloffen und GPL bleiben.
+- Baton selbst: **proprietär, kostenlos** ([LICENSE](LICENSE)) – dieses Repository ist privat.
 - Plugin-SDK/Beispiele (`plugins/`) und Plugin-Protokoll: [MIT](plugins/LICENSE) – Plugins dürfen
-  beliebig lizenziert werden.
-- Name und Logo „Baton“ sind nicht Teil der GPL. Details und CLA: [CONTRIBUTING.md](CONTRIBUTING.md).
+  beliebig lizenziert werden ([CONTRIBUTING.md](CONTRIBUTING.md)).
+- Drittanbieter: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md), erzeugt mit
+  `node scripts/generate-third-party-notices.ts` (vor jedem Release).
+- Sicherheit: [SECURITY.md](SECURITY.md) · Compliance (CRA, DSGVO): [docs/COMPLIANCE.md](docs/COMPLIANCE.md)
 
 ---
 

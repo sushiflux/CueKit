@@ -71,6 +71,9 @@ function Write-EnvFile {
     foreach ($key in $map.Keys) {
         $port = [int]$ports.($map[$key])
         if (-not $port) { throw "Kein Port '$($map[$key])' fuer '$RegistryKey' in $PortRegistryFile." }
+        # Docker Desktop (wslrelay) gibt Ports nach "compose down" erst mit Verzoegerung frei -
+        # kurz warten, bevor ein echter Konflikt gemeldet wird.
+        for ($try = 0; $try -lt 10 -and -not (Test-PortFree $port); $try++) { Start-Sleep -Seconds 1 }
         if (-not (Test-PortFree $port)) {
             $owner = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
             $proc = if ($owner) { (Get-Process -Id $owner.OwningProcess -ErrorAction SilentlyContinue).ProcessName } else { '?' }

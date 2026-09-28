@@ -15,6 +15,13 @@ public record ActionStep(string Type, JsonObject? Params)
         _ => null,
     };
 
+    public double? Dbl(string key) => Params?[key] switch
+    {
+        JsonValue v when v.TryGetValue<double>(out var d) => d,
+        JsonValue v when v.TryGetValue<string>(out var s) && double.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var p) => p,
+        _ => null,
+    };
+
     /// <summary>"toggle" (Standard), "on"/"start" oder "off"/"stop".</summary>
     public string Mode => Str("mode") ?? "toggle";
 }
@@ -26,6 +33,14 @@ public static class FieldKind
     public const string SceneItem = "sceneItem";   // benoetigt ein "scene"-Feld im selben Formular
     public const string AudioInput = "audioInput";
     public const string Page = "page";
+    public const string Source = "source";           // Szenen + Inputs (fuer Filter)
+    public const string Filter = "filter";           // benoetigt ein "source"-Feld im selben Formular
+    public const string MediaInput = "mediaInput";
+    public const string BrowserInput = "browserInput";
+    public const string Transition = "transition";
+    public const string SceneCollection = "sceneCollection";
+    public const string Profile = "profile";
+    public const string Automation = "automation";
     public const string Text = "text";
     public const string Number = "number";
     public const string Select = "select";

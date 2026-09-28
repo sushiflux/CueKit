@@ -12,7 +12,12 @@ services:
       Deck__ObsDefaultHost: host.docker.internal
       # Adresse, die in QR-Codes landet (LAN-IP des PCs, von start.ps1 ermittelt).
       Deck__PublicHost: ${LAN_IP:-}
+      # OBS-Konfiguration des Windows-Hosts (Port + Passwort) fuer die automatische Einrichtung.
+      Deck__ObsConfigPath: /obs-config/config.json
+      # Windows-PC-Name als Vorschlag fuer den Geraetenamen bei der Ersteinrichtung.
+      Deck__HostName: ${COMPUTERNAME:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./branding.json:/branding.json:ro
+      - ${APPDATA}/obs-studio/plugin_config/obs-websocket:/obs-config:ro

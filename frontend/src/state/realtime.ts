@@ -1,6 +1,6 @@
 import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr'
 import { api, getToken } from '../api/client'
-import type { Catalog, DeckModel, ObsSnapshot } from '../api/types'
+import type { AutomationState, Catalog, DeckModel, ObsSnapshot } from '../api/types'
 import { setState } from './store'
 
 let connection: HubConnection | null = null
@@ -9,6 +9,10 @@ let stopped = false
 
 export async function reloadDecks() {
   setState({ decks: await api<DeckModel[]>('/api/decks') })
+}
+
+export async function reloadAutomationStates() {
+  setState({ automations: await api<AutomationState[]>('/api/automation-states') })
 }
 
 export async function reloadCatalog() {
@@ -29,13 +33,16 @@ export async function startRealtime() {
   connection.on('preview', (dataUrl: string) => setState({ preview: dataUrl }))
   connection.on('decksChanged', () => void reloadDecks().catch(() => {}))
   connection.on('catalogChanged', () => void reloadCatalog().catch(() => {}))
-  connection.on('automationsChanged', () => window.dispatchEvent(new CustomEvent('deck:automations')))
+  connection.on('automationsChanged', () => {
+    void reloadAutomationStates().catch(() => {})
+    window.dispatchEvent(new CustomEvent('deck:automations'))
+  })
 
   connection.onreconnecting(() => setState({ link: 'connecting' }))
   connection.onreconnected(async () => {
     setState({ link: 'online' })
     // Waehrend der Trennung verpasste Aenderungen nachholen.
-    await Promise.allSettled([reloadDecks(), reloadCatalog()])
+    await Promise.allSettled([reloadDecks(), reloadCatalog(), reloadAutomationStates()])
     if (previewWanted) await connection?.invoke('SetPreview', true).catch(() => {})
   })
   connection.onclose(() => {

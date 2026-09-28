@@ -5,18 +5,16 @@ import { api, ApiError, errorMessage, getToken, setToken } from './api/client'
 import type { Me } from './api/types'
 import { ErrorScreen } from './components/ErrorScreen'
 import { Toaster } from './components/Toasts'
-import { AutomationsPage } from './pages/AutomationsPage'
 import { ConnectPage } from './pages/ConnectPage'
 import { DeckPage } from './pages/DeckPage'
 import { DevicesPage } from './pages/DevicesPage'
-import { EditorPage } from './pages/EditorPage'
 import { PluginsPage } from './pages/PluginsPage'
 import { SettingsPage } from './pages/SettingsPage'
-import { reloadCatalog, reloadDecks, startRealtime, stopRealtime } from './state/realtime'
+import { reloadAutomationStates, reloadCatalog, reloadDecks, startRealtime, stopRealtime } from './state/realtime'
 import { setState, useStore } from './state/store'
 import { loadIconSet } from './lib/icons'
 
-type Phase = { kind: 'loading' } | { kind: 'bootstrap' } | { kind: 'pair'; code: string } | { kind: 'ready' } | { kind: 'error'; message: string }
+type Phase = { kind: 'loading' } | { kind: 'bootstrap'; hostName: string | null } | { kind: 'pair'; code: string } | { kind: 'ready' } | { kind: 'error'; message: string }
 
 function OwnerOnly({ children }: { children: ReactNode }) {
   const me = useStore((s) => s.me)
@@ -42,7 +40,7 @@ export default function App() {
         try {
           const me = await api<Me>('/api/auth/me')
           setState({ me })
-          await Promise.all([reloadDecks(), reloadCatalog()])
+          await Promise.all([reloadDecks(), reloadCatalog(), reloadAutomationStates()])
           void startRealtime()
           void loadIconSet('tabler') // Standard-Sammlung vorladen, damit Tasten sofort Icons zeigen
           setPhase({ kind: 'ready' })
@@ -52,8 +50,8 @@ export default function App() {
           setToken(null)
         }
       }
-      const status = await api<{ needsSetup: boolean; canBootstrap: boolean }>('/api/auth/status')
-      setPhase(status.canBootstrap && !code ? { kind: 'bootstrap' } : { kind: 'pair', code })
+      const status = await api<{ needsSetup: boolean; canBootstrap: boolean; hostName: string | null }>('/api/auth/status')
+      setPhase(status.canBootstrap && !code ? { kind: 'bootstrap', hostName: status.hostName } : { kind: 'pair', code })
     } catch (e) {
       setPhase({ kind: 'error', message: errorMessage(e) })
     }
@@ -95,7 +93,7 @@ export default function App() {
       )
       break
     case 'bootstrap':
-      content = <ConnectPage mode="bootstrap" onConnected={() => void connect()} />
+      content = <ConnectPage mode="bootstrap" defaultName={phase.hostName} onConnected={() => void connect()} />
       break
     case 'pair':
       content = <ConnectPage mode="pair" initialCode={phase.code} onConnected={() => void connect()} />
@@ -105,8 +103,9 @@ export default function App() {
         <Routes>
           <Route path="/" element={<DeckPage />} />
           <Route path="/pair" element={<Navigate to="/" replace />} />
-          <Route path="/edit" element={<OwnerOnly><EditorPage /></OwnerOnly>} />
-          <Route path="/automations" element={<OwnerOnly><AutomationsPage /></OwnerOnly>} />
+          {/* Editor und Automationen leben jetzt im Deck selbst (Bleistift). */}
+          <Route path="/edit" element={<Navigate to="/?edit=1" replace />} />
+          <Route path="/automations" element={<Navigate to="/?edit=1" replace />} />
           <Route path="/plugins" element={<OwnerOnly><PluginsPage /></OwnerOnly>} />
           <Route path="/devices" element={<OwnerOnly><DevicesPage /></OwnerOnly>} />
           <Route path="/settings" element={<OwnerOnly><SettingsPage /></OwnerOnly>} />

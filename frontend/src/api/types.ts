@@ -14,6 +14,8 @@ export interface ButtonModel {
   icon: string | null
   color: string
   actions: ActionStep[]
+  /** z.B. "Ctrl+Shift+KeyF" - siehe lib/hotkeys.ts */
+  hotkey: string | null
 }
 
 export interface PageModel {
@@ -55,7 +57,15 @@ export interface ObsSnapshot {
   previewScene: string | null
   studioMode: boolean
   scenes: ObsScene[]
-  audioInputs: { name: string; muted: boolean }[]
+  audioInputs: { name: string; muted: boolean; volumeDb: number }[]
+  inputs: { name: string; kind: string }[]
+  mediaInputs: { name: string; playing: boolean }[]
+  transitions: string[]
+  currentTransition: string | null
+  sceneCollections: string[]
+  currentSceneCollection: string | null
+  profiles: string[]
+  currentProfile: string | null
   streaming: boolean
   streamStartedAt: string | null
   recording: boolean
@@ -65,7 +75,22 @@ export interface ObsSnapshot {
   virtualCam: boolean
 }
 
-export type FieldKind = 'scene' | 'sceneItem' | 'audioInput' | 'page' | 'text' | 'number' | 'select'
+export type FieldKind =
+  | 'scene'
+  | 'sceneItem'
+  | 'audioInput'
+  | 'page'
+  | 'source'
+  | 'filter'
+  | 'mediaInput'
+  | 'browserInput'
+  | 'transition'
+  | 'sceneCollection'
+  | 'profile'
+  | 'automation'
+  | 'text'
+  | 'number'
+  | 'select'
 
 export interface ActionField {
   key: string
@@ -126,4 +151,10 @@ export interface PluginModel {
   author: string | null
   icon: string
   actions: ActionDefinition[]
+}
+
+export interface AutomationState {
+  id: number
+  name: string
+  enabled: boolean
 }

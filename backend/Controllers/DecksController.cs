@@ -162,8 +162,12 @@ public partial class DecksController(AppDbContext db, HubNotifier notifier, ObsS
         db.Pages.Add(page);
         await db.SaveChangesAsync();
 
-        // Ordner bekommt automatisch einen "Zurueck"-Button oben links.
+        // Ordner bekommt automatisch "Zurueck" oben links und "Startseite" mittig in der letzten
+        // Reihe - beide lassen sich danach frei verschieben.
         page.Buttons.Add(new ButtonEntity { Row = 0, Column = 0, Label = "Zurück", Icon = "tabler:arrow-back-up", Color = "slate", ActionsJson = Serialize([Step("deck.back")]) });
+        var (homeRow, homeCol) = (parent.Deck.Rows - 1, parent.Deck.Columns / 2);
+        if (homeRow != 0 || homeCol != 0)
+            page.Buttons.Add(new ButtonEntity { Row = homeRow, Column = homeCol, Label = "Startseite", Icon = "tabler:home", Color = "slate", ActionsJson = Serialize([Step("deck.home")]) });
         var button = new ButtonEntity
         {
             PageId = parentId, Row = input.Row, Column = input.Column, Label = input.Name.Trim(),
@@ -225,6 +229,7 @@ public partial class DecksController(AppDbContext db, HubNotifier notifier, ObsS
         if (page?.Deck is null) return NotFound(new { error = "Seite nicht gefunden." });
         if (await SlotProblem(page.Deck, pageId, input.Row, input.Column, null) is { } problem) return Conflict(new { error = problem });
         if (ValidateInput(input) is { } invalid) return BadRequest(new { error = invalid });
+        if (await HotkeyConflict(input.Hotkey, null) is { } taken) return Conflict(new { error = taken });
 
         var button = new ButtonEntity { PageId = pageId, Row = input.Row, Column = input.Column };
         Apply(button, input);
@@ -241,6 +246,7 @@ public partial class DecksController(AppDbContext db, HubNotifier notifier, ObsS
         var button = await db.Buttons.FirstOrDefaultAsync(b => b.Id == id);
         if (button is null) return NotFound(new { error = "Button nicht gefunden." });
         if (ValidateInput(input) is { } invalid) return BadRequest(new { error = invalid });
+        if (await HotkeyConflict(input.Hotkey, id) is { } taken) return Conflict(new { error = taken });
         Apply(button, input);
         await db.SaveChangesAsync();
         await notifier.DecksChangedAsync();
@@ -301,10 +307,34 @@ public partial class DecksController(AppDbContext db, HubNotifier notifier, ObsS
     [GeneratedRegex("^[a-z0-9-]{1,40}:[a-z0-9-]{1,80}$")]
     private static partial Regex IconPattern();
 
+    // Modifikatoren in fester Reihenfolge + KeyboardEvent.code, z.B. "Ctrl+Shift+KeyF", "F13", "Numpad7".
+    [GeneratedRegex(@"^(Ctrl\+)?(Alt\+)?(Shift\+)?(Meta\+)?[A-Za-z0-9]{1,24}$")]
+    private static partial Regex HotkeyPattern();
+
+    [GeneratedRegex(@"^(F([1-9]|1[0-9]|2[0-4])|Numpad[A-Za-z0-9]+|Media[A-Za-z]+|AudioVolume[A-Za-z]+)$")]
+    private static partial Regex StandaloneKeyPattern();
+
+    /// <summary>Welche Taste nutzt dieses Kuerzel schon? Liefert eine konkrete Meldung oder null.</summary>
+    private async Task<string?> HotkeyConflict(string? hotkey, int? ignoreButtonId)
+    {
+        if (string.IsNullOrEmpty(hotkey)) return null;
+        var other = await db.Buttons.AsNoTracking().Include(b => b.Page).ThenInclude(p => p!.Deck)
+            .FirstOrDefaultAsync(b => b.Hotkey == hotkey && b.Id != ignoreButtonId);
+        if (other is null) return null;
+        var label = other.Label.Length > 0 ? other.Label : "ohne Namen";
+        return $"Dieses Tastenkürzel ist schon der Taste „{label}“ im Deck „{other.Page?.Deck?.Name}“ zugewiesen.";
+    }
+
     private static string? ValidateInput(ButtonInput input)
     {
         if (input.Color is { } c && !ColorPattern().IsMatch(c)) return "Ungültige Farbe.";
         if (input.Icon is { Length: > 0 } i && !IconPattern().IsMatch(i)) return "Ungültiger Icon-Name (erwartet z.B. 'tabler:video').";
+        if (input.Hotkey is { Length: > 0 } hk)
+        {
+            if (!HotkeyPattern().IsMatch(hk)) return "Ungültiges Tastenkürzel.";
+            if (!hk.Contains('+') && !StandaloneKeyPattern().IsMatch(hk))
+                return "Einzelne Tasten gehen nur für F1–F24, den Ziffernblock und Medientasten – sonst bitte mit Strg, Alt oder Umschalt kombinieren.";
+        }
         var steps = input.Actions ?? [];
         if (steps.Count > MaxSteps) return $"Höchstens {MaxSteps} Schritte pro Button.";
         var unknown = steps.FirstOrDefault(s => !ActionCatalog.BuiltIn.Any(d => d.Type == s.Type) && !PluginHost.TryParseActionType(s.Type, out _, out _));
@@ -317,6 +347,7 @@ public partial class DecksController(AppDbContext db, HubNotifier notifier, ObsS
         b.Icon = string.IsNullOrWhiteSpace(input.Icon) ? null : input.Icon;
         b.Color = input.Color ?? "slate";
         b.ActionsJson = Serialize(input.Actions ?? []);
+        if (input.Hotkey is not null) b.Hotkey = input.Hotkey.Length == 0 ? null : input.Hotkey;
     }
 
     private async Task<string?> SlotProblem(DeckEntity deck, int pageId, int row, int col, int? ignoreButtonId)
@@ -343,7 +374,7 @@ public partial class DecksController(AppDbContext db, HubNotifier notifier, ObsS
 
     private static string Truncate(string s, int max) => s.Length <= max ? s : s[..max];
 
-    private static ButtonDto ToDto(ButtonEntity b) => new(b.Id, b.PageId, b.Row, b.Column, b.Label, b.Icon, b.Color, ParseSteps(b.ActionsJson));
+    private static ButtonDto ToDto(ButtonEntity b) => new(b.Id, b.PageId, b.Row, b.Column, b.Label, b.Icon, b.Color, ParseSteps(b.ActionsJson), b.Hotkey);
 
     private static DeckDto ToDto(DeckEntity d) => new(d.Id, d.Name, d.Rows, d.Columns, d.SortOrder,
         d.Pages.OrderBy(p => p.ParentPageId.HasValue).ThenBy(p => p.Id)

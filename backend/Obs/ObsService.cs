@@ -14,6 +14,8 @@ public sealed class ObsService(SettingsService settings, ILogger<ObsService> log
         "SceneListChanged", "SceneCreated", "SceneRemoved", "SceneNameChanged",
         "SceneItemCreated", "SceneItemRemoved", "SceneItemListReindexed",
         "InputCreated", "InputRemoved", "InputNameChanged",
+        "CurrentSceneCollectionChanged", "SceneCollectionListChanged", "ProfileListChanged",
+        "SceneTransitionCreated", "SceneTransitionRemoved", "SceneTransitionNameChanged",
     ];
 
     private readonly object _lock = new();
@@ -56,7 +58,16 @@ public sealed class ObsService(SettingsService settings, ILogger<ObsService> log
         {
             _sessionCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
             var session = _sessionCts.Token;
-            var uri = new Uri($"ws://{settings.ObsHost}:{settings.ObsPort}");
+
+            // Eine kaputte Adresse darf nie den Dienst beenden - nur als Fehler anzeigen und auf
+            // neue Einstellungen warten.
+            if (!TryBuildUri(settings.ObsHost, settings.ObsPort, out var uri))
+            {
+                Update(_ => ObsSnapshot.Empty with { Error = $"Ungültige OBS-Adresse „{settings.ObsHost}:{settings.ObsPort}“. Bitte unter Einstellungen > OBS-Verbindung nur IP/Rechnername eintragen, den Port ins Feld „Port“." });
+                try { await Task.Delay(Timeout.Infinite, session); } catch (OperationCanceledException) { }
+                if (stoppingToken.IsCancellationRequested) break;
+                continue;
+            }
             Update(s => s with { Status = ObsConnectionStatus.Connecting });
 
             var client = new ObsWebSocketClient();
@@ -104,6 +115,22 @@ public sealed class ObsService(SettingsService settings, ILogger<ObsService> log
         }
     }
 
+    /// <summary>
+    /// Laeuft der Dienst im Container, meint "127.0.0.1"/"localhost" den Container selbst - OBS
+    /// laeuft aber auf dem Windows-Host. Dann automatisch auf host.docker.internal umleiten.
+    /// </summary>
+    private static bool TryBuildUri(string host, int port, out Uri uri)
+    {
+        var inContainer = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true";
+        host = host.Trim('[', ']');
+        if (inContainer && host is "127.0.0.1" or "localhost" or "::1") host = "host.docker.internal";
+        // IPv6-Adressen brauchen in einer URL eckige Klammern: ws://[fe80::1]:4455
+        var hostPart = System.Net.IPAddress.TryParse(host, out var ip) && ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6 ? $"[{host}]" : host;
+        var ok = Uri.TryCreate($"ws://{hostPart}:{port}", UriKind.Absolute, out var parsed) && port is > 0 and <= 65535;
+        uri = parsed!;
+        return ok;
+    }
+
     private async Task LoadFullStateAsync(CancellationToken ct)
     {
         var version = await RequestAsync("GetVersion", ct: ct);
@@ -118,18 +145,36 @@ public sealed class ObsService(SettingsService settings, ILogger<ObsService> log
         foreach (var name in sceneNames)
             scenes.Add(new ObsScene(name, await LoadSceneItemsAsync(name, ct)));
 
-        var inputs = await RequestAsync("GetInputList", ct: ct);
+        var inputList = await RequestAsync("GetInputList", ct: ct);
+        var inputs = new List<ObsInput>();
         var audio = new List<ObsAudioInput>();
-        foreach (var input in inputs?["inputs"]?.AsArray() ?? [])
+        var media = new List<ObsMediaInput>();
+        foreach (var input in inputList?["inputs"]?.AsArray() ?? [])
         {
             var name = input!["inputName"]!.GetValue<string>();
+            var kind = input["unversionedInputKind"]?.GetValue<string>() ?? input["inputKind"]?.GetValue<string>() ?? "";
+            inputs.Add(new ObsInput(name, kind));
             try
             {
                 var mute = await RequestAsync("GetInputMute", new { inputName = name }, ct);
-                audio.Add(new ObsAudioInput(name, mute?["inputMuted"]?.GetValue<bool>() ?? false));
+                var volume = await RequestAsync("GetInputVolume", new { inputName = name }, ct);
+                audio.Add(new ObsAudioInput(name, mute?["inputMuted"]?.GetValue<bool>() ?? false, Db(volume?["inputVolumeDb"])));
             }
             catch (ObsRequestException) { /* Quelle ohne Audio */ }
+            if (IsMediaKind(kind))
+            {
+                try
+                {
+                    var status = await RequestAsync("GetMediaInputStatus", new { inputName = name }, ct);
+                    media.Add(new ObsMediaInput(name, status?["mediaState"]?.GetValue<string>() == "OBS_MEDIA_STATE_PLAYING"));
+                }
+                catch (ObsRequestException) { media.Add(new ObsMediaInput(name, false)); }
+            }
         }
+
+        var transitions = await TryRequest("GetSceneTransitionList", ct);
+        var collections = await TryRequest("GetSceneCollectionList", ct);
+        var profiles = await TryRequest("GetProfileList", ct);
 
         var stream = await RequestAsync("GetStreamStatus", ct: ct);
         var record = await RequestAsync("GetRecordStatus", ct: ct);
@@ -151,6 +196,14 @@ public sealed class ObsService(SettingsService settings, ILogger<ObsService> log
             studio,
             scenes,
             audio,
+            inputs,
+            media,
+            transitions?["transitions"]?.AsArray().Select(t => t!["transitionName"]!.GetValue<string>()).ToList() ?? [],
+            transitions?["currentSceneTransitionName"]?.GetValue<string>(),
+            collections?["sceneCollections"]?.AsArray().Select(n => n!.GetValue<string>()).ToList() ?? [],
+            collections?["currentSceneCollectionName"]?.GetValue<string>(),
+            profiles?["profiles"]?.AsArray().Select(n => n!.GetValue<string>()).ToList() ?? [],
+            profiles?["currentProfileName"]?.GetValue<string>(),
             streaming,
             streaming ? now.AddMilliseconds(-(stream?["outputDuration"]?.GetValue<double>() ?? 0)) : null,
             recording,
@@ -160,6 +213,20 @@ public sealed class ObsService(SettingsService settings, ILogger<ObsService> log
             vcam));
     }
 
+    public static bool IsMediaKind(string kind) => kind is "ffmpeg_source" or "vlc_source";
+
+    /// <summary>OBS meldet einen ganz heruntergezogenen Regler teils als -inf bzw. sehr kleinen Wert.</summary>
+    private static double Db(JsonNode? node)
+    {
+        var db = node is JsonValue v && v.TryGetValue<double>(out var d) ? d : -100;
+        return double.IsFinite(db) ? Math.Clamp(db, -100, 26) : -100;
+    }
+
+    private async Task<JsonNode?> TryRequest(string requestType, CancellationToken ct)
+    {
+        try { return await RequestAsync(requestType, ct: ct); }
+        catch (ObsRequestException) { return null; }
+    }
     private async Task<IReadOnlyList<ObsSceneItem>> LoadSceneItemsAsync(string sceneName, CancellationToken ct)
     {
         var items = await RequestAsync("GetSceneItemList", new { sceneName }, ct);
@@ -232,6 +299,39 @@ public sealed class ObsService(SettingsService settings, ILogger<ObsService> log
                 });
                 break;
             }
+            case "InputVolumeChanged":
+            {
+                var name = Str(data, "inputName");
+                var db = Db(data?["inputVolumeDb"]);
+                Update(s => s with { AudioInputs = s.AudioInputs.Select(a => a.Name == name ? a with { VolumeDb = db } : a).ToList() });
+                break;
+            }
+            case "MediaInputPlaybackStarted" or "MediaInputPlaybackEnded":
+            {
+                var name = Str(data, "inputName");
+                var playing = type == "MediaInputPlaybackStarted";
+                Update(s => s with { MediaInputs = s.MediaInputs.Select(m => m.Name == name ? m with { Playing = playing } : m).ToList() });
+                break;
+            }
+            case "MediaInputActionTriggered":
+            {
+                var name = Str(data, "inputName");
+                bool? playing = Str(data, "mediaAction") switch
+                {
+                    "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PLAY" or "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART" => true,
+                    "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PAUSE" or "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_STOP" => false,
+                    _ => null,
+                };
+                if (playing is { } p)
+                    Update(s => s with { MediaInputs = s.MediaInputs.Select(m => m.Name == name ? m with { Playing = p } : m).ToList() });
+                break;
+            }
+            case "CurrentSceneTransitionChanged":
+                Update(s => s with { CurrentTransition = Str(data, "transitionName") });
+                break;
+            case "CurrentProfileChanged":
+                Update(s => s with { CurrentProfile = Str(data, "profileName") });
+                break;
             case "ReplayBufferStateChanged":
                 Update(s => s with { ReplayBuffer = Bool(data, "outputActive") });
                 break;

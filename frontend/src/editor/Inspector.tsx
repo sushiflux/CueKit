@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { api, errorMessage } from '../api/client'
 import type { ButtonModel, Catalog, DeckModel } from '../api/types'
 import { DeckKey } from '../components/DeckKey'
+import { HotkeyRecorder } from '../components/HotkeyRecorder'
 import { IconPicker } from '../components/IconPicker'
 import { toast } from '../components/Toasts'
 import { KEY_COLORS } from '../lib/keyColors'
@@ -34,7 +35,7 @@ export function Inspector({ button, deck, catalog, onOpenFolder, onDeleted }: Pr
     try {
       await api(`/api/buttons/${button.id}`, {
         method: 'PUT',
-        body: { row: draft.row, column: draft.column, label: draft.label, icon: draft.icon, color: draft.color, actions: draft.actions },
+        body: { row: draft.row, column: draft.column, label: draft.label, icon: draft.icon, color: draft.color, actions: draft.actions, hotkey: draft.hotkey ?? '' },
       })
       toast('Taste gespeichert.', 'success')
     } catch (e) {
@@ -102,6 +103,11 @@ export function Inspector({ button, deck, catalog, onOpenFolder, onDeleted }: Pr
               </button>
             ))}
           </div>
+        </div>
+
+        <div>
+          <span className="label">Tastenkürzel</span>
+          <HotkeyRecorder value={draft.hotkey} onChange={(hotkey) => setDraft({ ...draft, hotkey })} />
         </div>
 
         <div>

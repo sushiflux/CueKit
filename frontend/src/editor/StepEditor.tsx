@@ -1,5 +1,6 @@
 import { IconArrowDown, IconArrowUp, IconTrash } from '@tabler/icons-react'
-import { useId } from 'react'
+import { useEffect, useId, useState } from 'react'
+import { api } from '../api/client'
 import type { ActionDefinition, ActionField, ActionStep, DeckModel, Params } from '../api/types'
 import { KeyIcon } from '../components/KeyIcon'
 import { useStore } from '../state/store'
@@ -13,10 +14,31 @@ export function defaultParams(def: ActionDefinition | undefined): Params {
 }
 
 /** Formularfeld fuer einen Aktionsparameter - Szenen/Quellen/Audio kommen live aus OBS. */
+/** Filter einer Quelle werden bei Bedarf live aus OBS geholt. */
+function useFilters(source: string | undefined) {
+  const [filters, setFilters] = useState<string[] | null>(null)
+  useEffect(() => {
+    setFilters(null)
+    if (!source) return
+    let alive = true
+    api<{ name: string }[]>(`/api/settings/obs/filters?source=${encodeURIComponent(source)}`)
+      .then((f) => alive && setFilters(f.map((x) => x.name)))
+      .catch(() => alive && setFilters([]))
+    return () => {
+      alive = false
+    }
+  }, [source])
+  return filters
+}
+
+const toOptions = (names: string[]) => names.map((n) => ({ value: n, label: n }))
+
 function FieldInput({ field, params, deck, onChange }: { field: ActionField; params: Params; deck?: DeckModel; onChange: (value: string) => void }) {
   const obs = useStore((s) => s.obs)
+  const automations = useStore((s) => s.automations)
   const id = useId()
   const value = params[field.key] == null ? '' : String(params[field.key])
+  const filters = useFilters(field.kind === 'filter' && params.source ? String(params.source) : undefined)
 
   let options: { value: string; label: string }[] | null = null
   switch (field.kind) {
@@ -24,13 +46,37 @@ function FieldInput({ field, params, deck, onChange }: { field: ActionField; par
       options = field.options ?? []
       break
     case 'scene':
-      options = (obs?.scenes ?? []).map((s) => ({ value: s.name, label: s.name }))
+      options = toOptions((obs?.scenes ?? []).map((s) => s.name))
       break
     case 'sceneItem':
-      options = (obs?.scenes.find((s) => s.name === params.scene)?.items ?? []).map((i) => ({ value: i.sourceName, label: i.sourceName }))
+      options = toOptions((obs?.scenes.find((s) => s.name === params.scene)?.items ?? []).map((i) => i.sourceName))
       break
     case 'audioInput':
-      options = (obs?.audioInputs ?? []).map((a) => ({ value: a.name, label: a.name }))
+      options = toOptions((obs?.audioInputs ?? []).map((a) => a.name))
+      break
+    case 'source':
+      options = toOptions([...(obs?.scenes ?? []).map((s) => s.name), ...(obs?.inputs ?? []).map((i) => i.name)])
+      break
+    case 'filter':
+      options = toOptions(filters ?? [])
+      break
+    case 'mediaInput':
+      options = toOptions((obs?.mediaInputs ?? []).map((m) => m.name))
+      break
+    case 'browserInput':
+      options = toOptions((obs?.inputs ?? []).filter((i) => i.kind === 'browser_source').map((i) => i.name))
+      break
+    case 'transition':
+      options = toOptions(obs?.transitions ?? [])
+      break
+    case 'sceneCollection':
+      options = toOptions(obs?.sceneCollections ?? [])
+      break
+    case 'profile':
+      options = toOptions(obs?.profiles ?? [])
+      break
+    case 'automation':
+      options = automations.map((a) => ({ value: String(a.id), label: a.name }))
       break
     case 'page':
       options = (deck?.pages ?? []).filter((p) => p.parentPageId !== null).map((p) => ({ value: String(p.id), label: p.name }))
@@ -48,7 +94,21 @@ function FieldInput({ field, params, deck, onChange }: { field: ActionField; par
       </label>
       {options ? (
         <select id={id} className="field" value={value} onChange={(e) => onChange(e.target.value)}>
-          <option value="">{options.length === 0 ? (field.kind === 'page' ? 'Noch keine Ordner' : 'Keine Einträge – OBS verbunden?') : 'Bitte wählen …'}</option>
+          <option value="">
+            {options.length > 0
+              ? 'Bitte wählen …'
+              : field.kind === 'page'
+                ? 'Noch keine Ordner'
+                : field.kind === 'filter'
+                  ? params.source
+                    ? filters === null
+                      ? 'Lade Filter …'
+                      : 'Diese Quelle hat keine Filter'
+                    : 'Erst Quelle wählen'
+                  : field.kind === 'automation'
+                    ? 'Noch keine Automationen'
+                    : 'Keine Einträge – OBS verbunden?'}
+          </option>
           {options.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
@@ -150,6 +210,7 @@ export function StepEditor({ steps, definitions, onChange, deck, addLabel = 'Akt
                       const params: Params = { ...step.params, [f.key]: f.kind === 'number' ? (v === '' ? null : Number(v)) : v }
                       // Szene gewechselt -> Quellenauswahl zuruecksetzen, sie gehoert zur alten Szene.
                       if (f.kind === 'scene') def.fields.filter((x) => x.kind === 'sceneItem').forEach((x) => (params[x.key] = ''))
+                      if (f.kind === 'source') def.fields.filter((x) => x.kind === 'filter').forEach((x) => (params[x.key] = ''))
                       update(index, { ...step, params })
                     }}
                   />

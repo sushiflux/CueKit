@@ -1,9 +1,10 @@
-import { IconCrown, IconDeviceMobile, IconQrcode, IconRefresh, IconTrash } from '@tabler/icons-react'
+import { IconCrown, IconDeviceMobile, IconPencil, IconQrcode, IconRefresh, IconTrash } from '@tabler/icons-react'
 import { motion } from 'motion/react'
 import QRCode from 'qrcode'
 import { useCallback, useEffect, useState } from 'react'
 import { api, errorMessage } from '../api/client'
-import type { DeviceModel } from '../api/types'
+import type { DeviceModel, Me } from '../api/types'
+import { setState } from '../state/store'
 import { AppShell } from '../components/AppShell'
 import { Modal } from '../components/Modal'
 import { toast } from '../components/Toasts'
@@ -87,6 +88,56 @@ function PairingModal({ open, onClose }: { open: boolean; onClose: () => void })
   )
 }
 
+/** Geraetename mit Bleistift zum Umbenennen (Enter speichert, Esc bricht ab). */
+function DeviceName({ device, onRenamed }: { device: DeviceModel; onRenamed: () => void }) {
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(device.name)
+  useEffect(() => setName(device.name), [device.name])
+
+  const save = async () => {
+    const trimmed = name.trim()
+    setEditing(false)
+    if (!trimmed || trimmed === device.name) return setName(device.name)
+    try {
+      await api(`/api/devices/${device.id}`, { method: 'PATCH', body: { name: trimmed } })
+      // Eigener Name steht auch unten in der Seitenleiste -> dort ebenfalls aktualisieren.
+      if (device.isCurrent) setState({ me: await api<Me>('/api/auth/me') })
+      toast('Gerät umbenannt.', 'success')
+      onRenamed()
+    } catch (e) {
+      setName(device.name)
+      toast(`„${device.name}“ konnte nicht umbenannt werden: ${errorMessage(e)}`, 'error')
+    }
+  }
+
+  if (editing)
+    return (
+      <input
+        autoFocus
+        className="field h-8 max-w-xs font-bold"
+        maxLength={60}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onBlur={() => void save()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+          if (e.key === 'Escape') {
+            setName(device.name)
+            setEditing(false)
+          }
+        }}
+        aria-label="Gerätename"
+      />
+    )
+
+  return (
+    <button className="group flex min-w-0 items-center gap-1.5 text-left" onClick={() => setEditing(true)} title="Umbenennen">
+      <span className="truncate font-bold text-ink">{device.name}</span>
+      <IconPencil size={14} className="shrink-0 text-ink-faint transition-colors group-hover:text-brand" />
+    </button>
+  )
+}
+
 export function DevicesPage() {
   const [devices, setDevices] = useState<DeviceModel[] | null>(null)
   const [pairOpen, setPairOpen] = useState(false)
@@ -150,8 +201,8 @@ export function DevicesPage() {
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="truncate font-bold text-ink">{d.name}</span>
-                {d.isCurrent && <span className="rounded-badge bg-select-soft px-1.5 py-0.5 text-[11px] font-semibold text-select">Dieses Gerät</span>}
+                <DeviceName device={d} onRenamed={() => void load()} />
+                {d.isCurrent && <span className="shrink-0 rounded-badge bg-select-soft px-1.5 py-0.5 text-[11px] font-semibold text-select">Dieses Gerät</span>}
               </div>
               <div className="text-xs text-ink-faint">
                 {d.role === 'owner' ? 'Besitzer' : 'Steuergerät'} · gekoppelt {new Date(d.createdAt).toLocaleDateString('de-DE')}

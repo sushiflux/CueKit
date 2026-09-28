@@ -3,10 +3,8 @@ import {
   IconDeviceMobile,
   IconMenu2,
   IconMoon,
-  IconPencil,
   IconPlayerPlay,
   IconPuzzle,
-  IconRoute,
   IconSun,
   IconX,
 } from '@tabler/icons-react'
@@ -18,9 +16,7 @@ import { useTheme } from '../lib/theme'
 import { useStore } from '../state/store'
 
 const NAV = [
-  { to: '/', label: 'Live-Deck', icon: IconPlayerPlay, end: true },
-  { to: '/edit', label: 'Editor', icon: IconPencil },
-  { to: '/automations', label: 'Automationen', icon: IconRoute },
+  { to: '/', label: 'Deck', icon: IconPlayerPlay, end: true },
   { to: '/plugins', label: 'Plugins', icon: IconPuzzle },
   { to: '/devices', label: 'Geräte', icon: IconDeviceMobile },
   { to: '/settings', label: 'Einstellungen', icon: IconAdjustments },
@@ -83,10 +79,17 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <div className="space-y-3 px-5 py-4">
           <ObsStatusDot />
           <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <div className="truncate text-sm font-semibold text-ink">{me?.name}</div>
-              <div className="text-xs text-ink-faint">{me?.role === 'owner' ? 'Besitzer-Gerät' : 'Steuergerät'}</div>
-            </div>
+            {me?.role === 'owner' ? (
+              <NavLink to="/devices" onClick={onNavigate} className="group min-w-0 rounded-ctl" title="Gerät umbenennen oder verwalten">
+                <div className="truncate text-sm font-semibold text-ink group-hover:text-brand">{me.name}</div>
+                <div className="text-xs text-ink-faint">Besitzer-Gerät</div>
+              </NavLink>
+            ) : (
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-ink">{me?.name}</div>
+                <div className="text-xs text-ink-faint">Steuergerät</div>
+              </div>
+            )}
             <button className="btn btn-ghost btn-icon shrink-0" onClick={toggle} title={theme === 'dark' ? 'Helles Design' : 'Dunkles Design'}>
               {theme === 'dark' ? <IconSun size={17} /> : <IconMoon size={17} />}
             </button>
@@ -105,7 +108,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 /** Layout fuer alle Verwaltungsseiten: feste Sidebar am Desktop, Schublade auf kleinen Bildschirmen. */
-export function AppShell({ title, actions, children }: { title: string; actions?: ReactNode; children: ReactNode }) {
+export function AppShell({ title, actions, children }: { title: ReactNode; actions?: ReactNode; children: ReactNode }) {
   const [open, setOpen] = useState(false)
   const location = useLocation()
 
@@ -146,7 +149,7 @@ export function AppShell({ title, actions, children }: { title: string; actions?
           <button className="btn btn-ghost btn-icon lg:hidden" onClick={() => setOpen(true)} aria-label="Menü öffnen">
             <IconMenu2 size={18} />
           </button>
-          <h1 className="truncate text-lg font-bold tracking-tight text-ink">{title}</h1>
+          {typeof title === 'string' ? <h1 className="truncate text-lg font-bold tracking-tight text-ink">{title}</h1> : <div className="flex min-w-0 flex-1 items-center gap-3">{title}</div>}
           <div className="ml-auto flex items-center gap-2">{actions}</div>
         </header>
         <motion.main

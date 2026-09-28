@@ -10,13 +10,15 @@ backend/wwwroot/
 .env.*
 !.env.example
 
-# Laufzeitdaten (SQLite, DataProtection-Schluessel) - nie committen
+# Laufzeitdaten (SQLite, DataProtection-Schluessel) - nie committen.
+# Ordnerregeln bewusst am Repo-Stamm verankert: Git ignoriert unter Windows Gross-/Klein-
+# schreibung, ein nacktes "data/" traefe sonst auch backend/Data (Datenmodell + Migrationen!).
 *.db
 *.db-shm
 *.db-wal
-data/
-keys/
-secrets/
+/data/
+/keys/
+/secrets/
 
 # Playwright
 frontend/e2e/test-results/

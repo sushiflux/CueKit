@@ -1,35 +1,30 @@
-# Mitwirken / Contributing
+# Plugins entwickeln / Building plugins
 
-Danke, dass du Baton besser machen willst!
+Baton ist kostenlos, der Kern ist jedoch **nicht quelloffen** (siehe [LICENSE](LICENSE)).
+Offen ist alles, was du zum Erweitern brauchst: das **Plugin-Protokoll** und das **Plugin-SDK**.
 
 ## Lizenzen
 
 | Teil | Lizenz |
 |---|---|
-| Alles außerhalb von `plugins/` (Dienst, Oberfläche, Skripte) | [GPL v3](LICENSE) |
-| `plugins/` (Plugin-Beispiele/SDK) und [`docs/PLUGIN_PROTOCOL.md`](docs/PLUGIN_PROTOCOL.md) | [MIT](plugins/LICENSE) |
+| Baton (Dienst, Oberfläche, Installer) | proprietär, kostenlos – [LICENSE](LICENSE) |
+| `plugins/` (SDK, Beispiele) und [`docs/PLUGIN_PROTOCOL.md`](docs/PLUGIN_PROTOCOL.md) | [MIT](plugins/LICENSE) |
 
-Plugins sind eigenständige Programme, die über das dokumentierte WebSocket-Protokoll mit Baton
-sprechen. Sie dürfen unter jeder beliebigen Lizenz veröffentlicht werden – auch proprietär.
+## Eigene Plugins
+
+Plugins sind eigenständige Programme in beliebiger Sprache, die sich per WebSocket bei Baton
+anmelden – Details im [Plugin-Protokoll](docs/PLUGIN_PROTOCOL.md), Vorlage unter
+`plugins/example-hello/`. Deine Plugins gehören dir: Du darfst sie unter jeder Lizenz
+veröffentlichen, auch kostenpflichtig.
 
 ## Name und Logo
 
-„Baton“ und das Baton-Logo sind Kennzeichen von SushiFlux Develop und **nicht** Teil der
-GPL-Lizenz. Forks sind im Rahmen der GPL erlaubt, müssen aber einen eigenen Namen und ein eigenes
-Logo verwenden und dürfen nicht den Eindruck erwecken, das offizielle Baton zu sein.
+„Baton“ und das Baton-Logo sind Kennzeichen von SushiFlux Develop. Plugins dürfen angeben, dass
+sie „für Baton“ sind, aber nicht den Eindruck erwecken, ein offizielles Produkt zu sein.
 
-## Contributor License Agreement (CLA)
+## Sicherheitslücken
 
-Mit dem Einreichen eines Beitrags (Pull Request, Patch) erklärst du:
-
-1. Der Beitrag ist dein eigenes Werk, oder du hast das Recht, ihn einzureichen.
-2. Du räumst SushiFlux Develop ein zeitlich und räumlich unbeschränktes, weltweites,
-   unentgeltliches, nicht-exklusives und unwiderrufliches Recht ein, den Beitrag zu nutzen, zu
-   verändern, zu veröffentlichen und unter der GPL v3 **oder anderen Lizenzbedingungen**
-   weiterzugeben.
-3. Du behältst dein Urheberrecht am Beitrag.
-
-Beiträge ohne diese Zustimmung können leider nicht übernommen werden.
+Bitte vertraulich melden – siehe [SECURITY.md](SECURITY.md).
 
 ---
 

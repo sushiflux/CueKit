@@ -87,12 +87,14 @@ function BrandPanel() {
 interface Props {
   mode: 'bootstrap' | 'pair'
   initialCode?: string
+  /** Vorschlag fuer den Geraetenamen - bei der Ersteinrichtung der Name des PCs. */
+  defaultName?: string | null
   onConnected: () => void
 }
 
 /** Ersteinrichtung (am PC) bzw. Kopplung eines neuen Geraets - 1/3 Formular, 2/3 Markenflaeche. */
-export function ConnectPage({ mode, initialCode = '', onConnected }: Props) {
-  const [name, setName] = useState(() => (mode === 'bootstrap' ? 'Dieser PC' : guessDeviceName()))
+export function ConnectPage({ mode, initialCode = '', defaultName = null, onConnected }: Props) {
+  const [name, setName] = useState(() => defaultName?.trim() || (mode === 'bootstrap' ? 'Dieser PC' : guessDeviceName()))
   const [code, setCode] = useState(initialCode)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)

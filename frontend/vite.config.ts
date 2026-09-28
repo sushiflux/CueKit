@@ -40,7 +40,7 @@ export default defineConfig({
     proxy: {
       '/api': { target: backend, changeOrigin: false },
       '/hub': { target: backend, ws: true, changeOrigin: false },
-      '/plugins': { target: backend, ws: true, changeOrigin: false },
+      '/ws': { target: backend, ws: true, changeOrigin: false },
       '/manifest.webmanifest': { target: backend, changeOrigin: false },
     },
   },

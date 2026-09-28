@@ -12,6 +12,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useState, type ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router'
 import { branding } from '../config/branding'
+import { MadeWith } from './MadeWith'
 import { useTheme } from '../lib/theme'
 import { useStore } from '../state/store'
 
@@ -97,7 +98,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </div>
         <div className="mx-5 border-t border-line" />
         <div className="px-5 py-4 text-[11px] leading-relaxed text-ink-faint">
-          <div>Made with ♥ in {branding.madeIn}</div>
+          <div><MadeWith /></div>
           <div>
             © {new Date().getFullYear()} {branding.company} · <span className="tabular">{version}</span>
           </div>

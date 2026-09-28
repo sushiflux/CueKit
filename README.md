@@ -18,7 +18,7 @@ PC (installierte App)                         Handy / Tablet / Browser
 │ Dienst: ASP.NET Core + SQLite │  SignalR   └───────────────────────┘
 │  ├─ OBS-Client (obs-websocket v5) ──► OBS (ws://127.0.0.1:4455)
 │  ├─ Automations-Engine
-│  └─ Plugin-Host  ◄── ws /plugins ── Community-Plugins (eigene Prozesse)
+│  └─ Plugin-Host  ◄── ws /ws/plugins ── Community-Plugins (eigene Prozesse)
 └───────────────────────────────┘
 ```
 

@@ -15,6 +15,10 @@ export async function reloadAutomationStates() {
   setState({ automations: await api<AutomationState[]>('/api/automation-states') })
 }
 
+export async function reloadHotkeyStatus() {
+  setState({ hotkeys: await api<{ global: boolean; conflicts: string[] }>('/api/hotkeys/status') })
+}
+
 export async function reloadCatalog() {
   setState({ catalog: await api<Catalog>('/api/catalog') })
 }
@@ -33,6 +37,12 @@ export async function startRealtime() {
   connection.on('preview', (dataUrl: string) => setState({ preview: dataUrl }))
   connection.on('decksChanged', () => void reloadDecks().catch(() => {}))
   connection.on('catalogChanged', () => void reloadCatalog().catch(() => {}))
+  connection.on('pluginsChanged', () => window.dispatchEvent(new CustomEvent('deck:plugins')))
+  connection.on('hotkeysChanged', () => void reloadHotkeyStatus().catch(() => {}))
+  // Systemweites Tastenkuerzel wurde am PC gedrueckt -> offene Decks zeigen den Druck bzw. den Fehler.
+  connection.on('keyTriggered', (buttonId: number, error: string | null) =>
+    window.dispatchEvent(new CustomEvent('deck:keyTriggered', { detail: { buttonId, error } })),
+  )
   connection.on('automationsChanged', () => {
     void reloadAutomationStates().catch(() => {})
     window.dispatchEvent(new CustomEvent('deck:automations'))
@@ -42,7 +52,7 @@ export async function startRealtime() {
   connection.onreconnected(async () => {
     setState({ link: 'online' })
     // Waehrend der Trennung verpasste Aenderungen nachholen.
-    await Promise.allSettled([reloadDecks(), reloadCatalog(), reloadAutomationStates()])
+    await Promise.allSettled([reloadDecks(), reloadCatalog(), reloadAutomationStates(), reloadHotkeyStatus()])
     if (previewWanted) await connection?.invoke('SetPreview', true).catch(() => {})
   })
   connection.onclose(() => {

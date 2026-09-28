@@ -1,6 +1,9 @@
 # Dev-Image: dotnet watch mit Hot-Reload auf dem per Bind-Mount eingehaengten Quellcode.
 FROM mcr.microsoft.com/dotnet/sdk:10.0
 
+# Node.js-Laufzeit fuer Community-Plugins (JavaScript/TypeScript), direkt aus dem offiziellen Image.
+COPY --from=node:24-slim /usr/local/bin/node /usr/local/bin/node
+
 WORKDIR /app
 # Bind-Mounts von Windows liefern keine inotify-Events -> Polling.
 ENV DOTNET_USE_POLLING_FILE_WATCHER=1 \

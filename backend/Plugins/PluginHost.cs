@@ -12,7 +12,7 @@ public record PluginInfo(string Id, string Name, string Version, string? Author,
 
 /// <summary>
 /// Plugins sind eigenstaendige Prozesse (beliebige Sprache), die sich per WebSocket unter
-/// /plugins?key=... anmelden - analog zum Stream-Deck-SDK. Ein abstuerzendes Plugin reisst
+/// /ws/plugins?key=... anmelden - analog zum Stream-Deck-SDK. Ein abstuerzendes Plugin reisst
 /// dadurch nie den Dienst mit. Protokoll: siehe docs/PLUGIN_PROTOCOL.md.
 /// </summary>
 public partial class PluginHost(ILogger<PluginHost> log)

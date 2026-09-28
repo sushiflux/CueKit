@@ -2,6 +2,7 @@ import { IconAdjustmentsBolt, IconArrowRight, IconDeviceMobile, IconPlugConnecte
 import { motion } from 'motion/react'
 import { useState, type FormEvent } from 'react'
 import { api, errorMessage, setToken } from '../api/client'
+import { MadeWith } from '../components/MadeWith'
 import { branding } from '../config/branding'
 import { useStore } from '../state/store'
 
@@ -77,7 +78,7 @@ function BrandPanel() {
         </div>
 
         <div className="text-xs text-white/55">
-          Made with ♥ in {branding.madeIn} · © {new Date().getFullYear()} {branding.company} · <span className="tabular">{version}</span>
+          <MadeWith onDark /> · © {new Date().getFullYear()} {branding.company} · <span className="tabular">{version}</span>
         </div>
       </div>
     </div>

@@ -8,7 +8,7 @@ namespace Deck.Server.Services;
 /// <summary>Version (live aus version.txt, siehe post-commit-Hook) und Branding (aus branding.json).</summary>
 public class AppInfo(IWebHostEnvironment env, IConfiguration config)
 {
-    public record Branding(string ProductName, string Tagline, string Company, string MadeIn);
+    public record Branding(string ProductName, string Tagline, string Company);
 
     private Branding? _branding;
 
@@ -33,7 +33,7 @@ public class AppInfo(IWebHostEnvironment env, IConfiguration config)
             var b = JsonSerializer.Deserialize<Branding>(File.ReadAllText(path), new JsonSerializerOptions(JsonSerializerDefaults.Web));
             if (b is not null) return b;
         }
-        return new Branding("Deck", "", "", "");
+        return new Branding("Deck", "", "");
     }
 
     /// <summary>Sucht im ContentRoot, eine Ebene darueber (Repo-Wurzel bzw. /branding.json im Container) und neben der EXE.</summary>

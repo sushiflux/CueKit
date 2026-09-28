@@ -10,7 +10,7 @@ Plugin ab, läuft der Dienst unbeeinträchtigt weiter.
 ## Verbindung
 
 ```
-ws://<pc>:<port>/plugins?key=<plugin-schlüssel>
+ws://<pc>:<port>/ws/plugins?key=<plugin-schlüssel>
 ```
 
 Adresse und Schlüssel stehen in der App unter **Plugins → Plugin-Verbindung**. Der Schlüssel kann
@@ -81,6 +81,77 @@ Das Plugin **muss** innerhalb von 15 Sekunden antworten:
 { "type": "log", "message": "Verbunden mit Photoshop 2026" }
 ```
 
+## Paketformat (Installation)
+
+Plugins werden als **ZIP-Datei** installiert – entweder in der App unter *Plugins › Aus Datei
+installieren* oder automatisch aus dem offiziellen Katalog. Baton entpackt das Paket, startet es mit
+der mitgelieferten Node.js-Laufzeit und übergibt die Verbindung per Umgebungsvariable. Plugins
+laufen mit **JavaScript oder TypeScript** (Node.js ≥ 24 führt `.ts` direkt aus); andere Laufzeiten
+oder `.exe`-Dateien werden nicht unterstützt.
+
+```
+mein-plugin.zip
+├── manifest.json
+├── index.ts          (Startdatei, siehe "entry")
+└── …                 (weitere Dateien, z.B. node_modules/)
+```
+
+`manifest.json`:
+
+```json
+{
+  "id": "com.example.photoshop",
+  "name": "Photoshop",
+  "version": "1.2.0",
+  "author": "Jane Doe",
+  "description": "Aktionen und Ebenen in Photoshop steuern.",
+  "icon": "simple-icons:adobephotoshop",
+  "entry": "index.ts",
+  "runtime": "node",
+  "homepage": "https://example.com"
+}
+```
+
+Der Inhalt darf auch in genau einem Unterordner liegen (`mein-plugin/manifest.json`). Grenzen:
+25 MB gepackt, 150 MB entpackt, 5 000 Dateien. Pfade außerhalb des Paketordners werden abgelehnt.
+
+Umgebungsvariablen beim Start:
+
+| Variable | Inhalt |
+|---|---|
+| `DECK_URL` | WebSocket-Adresse, z.B. `ws://127.0.0.1:5202/ws/plugins` |
+| `DECK_KEY` | Plugin-Schlüssel |
+| `DECK_PLUGIN_ID` | ID aus dem Manifest |
+| `DECK_PLUGIN_DIR` | Installationsordner des Plugins |
+
+Ausgaben auf stdout/stderr erscheinen in der App im Plugin-Protokoll. Beendet sich das Plugin,
+startet Baton es neu (mit wachsender Pause); nach 5 Abstürzen innerhalb kurzer Zeit wird es angehalten.
+
+## Katalog-Format (offizielle Website)
+
+Die App liest den Katalog von der in `Deck:PluginCatalogUrl` konfigurierten Adresse:
+
+```json
+{
+  "plugins": [
+    {
+      "id": "com.example.photoshop",
+      "name": "Photoshop",
+      "version": "1.2.0",
+      "author": "Jane Doe",
+      "description": "Aktionen und Ebenen in Photoshop steuern.",
+      "icon": "simple-icons:adobephotoshop",
+      "downloadUrl": "https://…/com.example.photoshop-1.2.0.zip",
+      "sha256": "…64 Hex-Zeichen…",
+      "homepage": "https://example.com"
+    }
+  ]
+}
+```
+
+Jeder Download wird gegen `sha256` geprüft; die Plugin-ID im Paket muss zum Eintrag passen.
+
 ## Beispiel
 
-Ein lauffähiges Minimal-Plugin in TypeScript liegt unter `plugins/example-hello/`.
+Ein lauffähiges Minimal-Plugin in TypeScript (inkl. `manifest.json`) liegt unter
+`plugins/example-hello/`. Zum Testen den Ordnerinhalt als ZIP packen und in der App installieren.

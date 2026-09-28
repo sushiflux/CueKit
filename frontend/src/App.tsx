@@ -10,7 +10,7 @@ import { DeckPage } from './pages/DeckPage'
 import { DevicesPage } from './pages/DevicesPage'
 import { PluginsPage } from './pages/PluginsPage'
 import { SettingsPage } from './pages/SettingsPage'
-import { reloadAutomationStates, reloadCatalog, reloadDecks, startRealtime, stopRealtime } from './state/realtime'
+import { reloadAutomationStates, reloadCatalog, reloadDecks, reloadHotkeyStatus, startRealtime, stopRealtime } from './state/realtime'
 import { setState, useStore } from './state/store'
 import { loadIconSet } from './lib/icons'
 
@@ -41,6 +41,7 @@ export default function App() {
           const me = await api<Me>('/api/auth/me')
           setState({ me })
           await Promise.all([reloadDecks(), reloadCatalog(), reloadAutomationStates()])
+          void reloadHotkeyStatus().catch(() => {})
           void startRealtime()
           void loadIconSet('tabler') // Standard-Sammlung vorladen, damit Tasten sofort Icons zeigen
           setPhase({ kind: 'ready' })

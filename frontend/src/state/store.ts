@@ -8,6 +8,8 @@ export interface AppState {
   decks: DeckModel[]
   catalog: Catalog | null
   automations: AutomationState[]
+  /** global = Kuerzel systemweit bei Windows angemeldet; conflicts = von anderen Programmen belegt. */
+  hotkeys: { global: boolean; conflicts: string[] }
   obs: ObsSnapshot | null
   link: LinkStatus
   preview: string | null
@@ -19,6 +21,7 @@ let state: AppState = {
   decks: [],
   catalog: null,
   automations: [],
+  hotkeys: { global: false, conflicts: [] },
   obs: null,
   link: 'connecting',
   preview: null,

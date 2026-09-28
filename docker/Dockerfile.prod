@@ -18,6 +18,8 @@ RUN dotnet publish backend/Deck.Server.csproj -c Release -o /out --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
+# Node.js-Laufzeit fuer Community-Plugins (JavaScript/TypeScript).
+COPY --from=node:24-slim /usr/local/bin/node /usr/local/bin/node
 COPY --from=backend /out ./
 COPY --from=frontend /src/frontend/dist ./wwwroot
 COPY branding.json ./branding.json

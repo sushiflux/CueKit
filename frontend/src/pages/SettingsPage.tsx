@@ -1,8 +1,10 @@
-import { IconBroadcast, IconCheck, IconNetwork, IconRefresh, IconSearch, IconSparkles } from '@tabler/icons-react'
+import { IconBroadcast, IconCheck, IconClockHour4, IconNetwork, IconRefresh, IconSearch, IconSparkles } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
 import { api, errorMessage } from '../api/client'
 import { AboutCard } from '../components/AboutCard'
+import { BackupCard } from '../components/BackupCard'
 import { AppShell } from '../components/AppShell'
+import { KeyIcon } from '../components/KeyIcon'
 import { toast } from '../components/Toasts'
 import { useStore } from '../state/store'
 
@@ -25,7 +27,7 @@ interface GeneralSettings {
   lanAddresses: string[]
 }
 
-function ObsCard() {
+function ObsPanel() {
   const obs = useStore((s) => s.obs)
   const [form, setForm] = useState<ObsSettings | null>(null)
   const [password, setPassword] = useState('')
@@ -77,17 +79,11 @@ function ObsCard() {
   const status = obs?.status ?? 'disconnected'
 
   return (
-    <section className="card p-5">
+    <div>
       <div className="mb-4 flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-card bg-brand-soft text-brand">
-          <IconBroadcast size={20} />
-        </span>
-        <div>
-          <h2 className="font-bold text-ink">OBS-Verbindung</h2>
-          <p className="text-xs text-ink-faint">obs-websocket ist seit OBS 28 eingebaut – kein Plugin nötig.</p>
-        </div>
+        <p className="text-xs text-ink-faint">obs-websocket ist seit OBS 28 eingebaut – kein Plugin nötig.</p>
         <span
-          className={`ml-auto flex items-center gap-2 rounded-badge px-2 py-1 text-xs font-semibold ${
+          className={`ml-auto flex shrink-0 items-center gap-2 rounded-badge px-2 py-1 text-xs font-semibold ${
             status === 'connected' ? 'bg-[color-mix(in_oklab,var(--c-toggle-on)_15%,transparent)] text-ink' : 'bg-danger-soft text-danger'
           }`}
         >
@@ -174,6 +170,79 @@ function ObsCard() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+type Software = 'obs' | 'streamlabs' | 'xsplit'
+
+const SOFTWARE: { id: Software; name: string; icon: string }[] = [
+  { id: 'obs', name: 'OBS Studio', icon: 'simple-icons:obsstudio' },
+  { id: 'streamlabs', name: 'Streamlabs Desktop', icon: 'simple-icons:streamlabs' },
+  { id: 'xsplit', name: 'XSplit Broadcaster', icon: 'tabler:device-desktop' },
+]
+
+/** Platzhalter fuer Streaming-Software, deren Anbindung noch nicht gebaut/getestet ist. */
+function PlannedPanel({ name, details }: { name: string; details: string[] }) {
+  return (
+    <div className="space-y-3">
+      <p className="flex items-center gap-2 rounded-card border border-line bg-surface-2 px-4 py-3 text-sm text-ink">
+        <IconClockHour4 size={18} className="shrink-0 text-brand" />
+        Die Anbindung an {name} ist in Vorbereitung und erscheint mit einem der nächsten Updates.
+      </p>
+      <ul className="list-disc space-y-1 pl-5 text-sm text-ink-muted">
+        {details.map((d) => (
+          <li key={d}>{d}</li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/** Einstellungen > Streaming-Software: je Programm ein Reiter mit eigener Verbindung. */
+function StreamingSoftwareCard() {
+  const obs = useStore((s) => s.obs)
+  const [tab, setTab] = useState<Software>('obs')
+  return (
+    <section className="card p-5">
+      <div className="mb-4 flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-card bg-brand-soft text-brand">
+          <IconBroadcast size={20} />
+        </span>
+        <div>
+          <h2 className="font-bold text-ink">Streaming-Software</h2>
+          <p className="text-xs text-ink-faint">Verbindung zu dem Programm, das du steuern möchtest.</p>
+        </div>
+      </div>
+      <div className="mb-5 flex flex-wrap gap-2" role="tablist">
+        {SOFTWARE.map((s) => (
+          <button key={s.id} role="tab" aria-selected={tab === s.id} aria-pressed={tab === s.id} className="chip-select h-9 gap-2 px-3 text-sm" onClick={() => setTab(s.id)}>
+            <KeyIcon name={s.icon} size={16} />
+            {s.name}
+            {s.id === 'obs' ? (
+              <span className={`h-2 w-2 rounded-full ${obs?.status === 'connected' ? 'bg-[var(--c-toggle-on)]' : 'bg-live'}`} title={obs?.status === 'connected' ? 'verbunden' : 'getrennt'} />
+            ) : (
+              <span className="rounded-badge bg-surface-3 px-1.5 text-[10px] font-bold uppercase tracking-wide text-ink-faint">bald</span>
+            )}
+          </button>
+        ))}
+      </div>
+      {tab === 'obs' && <ObsPanel />}
+      {tab === 'streamlabs' && (
+        <PlannedPanel
+          name="Streamlabs Desktop"
+          details={[
+            'In Streamlabs: Einstellungen → Fernsteuerung – dort stehen Adresse und API-Token.',
+            'Baton verbindet sich wie bei OBS automatisch und zeigt Szenen, Quellen und Audio in der Palette.',
+          ]}
+        />
+      )}
+      {tab === 'xsplit' && (
+        <PlannedPanel
+          name="XSplit Broadcaster"
+          details={['XSplit wird über seine Erweiterungsschnittstelle angebunden.', 'Szenen wechseln, Aufnahme und Stream steuern sind als Erstes geplant.']}
+        />
+      )}
     </section>
   )
 }
@@ -257,8 +326,9 @@ export function SettingsPage() {
   return (
     <AppShell title="Einstellungen">
       <div className="mx-auto max-w-3xl space-y-6 p-4 lg:p-8">
-        <ObsCard />
+        <StreamingSoftwareCard />
         <GeneralCard />
+        <BackupCard />
         <AboutCard />
       </div>
     </AppShell>

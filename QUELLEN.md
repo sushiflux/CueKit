@@ -11,6 +11,15 @@ Wo Informationen für dieses Projekt nachgeschlagen wurden.
 
 | obs-websocket-Konfigurationsdatei | `%APPDATA%\obs-studio\plugin_config\obs-websocket\config.json` (Linux: `~/.config/obs-studio/…`, macOS: `~/Library/Application Support/obs-studio/…`) | Felder `server_enabled`, `server_port`, `auth_required`, `server_password` – Grundlage der automatischen Einrichtung in `backend/Obs/ObsDiscovery.cs` |
 
+## Windows / Plattform
+
+| Quelle | Wo | Wofür |
+|---|---|---|
+| RegisterHotKey (Win32) | https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-registerhotkey | Systemweite Tastenkürzel wie OBS, `MOD_NOREPEAT`, WM_HOTKEY auf dem registrierenden Thread – `backend/Hotkeys/GlobalHotkeyService.cs` |
+| MapVirtualKeyEx | https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-mapvirtualkeyexa | Scancode → Virtual-Key je Tastaturlayout (QWERTZ-sicher) |
+| Job Objects / JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | https://learn.microsoft.com/windows/win32/procthread/job-objects | Plugin-Prozesse enden mit Baton – `backend/Plugins/ChildProcessJob.cs` |
+| Node.js „type stripping“ | https://nodejs.org/api/typescript.html | Plugins in TypeScript ohne Build-Schritt ausführen |
+
 ## Recht / Compliance
 
 | Quelle | Wo | Wofür |

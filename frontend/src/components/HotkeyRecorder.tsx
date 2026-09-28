@@ -1,6 +1,7 @@
 import { IconKeyboard, IconX } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
 import { hotkeyFromEvent, hotkeyParts, hotkeyProblem } from '../lib/hotkeys'
+import { useStore } from '../state/store'
 
 /** Tastenkombination als kleine Tastenkappen, z.B. [Strg] [Umschalt] [F]. */
 export function HotkeyCaps({ hotkey, size = 'md' }: { hotkey: string; size?: 'sm' | 'md' }) {
@@ -32,6 +33,8 @@ interface Props {
 export function HotkeyRecorder({ value, onChange }: Props) {
   const [recording, setRecording] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
+  const status = useStore((s) => s.hotkeys)
+  const taken = !!value && status.conflicts.includes(value)
 
   useEffect(() => {
     if (!recording) return
@@ -86,9 +89,17 @@ export function HotkeyRecorder({ value, onChange }: Props) {
       </div>
       {problem ? (
         <p className="mt-1.5 text-xs text-danger">{problem}</p>
+      ) : taken && !recording ? (
+        <p className="mt-1.5 text-xs text-danger">
+          Diese Kombination hat bereits ein anderes Programm (z.B. OBS) systemweit belegt – sie wirkt deshalb nur im Browser. Bitte eine andere wählen.
+        </p>
       ) : (
         <p className="mt-1.5 text-xs text-ink-faint">
-          {recording ? 'Esc bricht ab, Entf entfernt das Kürzel.' : 'Wirkt, solange das Deck im Browser im Vordergrund ist. Systemweit (auch im Spiel) mit der Desktop-App.'}
+          {recording
+            ? 'Esc bricht ab, Entf entfernt das Kürzel.'
+            : status.global
+              ? 'Systemweit aktiv – wirkt auch, wenn ein Spiel oder ein anderes Programm im Vordergrund ist.'
+              : 'Wirkt, solange das Deck im Browser im Vordergrund ist. Systemweit (auch im Spiel) mit der installierten App.'}
         </p>
       )}
     </div>

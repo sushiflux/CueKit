@@ -16,6 +16,7 @@ _Automatisch erzeugt von `scripts/generate-third-party-notices.ts` – nicht von
 | Dienst | Microsoft.EntityFrameworkCore.Sqlite.Core | 10.0.12 | MIT |
 | Dienst | Microsoft.Extensions.DependencyModel | 10.0.12 | MIT |
 | Dienst | Newtonsoft.Json | 13.0.4 | MIT |
+| Dienst | Node.js | 24.19.0 | MIT |
 | Dienst | SQLitePCLRaw.bundle_e_sqlite3 | 2.1.12 | Apache-2.0 |
 | Dienst | SQLitePCLRaw.core | 2.1.12 | Apache-2.0 |
 | Dienst | SQLitePCLRaw.lib.e_sqlite3 | 2.1.12 | Apache-2.0 |

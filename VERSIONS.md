@@ -6,7 +6,7 @@ Changelogs da). „Latest available“ wird zu Sessionbeginn live neu geprüft.
 | Component | Current version | Latest available | Check for updates |
 |---|---|---|---|
 | .NET | 10.0.401 SDK | 10.0.401 SDK | https://dotnet.microsoft.com/download/dotnet |
-| Node.js | 24 | 24 LTS | https://nodejs.org/en/download |
+| Node.js | 24 (Build + Plugin-Laufzeit im Backend-Image) | 24 LTS | https://nodejs.org/en/download |
 | React | 19.3.0 | 19.3.0 | https://github.com/facebook/react/releases |
 | React Router | 8.4.0 | 8.4.0 | https://github.com/remix-run/react-router/releases |
 | Vite | 8.3.1 | 8.3.1 | https://github.com/vitejs/vite/releases |

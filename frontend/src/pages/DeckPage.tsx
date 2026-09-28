@@ -161,6 +161,18 @@ export function DeckPage() {
     return () => window.removeEventListener('keydown', onKey)
   }, [editing, hotkeyMap, press])
 
+  // Systemweites Kuerzel am PC gedrueckt (Dienst hat ausgeloest) -> Taste kurz einsinken lassen / Fehler zeigen.
+  useEffect(() => {
+    const onTriggered = (e: Event) => {
+      const { buttonId, error } = (e as CustomEvent<{ buttonId: number; error: string | null }>).detail
+      setFlashKey(buttonId)
+      setTimeout(() => setFlashKey((k) => (k === buttonId ? null : k)), 160)
+      if (error) toast(error, 'error')
+    }
+    window.addEventListener('deck:keyTriggered', onTriggered)
+    return () => window.removeEventListener('deck:keyTriggered', onTriggered)
+  }, [])
+
   const onMenuPick = async (id: string) => {
     if (!menu) return
     if (id === 'edit') return setEditing(true, menu.button.id)

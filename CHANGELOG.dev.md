@@ -7,7 +7,38 @@ release lives in `CHANGELOG.md`.
 
 # English
 
-## v2026.9.2 - 2026-09-28 21:10
+## v2026.9.3 - 2026-09-28 21:29
+
+Plugin installation (ZIP + catalog), system-wide hotkeys, deck backup/restore, streaming-software tabs.
+
+- **Plugin packages:** `PluginPackage` validates/extracts ZIPs (manifest.json, Node-only entry `.js/.mjs/.ts`,
+  zip-slip + size/entry limits, optional single root folder). `PluginManager` (hosted) installs/updates
+  into `{DataDir}/plugins/{id}` (`InstalledPluginEntity`, migration `InstalledPlugins`), starts plugins
+  with `node` after Kestrel is listening, passes `DECK_URL/DECK_KEY/DECK_PLUGIN_ID/DECK_PLUGIN_DIR`,
+  keeps a 200-line log, restarts with backoff and stops after 5 quick crashes. `ChildProcessJob`
+  (Windows job object, kill-on-close) ends plugins together with Baton even on crash/kill.
+  `PluginCatalog` reads `Deck:PluginCatalogUrl` (index with `downloadUrl` + `sha256`, verified).
+  `PluginsController` (`/api/plugins`, install/enable/restart/uninstall/log/catalog). Hub event
+  `pluginsChanged`. Backend images ship Node.js 24 (`COPY --from=node:24-slim`).
+- **Fix:** plugin WebSocket endpoint moved from `/plugins` to `/ws/plugins` – it shadowed the SPA route,
+  so reloading the Plugins page returned the endpoint's JSON error.
+- **System-wide hotkeys:** `GlobalHotkeyService` (Windows only, `Deck:GlobalHotkeys`) registers all
+  button hotkeys via `RegisterHotKey` on a message-loop thread; `KeyboardEvent.code` mapped via scan
+  code + `MapVirtualKeyEx` (layout-safe). Triggers server-side steps and broadcasts `keyTriggered`;
+  conflicts (taken by other apps) exposed via `GET /api/hotkeys/status` and shown in the recorder.
+  `HubNotifier.DecksChanged` event drives re-registration.
+- **Backup:** `BackupController` – `GET /api/backup/export[?deckId]` (versioned format `baton-decks` v1,
+  referenced automations included), `POST /api/backup/import` (always adds, remaps folder/automation
+  ids, skips taken hotkeys, drops unknown actions, replaces the untouched default deck on a fresh
+  install). UI: `BackupCard` in settings, "Exportieren" in the editor toolbar.
+- **UI:** new Plugins page (tabs Installed/Catalog, ZIP drop zone with warning, log modal, developer
+  section). Settings: "Streaming-Software" card with tabs OBS (functional) / Streamlabs / XSplit
+  (placeholders until testable). `MadeWith` component ("Mit ♥ gemacht" / "Made with ♥", green heart),
+  `madeIn` removed from `branding.json`.
+- **Misc:** `ActionStep.Mode` no longer serialized (`[JsonIgnore]`); third-party notices include the
+  bundled Node.js runtime; docs: package + catalog format in `docs/PLUGIN_PROTOCOL.md`.
+
+## v2026.9.2 - 2026-09-28 20:57
 
 Closed-source licensing, OBS auto-setup, editor/automations merged into the deck, hotkeys.
 
@@ -96,7 +127,41 @@ Initial scaffold of Baton - a free, community-extensible Stream Deck alternative
 
 # Deutsch
 
-## v2026.9.2 - 2026-09-28 21:10
+## v2026.9.3 - 2026-09-28 21:29
+
+Plugin-Installation (ZIP + Katalog), systemweite Tastenkürzel, Deck-Sicherung, Reiter „Streaming-Software“.
+
+- **Plugin-Pakete:** `PluginPackage` prüft und entpackt ZIPs (manifest.json, nur Node-Startdateien
+  `.js/.mjs/.ts`, Zip-Slip-Schutz, Größen-/Dateigrenzen, optional ein Wurzelordner). `PluginManager`
+  (Hintergrunddienst) installiert/aktualisiert nach `{DataDir}/plugins/{id}` (`InstalledPluginEntity`,
+  Migration `InstalledPlugins`), startet Plugins mit `node`, sobald Kestrel lauscht, übergibt
+  `DECK_URL/DECK_KEY/DECK_PLUGIN_ID/DECK_PLUGIN_DIR`, führt ein 200-Zeilen-Protokoll, startet mit
+  wachsender Pause neu und hält nach 5 schnellen Abstürzen an. `ChildProcessJob` (Windows-Job-Objekt,
+  Kill-on-Close) beendet Plugins auch bei Absturz/hartem Beenden von Baton. `PluginCatalog` liest
+  `Deck:PluginCatalogUrl` (Index mit `downloadUrl` + geprüftem `sha256`). `PluginsController`
+  (`/api/plugins`: Installieren/Ein-Aus/Neustart/Deinstallieren/Protokoll/Katalog). Hub-Event
+  `pluginsChanged`. Backend-Images enthalten Node.js 24 (`COPY --from=node:24-slim`).
+- **Fix:** Plugin-WebSocket von `/plugins` nach `/ws/plugins` verlegt – er überdeckte die Seite
+  „Plugins“, beim Neuladen kam die JSON-Fehlermeldung des Endpunkts.
+- **Systemweite Tastenkürzel:** `GlobalHotkeyService` (nur Windows, `Deck:GlobalHotkeys`) meldet alle
+  Kürzel per `RegisterHotKey` auf einem Thread mit Nachrichtenschleife an; `KeyboardEvent.code` wird
+  über Scancode + `MapVirtualKeyEx` layoutsicher umgesetzt. Löst die Schritte serverseitig aus und
+  sendet `keyTriggered`; von anderen Programmen belegte Kürzel über `GET /api/hotkeys/status`, Anzeige
+  im Recorder. Neuregistrierung über das Event `HubNotifier.DecksChanged`.
+- **Sicherung:** `BackupController` – `GET /api/backup/export[?deckId]` (versioniertes Format
+  `baton-decks` v1 inkl. verknüpfter Automationen), `POST /api/backup/import` (legt immer zusätzlich an,
+  biegt Ordner-/Automations-IDs um, lässt vergebene Kürzel aus, verwirft unbekannte Aktionen, ersetzt
+  bei frischer Installation das unbenutzte Start-Deck). UI: `BackupCard` in den Einstellungen,
+  „Exportieren“ in der Editor-Leiste.
+- **Oberfläche:** neue Plugin-Seite (Reiter Installiert/Katalog, ZIP-Ablage mit Warnhinweis,
+  Protokoll-Dialog, Entwickler-Bereich). Einstellungen: Karte „Streaming-Software“ mit Reitern OBS
+  (funktionsfähig) / Streamlabs / XSplit (Platzhalter, bis testbar). Komponente `MadeWith`
+  („Mit ♥ gemacht“ / „Made with ♥“, grünes Herz), `madeIn` aus `branding.json` entfernt.
+- **Sonstiges:** `ActionStep.Mode` wird nicht mehr mitgespeichert (`[JsonIgnore]`); Drittanbieter-
+  Hinweise enthalten die mitgelieferte Node.js-Laufzeit; Doku: Paket- und Katalogformat in
+  `docs/PLUGIN_PROTOCOL.md`.
+
+## v2026.9.2 - 2026-09-28 20:57
 
 Closed-Source-Lizenz, automatische OBS-Einrichtung, Editor/Automationen im Deck, Tastenkürzel.
 

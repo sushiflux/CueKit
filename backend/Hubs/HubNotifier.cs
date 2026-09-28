@@ -11,6 +11,7 @@ public sealed class HubNotifier(
     IHubContext<DeckHub> hub,
     ObsService obs,
     PluginHost plugins,
+    PluginManager pluginManager,
     AutomationEngine automations,
     PreviewSubscribers previewSubscribers,
     SettingsService settings,
@@ -18,7 +19,14 @@ public sealed class HubNotifier(
 {
     private int _statePending;
 
-    public Task DecksChangedAsync() => hub.Clients.All.SendAsync("decksChanged");
+    /// <summary>Tasten/Decks geaendert - z.B. fuer die systemweiten Tastenkuerzel.</summary>
+    public event Action? DecksChanged;
+
+    public Task DecksChangedAsync()
+    {
+        DecksChanged?.Invoke();
+        return hub.Clients.All.SendAsync("decksChanged");
+    }
 
     /// <summary>Automationen angelegt/geaendert/an- oder ausgeschaltet -> Tasten-LEDs aktualisieren.</summary>
     public void AutomationsChanged() => _ = hub.Clients.All.SendAsync("automationsChanged");
@@ -27,6 +35,8 @@ public sealed class HubNotifier(
     {
         obs.StateChanged += OnObsStateChanged;
         plugins.Changed += OnCatalogChanged;
+        plugins.Changed += OnPluginsChanged;
+        pluginManager.Changed += OnPluginsChanged;
         automations.RunsChanged += OnAutomationsChanged;
         try
         {
@@ -36,6 +46,8 @@ public sealed class HubNotifier(
         {
             obs.StateChanged -= OnObsStateChanged;
             plugins.Changed -= OnCatalogChanged;
+            plugins.Changed -= OnPluginsChanged;
+            pluginManager.Changed -= OnPluginsChanged;
             automations.RunsChanged -= OnAutomationsChanged;
         }
     }
@@ -53,6 +65,9 @@ public sealed class HubNotifier(
     }
 
     private void OnCatalogChanged() => _ = hub.Clients.All.SendAsync("catalogChanged");
+
+    /// <summary>Installiert/gestartet/abgestuerzt/verbunden - fuer die Plugin-Seite.</summary>
+    private void OnPluginsChanged() => _ = hub.Clients.All.SendAsync("pluginsChanged");
 
     private void OnAutomationsChanged() => _ = hub.Clients.All.SendAsync("automationsChanged");
 

@@ -1,5 +1,5 @@
 import { DndContext, DragOverlay, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core'
-import { IconCheck, IconLayoutGrid, IconPlus, IconSparkles } from '@tabler/icons-react'
+import { IconCheck, IconDownload, IconLayoutGrid, IconPlus, IconSparkles } from '@tabler/icons-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { api, errorMessage } from '../api/client'
 import type { ButtonModel, DeckModel, PageModel } from '../api/types'
@@ -11,6 +11,7 @@ import { AutomationInspector } from '../editor/AutomationInspector'
 import { Inspector } from '../editor/Inspector'
 import { buildPalette, Palette, type PaletteItem } from '../editor/Palette'
 import { TileMenu, type MenuItem } from '../editor/TileMenu'
+import { downloadExport } from '../lib/backup'
 import { buttonLevel, isButtonActive } from '../lib/buttonState'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { useStore } from '../state/store'
@@ -237,6 +238,13 @@ export function DeckEditor({ deck, page, onOpenFolder, onDeckCreated, onDone, in
             </button>
             <button className="btn btn-ghost btn-sm" onClick={() => void generate()} disabled={obs?.status !== 'connected'} title="Stream, Aufnahme, alle Szenen und Audioquellen automatisch anlegen">
               <IconSparkles size={15} /> Aus OBS befüllen
+            </button>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => void downloadExport(deck.id).catch((e) => toast(`Export fehlgeschlagen: ${errorMessage(e)}`, 'error'))}
+              title="Dieses Deck als Datei sichern"
+            >
+              <IconDownload size={15} /> Exportieren
             </button>
             <button className="btn btn-ghost btn-sm" onClick={() => setNewDeckOpen(true)}>
               <IconPlus size={15} /> Neues Deck

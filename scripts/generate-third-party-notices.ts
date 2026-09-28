@@ -77,6 +77,18 @@ for (const fw of listing.projects[0]?.frameworks ?? []) {
   }
 }
 
+// ---------- Mitgelieferte Laufzeit fuer Plugins ----------
+// Node.js steckt im Produkt (Docker-Image bzw. spaeter im Installer), ist aber kein npm-Paket.
+const nodeLicense = [join(process.execPath, '..', 'LICENSE'), '/usr/local/include/node/LICENSE'].find((p) => existsSync(p))
+entries.push({
+  name: 'Node.js',
+  version: process.versions.node,
+  license: 'MIT',
+  url: 'https://nodejs.org',
+  component: 'Dienst',
+  text: nodeLicense ? readFileSync(nodeLicense, 'utf8').trim() : null,
+})
+
 entries.sort((a, b) => a.component.localeCompare(b.component) || a.name.localeCompare(b.name))
 
 // Copyleft-Lizenzen koennten eine Offenlegung des eigenen Codes erzwingen -> laut melden.

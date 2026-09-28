@@ -41,8 +41,12 @@ public class SystemController(AppInfo app) : ControllerBase
 [ApiController]
 [Route("api")]
 [Authorize(AuthenticationSchemes = DeviceAuth.Scheme)]
-public class CatalogController(PluginHost plugins) : ControllerBase
+public class CatalogController(PluginHost plugins, Hotkeys.IGlobalHotkeys globalHotkeys) : ControllerBase
 {
+    /// <summary>Laufen Tastenkuerzel systemweit (Windows), und welche sind von anderen Programmen belegt?</summary>
+    [HttpGet("hotkeys/status")]
+    public Hotkeys.HotkeyStatus HotkeyStatus() => globalHotkeys.Status;
+
     /// <summary>Alles, was der Editor fuer Formulare braucht: Aktionen (inkl. Plugins), Ausloeser, Bedingungen.</summary>
     [HttpGet("catalog")]
     public object Catalog() => new
@@ -164,7 +168,7 @@ public class SettingsController(SettingsService settings, ObsService obs, Plugin
     public object GetPlugins()
     {
         var baseUrl = $"ws://{Request.Host}";
-        return new { plugins = plugins.Plugins, connectUrl = $"{baseUrl}/plugins", key = settings.Get(SettingKeys.PluginKey) };
+        return new { plugins = plugins.Plugins, connectUrl = $"{baseUrl}/ws/plugins", key = settings.Get(SettingKeys.PluginKey) };
     }
 
     [HttpPost("plugins/rotate-key")]

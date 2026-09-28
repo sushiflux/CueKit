@@ -10,6 +10,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AutomationEntity> Automations => Set<AutomationEntity>();
     public DbSet<DeviceEntity> Devices => Set<DeviceEntity>();
     public DbSet<SettingEntity> Settings => Set<SettingEntity>();
+    public DbSet<InstalledPluginEntity> InstalledPlugins => Set<InstalledPluginEntity>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -47,5 +48,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         });
 
         b.Entity<SettingEntity>(e => e.HasKey(x => x.Key));
+
+        b.Entity<InstalledPluginEntity>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasMaxLength(64);
+            e.Property(x => x.Name).HasMaxLength(60);
+            e.Property(x => x.Version).HasMaxLength(30);
+            e.Property(x => x.Author).HasMaxLength(60);
+            e.Property(x => x.Description).HasMaxLength(300);
+            e.Property(x => x.Icon).HasMaxLength(120);
+            e.Property(x => x.Entry).HasMaxLength(200);
+            e.Property(x => x.Source).HasMaxLength(10);
+        });
     }
 }

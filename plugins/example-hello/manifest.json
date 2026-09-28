@@ -1,0 +1,10 @@
+{
+  "id": "dev.example.hello",
+  "name": "Hallo Welt",
+  "version": "1.0.0",
+  "author": "Community",
+  "description": "Minimal-Beispiel: meldet sich an und schreibt einen Gruß ins Plugin-Protokoll.",
+  "icon": "tabler:hand-stop",
+  "entry": "hello.ts",
+  "runtime": "node"
+}

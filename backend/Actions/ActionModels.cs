@@ -23,6 +23,7 @@ public record ActionStep(string Type, JsonObject? Params)
     };
 
     /// <summary>"toggle" (Standard), "on"/"start" oder "off"/"stop".</summary>
+    [System.Text.Json.Serialization.JsonIgnore] // berechnet aus Params - nicht mitspeichern
     public string Mode => Str("mode") ?? "toggle";
 }
 

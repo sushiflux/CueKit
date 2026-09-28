@@ -91,6 +91,23 @@ public class DeviceEntity
     public DateTimeOffset? LastSeenAt { get; set; }
 }
 
+/// <summary>Ein installiertes Plugin-Paket (ZIP aus Datei oder Katalog), entpackt unter {DataDir}/plugins/{Id}.</summary>
+public class InstalledPluginEntity
+{
+    public string Id { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string Version { get; set; } = "";
+    public string? Author { get; set; }
+    public string? Description { get; set; }
+    public string Icon { get; set; } = "tabler:puzzle";
+    /// <summary>Startdatei relativ zum Plugin-Ordner, z.B. "index.js" oder "plugin.ts".</summary>
+    public string Entry { get; set; } = "";
+    public bool Enabled { get; set; } = true;
+    /// <summary>"file" (ZIP hochgeladen) oder "catalog" (aus dem offiziellen Katalog).</summary>
+    public string Source { get; set; } = "file";
+    public DateTimeOffset InstalledAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
 /// <summary>Datenbank-gestuetzte Einstellungen (siehe CLAUDE.md "Admin settings: database-backed").</summary>
 public class SettingEntity
 {

@@ -2,10 +2,11 @@
  * Minimal-Plugin als Vorlage fuer die Community (Protokoll: docs/PLUGIN_PROTOCOL.md).
  *
  * Start (Node 24 fuehrt TypeScript direkt aus):
- *   DECK_URL="ws://localhost:5201/plugins" DECK_KEY="<schluessel aus der App>" node hello.ts
+ *   Normalerweise installiert und startet Baton das Plugin selbst (ZIP, siehe manifest.json).
+ *   Zum Entwickeln manuell: DECK_URL="ws://localhost:5201/ws/plugins" DECK_KEY="<schluessel aus der App>" node hello.ts
  */
 
-const url = process.env.DECK_URL ?? 'ws://localhost:5202/plugins'
+const url = process.env.DECK_URL ?? 'ws://localhost:5202/ws/plugins'
 const key = process.env.DECK_KEY ?? ''
 
 type Invoke = { type: 'invoke'; invocationId: string; action: string; params: Record<string, unknown> }

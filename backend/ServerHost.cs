@@ -5,6 +5,7 @@ using Deck.Server.Actions;
 using Deck.Server.Auth;
 using Deck.Server.Automation;
 using Deck.Server.Data;
+using Deck.Server.Hotkeys;
 using Deck.Server.Hubs;
 using Deck.Server.Obs;
 using Deck.Server.Plugins;
@@ -58,6 +59,23 @@ public static class ServerHost
         builder.Services.AddSingleton<PreviewSubscribers>();
         builder.Services.AddSingleton<ActionExecutor>();
         builder.Services.AddSingleton<ObsDiscovery>();
+        builder.Services.AddSingleton(new DataPaths(dataDir));
+        builder.Services.AddSingleton<PluginCatalog>();
+        builder.Services.AddHttpClient("catalog", c =>
+        {
+            c.Timeout = TimeSpan.FromSeconds(30);
+            c.DefaultRequestHeaders.UserAgent.ParseAdd("Deck-PluginCatalog/1");
+        });
+        AddHostedSingleton<PluginManager>(builder.Services);
+
+        // Systemweite Tastenkuerzel (wie OBS) nur, wenn der Dienst direkt unter Windows in der
+        // Benutzersitzung laeuft - im Docker-/Linux-Betrieb bleibt es bei Browser-Kuerzeln.
+        if (OperatingSystem.IsWindows() && builder.Configuration["Deck:GlobalHotkeys"] != "false")
+            AddWindowsHotkeys(builder.Services);
+        else
+        {
+            builder.Services.AddSingleton<IGlobalHotkeys, NoGlobalHotkeys>();
+        }
         AddHostedSingleton<ObsService>(builder.Services);
         AddHostedSingleton<AutomationEngine>(builder.Services);
         AddHostedSingleton<HubNotifier>(builder.Services);
@@ -106,7 +124,8 @@ public static class ServerHost
 
         app.MapControllers();
         app.MapHub<DeckHub>("/hub/deck");
-        app.Map("/plugins", HandlePluginSocket);
+        // Bewusst unter /ws/: "/plugins" ist eine Seite der Oberflaeche (sonst antwortet beim Neuladen der Dienst).
+        app.Map("/ws/plugins", HandlePluginSocket);
 
         // SPA-Routen (/, /edit, /pair ...) liefern die gebaute Oberflaeche aus wwwroot.
         app.MapFallbackToFile("index.html");
@@ -154,6 +173,14 @@ public static class ServerHost
         await services.GetRequiredService<SettingsService>().LoadAsync();
         // Erster Start: OBS auf diesem PC ohne jede Eingabe verbinden (Port + Passwort aus OBS' Konfiguration).
         await services.GetRequiredService<ObsDiscovery>().AutoConfigureOnFirstRunAsync();
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static void AddWindowsHotkeys(IServiceCollection services)
+    {
+        services.AddSingleton<GlobalHotkeyService>();
+        services.AddSingleton<IGlobalHotkeys>(sp => sp.GetRequiredService<GlobalHotkeyService>());
+        services.AddHostedService(sp => sp.GetRequiredService<GlobalHotkeyService>());
     }
 
     private static void AddHostedSingleton<T>(IServiceCollection services) where T : class, IHostedService

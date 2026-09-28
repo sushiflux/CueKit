@@ -34,7 +34,9 @@ public record ImportResult(int Decks, int Buttons, int Automations, int SkippedH
 [Authorize(AuthenticationSchemes = DeviceAuth.Scheme, Policy = DeviceAuth.OwnerPolicy)]
 public class BackupController(AppDbContext db, HubNotifier notifier, AutomationEngine engine, AppInfo app) : ControllerBase
 {
-    public const string FormatName = "baton-decks";
+    public const string FormatName = "cuekit-decks";
+    /// <summary>Sicherungen aus der Zeit vor der Umbenennung (Arbeitstitel "Baton") bleiben importierbar.</summary>
+    private const string LegacyFormatName = "baton-decks";
     public const int FormatVersion = 1;
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
@@ -73,7 +75,7 @@ public class BackupController(AppDbContext db, HubNotifier notifier, AutomationE
         DeckExportFile? file;
         try { file = body.Deserialize<DeckExportFile>(Json); }
         catch (JsonException) { return BadRequest(new { error = "Die Datei ist keine gültige Deck-Sicherung." }); }
-        if (file is null || file.Format != FormatName || file.Decks is null)
+        if (file is null || (file.Format != FormatName && file.Format != LegacyFormatName) || file.Decks is null)
             return BadRequest(new { error = "Das ist keine Deck-Sicherung dieser App (falsches oder fehlendes Format)." });
         if (file.FormatVersion > FormatVersion)
             return BadRequest(new { error = "Diese Sicherung stammt aus einer neueren Version. Bitte die App aktualisieren und erneut importieren." });

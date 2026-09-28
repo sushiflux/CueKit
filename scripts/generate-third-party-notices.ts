@@ -22,6 +22,7 @@ interface Entry {
 }
 
 const root = resolve(import.meta.dirname, '..')
+const product = (JSON.parse(readFileSync(join(root, 'branding.json'), 'utf8')) as { productName: string }).productName
 const entries: Entry[] = []
 
 function licenseText(dir: string): string | null {
@@ -101,8 +102,8 @@ if (unknown.length) console.warn(`WARNUNG – Lizenz unbekannt: ${unknown.map((e
 const md = [
   '# Third-Party Notices / Drittanbieter-Lizenzen',
   '',
-  'Baton enthält die folgenden Open-Source-Komponenten. Für sie gelten ausschließlich ihre eigenen Lizenzen.',
-  'Baton includes the following open-source components, each governed solely by its own license.',
+  `${product} enthält die folgenden Open-Source-Komponenten. Für sie gelten ausschließlich ihre eigenen Lizenzen.`,
+  `${product} includes the following open-source components, each governed solely by its own license.`,
   '',
   '_Automatisch erzeugt von `scripts/generate-third-party-notices.ts` – nicht von Hand bearbeiten._',
   '',

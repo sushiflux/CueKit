@@ -1,4 +1,4 @@
-# Baton – Versionsübersicht
+# CueKit – Versionsübersicht
 
 Schneller Überblick, was aktuell tatsächlich im Einsatz ist. Keine Historie (dafür sind die
 Changelogs da). „Latest available“ wird zu Sessionbeginn live neu geprüft.

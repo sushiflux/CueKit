@@ -32,5 +32,5 @@ dem ersten Release festgelegt und hier veröffentlicht.
 
 ## Geltungsbereich
 
-Baton-Dienst, Oberfläche, Installer und das offizielle Plugin-SDK. Plugins von Drittanbietern
+CueKit-Dienst, Oberfläche, Installer und das offizielle Plugin-SDK. Plugins von Drittanbietern
 bitte direkt bei deren Autorinnen und Autoren melden.

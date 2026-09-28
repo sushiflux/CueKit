@@ -5,7 +5,7 @@ namespace Deck.Server.Obs;
 
 /// <summary>
 /// Haelt die Verbindung zu OBS dauerhaft aufrecht (automatischer Reconnect, z.B. wenn OBS erst
-/// nach Baton gestartet wird) und fuehrt einen aktuellen <see cref="ObsSnapshot"/>.
+/// nach dem Dienst gestartet wird) und fuehrt einen aktuellen <see cref="ObsSnapshot"/>.
 /// </summary>
 public sealed class ObsService(SettingsService settings, ILogger<ObsService> log) : BackgroundService
 {

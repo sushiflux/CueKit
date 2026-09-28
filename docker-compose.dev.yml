@@ -1,5 +1,5 @@
 # Dev-Profil: Hot-Reload fuer Backend (dotnet watch) und Frontend (Vite), eigenes Datenvolume.
-name: baton
+name: cuekit
 
 services:
   backend:

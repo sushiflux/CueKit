@@ -15,7 +15,7 @@ public record DiscoveryResult(bool Applied, string Message, IReadOnlyList<FoundO
 /// <summary>
 /// Findet OBS ohne Eingabe: (1) liest die obs-websocket-Konfiguration von OBS auf diesem PC
 /// (Port + Passwort), (2) sucht im lokalen Netz nach OBS-Instanzen auf dem Standardport.
-/// Die Konfigurationsdatei gehoert dem selben Windows-Benutzer - Baton liest sie nur lokal und
+/// Die Konfigurationsdatei gehoert dem selben Windows-Benutzer - der Dienst liest sie nur lokal und
 /// uebernimmt das Passwort verschluesselt in die eigenen Einstellungen.
 /// </summary>
 public class ObsDiscovery(SettingsService settings, IConfiguration config, ILogger<ObsDiscovery> log)

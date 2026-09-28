@@ -1,4 +1,4 @@
-BATON – ENDNUTZER-LIZENZVERTRAG (EULA)
+CUEKIT – ENDNUTZER-LIZENZVERTRAG (EULA)
 Stand: 28. September 2026
 
 Copyright © 2026 SushiFlux Develop. Alle Rechte vorbehalten.
@@ -6,7 +6,7 @@ Copyright © 2026 SushiFlux Develop. Alle Rechte vorbehalten.
 (English version below.)
 
 1. Gegenstand
-   Diese Lizenz gilt für die Software „Baton“ (Programm, Dienst, Benutzeroberfläche, Installer
+   Diese Lizenz gilt für die Software „CueKit“ (Programm, Dienst, Benutzeroberfläche, Installer
    und zugehörige Dateien, nachfolgend „Software“). Ausgenommen ist das Plugin-SDK im Ordner
    „plugins/“ sowie die Plugin-Protokoll-Dokumentation („docs/PLUGIN_PROTOCOL.md“); diese stehen
    unter der MIT-Lizenz (siehe „plugins/LICENSE“).
@@ -34,7 +34,7 @@ Copyright © 2026 SushiFlux Develop. Alle Rechte vorbehalten.
    auch kostenpflichtig – veröffentlicht werden.
 
 5. Marken
-   „Baton“ und das Baton-Logo sind Kennzeichen von SushiFlux Develop. Diese Lizenz gewährt keine
+   „CueKit“ und das CueKit-Logo sind Kennzeichen von SushiFlux Develop. Diese Lizenz gewährt keine
    Rechte daran.
 
 6. Drittanbieter-Komponenten
@@ -60,12 +60,12 @@ Copyright © 2026 SushiFlux Develop. Alle Rechte vorbehalten.
 
 ------------------------------------------------------------------------------------------------
 
-BATON – END USER LICENSE AGREEMENT (EULA)
+CUEKIT – END USER LICENSE AGREEMENT (EULA)
 Version: 28 September 2026
 
 Copyright © 2026 SushiFlux Develop. All rights reserved.
 
-1. Scope – This license applies to the software "Baton" (application, service, user interface,
+1. Scope – This license applies to the software "CueKit" (application, service, user interface,
    installer and related files, the "Software"). The plugin SDK in "plugins/" and the plugin
    protocol documentation ("docs/PLUGIN_PROTOCOL.md") are excluded and licensed under the MIT
    License (see "plugins/LICENSE").
@@ -80,7 +80,7 @@ Copyright © 2026 SushiFlux Develop. All rights reserved.
    official installer is permitted.
 4. Plugins – Plugins that communicate with the Software solely through the published plugin
    protocol are independent works of their authors and may be released under any license.
-5. Trademarks – "Baton" and the Baton logo are marks of SushiFlux Develop; no rights are granted.
+5. Trademarks – "CueKit" and the CueKit logo are marks of SushiFlux Develop; no rights are granted.
 6. Third-party components – The Software contains open-source components that are governed
    solely by their own licenses (see "THIRD-PARTY-NOTICES.md" or, in the app, Settings > About >
    Third-party licenses).

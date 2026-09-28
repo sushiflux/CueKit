@@ -1,6 +1,6 @@
 # Prod-/Live-Profil: gebautes Image wie die ausgelieferte App (Oberflaeche aus wwwroot), eigenes
 # Datenvolume - Testdaten aus dem Dev-Profil koennen hier nie landen.
-name: baton-live
+name: cuekit-live
 
 services:
   backend:

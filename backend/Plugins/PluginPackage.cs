@@ -46,7 +46,7 @@ public static partial class PluginPackage
         // Viele Autoren zippen den Plugin-Ordner selbst - dann liegt alles unter genau einem Unterordner.
         var prefix = CommonRootFolder(zip);
         var manifestEntry = zip.GetEntry(prefix + "manifest.json")
-                            ?? throw new PluginPackageException("Im Paket fehlt die Datei manifest.json – ist das wirklich ein Baton-Plugin?");
+                            ?? throw new PluginPackageException("Im Paket fehlt die Datei manifest.json – ist das wirklich ein Plugin-Paket?");
         var manifest = ReadManifest(manifestEntry);
 
         var root = Path.GetFullPath(targetDir) + Path.DirectorySeparatorChar;
@@ -84,7 +84,7 @@ public static partial class PluginPackage
     {
         using var zip = OpenZip(zipPath);
         var entry = zip.GetEntry(CommonRootFolder(zip) + "manifest.json")
-                    ?? throw new PluginPackageException("Im Paket fehlt die Datei manifest.json – ist das wirklich ein Baton-Plugin?");
+                    ?? throw new PluginPackageException("Im Paket fehlt die Datei manifest.json – ist das wirklich ein Plugin-Paket?");
         return ReadManifest(entry);
     }
 
@@ -124,7 +124,7 @@ public static partial class PluginPackage
         if (string.IsNullOrWhiteSpace(m.Entry) || Path.IsPathRooted(m.Entry) || !(m.Entry.EndsWith(".js") || m.Entry.EndsWith(".mjs") || m.Entry.EndsWith(".cjs") || m.Entry.EndsWith(".ts")))
             throw new PluginPackageException("manifest.json: „entry“ muss eine relative .js-/.mjs-/.ts-Datei sein, z.B. „index.js“.");
         if (m.Runtime is { Length: > 0 } rt && rt != "node")
-            throw new PluginPackageException($"Laufzeit „{rt}“ wird nicht unterstützt – Baton-Plugins laufen mit Node.js (JavaScript/TypeScript).");
+            throw new PluginPackageException($"Laufzeit „{rt}“ wird nicht unterstützt – Plugins laufen mit Node.js (JavaScript/TypeScript).");
 
         return m with
         {

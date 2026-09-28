@@ -17,7 +17,7 @@ Wo Informationen für dieses Projekt nachgeschlagen wurden.
 |---|---|---|
 | RegisterHotKey (Win32) | https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-registerhotkey | Systemweite Tastenkürzel wie OBS, `MOD_NOREPEAT`, WM_HOTKEY auf dem registrierenden Thread – `backend/Hotkeys/GlobalHotkeyService.cs` |
 | MapVirtualKeyEx | https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-mapvirtualkeyexa | Scancode → Virtual-Key je Tastaturlayout (QWERTZ-sicher) |
-| Job Objects / JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | https://learn.microsoft.com/windows/win32/procthread/job-objects | Plugin-Prozesse enden mit Baton – `backend/Plugins/ChildProcessJob.cs` |
+| Job Objects / JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | https://learn.microsoft.com/windows/win32/procthread/job-objects | Plugin-Prozesse enden mit dem Dienst – `backend/Plugins/ChildProcessJob.cs` |
 | Node.js „type stripping“ | https://nodejs.org/api/typescript.html | Plugins in TypeScript ohne Build-Schritt ausführen |
 
 ## Recht / Compliance

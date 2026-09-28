@@ -18,7 +18,7 @@ public record CatalogEntry(
 public record CatalogIndex(IReadOnlyList<CatalogEntry> Plugins);
 
 /// <summary>
-/// Offizieller Plugin-Katalog der Baton-Website: eine JSON-Liste (catalog.json) mit Download-Adresse
+/// Offizieller Plugin-Katalog der Produkt-Website: eine JSON-Liste (catalog.json) mit Download-Adresse
 /// und SHA-256-Pruefsumme je Paket. Die Adresse steht in der Konfiguration (Deck:PluginCatalogUrl) -
 /// solange die Website nicht existiert, ist sie leer und der Katalog meldet sich als nicht verfuegbar.
 /// </summary>

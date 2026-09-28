@@ -4,17 +4,17 @@
       <stop offset="0" stop-color="#6d5dfc"/>
       <stop offset="1" stop-color="#3b2fc9"/>
     </linearGradient>
-    <linearGradient id="stick" x1="0" y1="1" x2="1" y2="0">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
-      <stop offset="1" stop-color="#ffffff"/>
+    <linearGradient id="tail" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffd27a"/>
+      <stop offset="1" stop-color="#f5a623"/>
     </linearGradient>
   </defs>
+  <!-- Grundflaeche -->
   <rect width="64" height="64" rx="14" fill="url(#bg)"/>
   <rect x="1" y="1" width="62" height="62" rx="13" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="2"/>
-  <!-- Taktstock: Griff unten links, Spitze oben rechts -->
-  <path d="M17 47 L45 19" stroke="url(#stick)" stroke-width="4.5" stroke-linecap="round"/>
-  <circle cx="17.5" cy="46.5" r="5.5" fill="#ffffff"/>
-  <circle cx="47.5" cy="16.5" r="3" fill="#f5b544"/>
-  <!-- Bewegungsbogen -->
-  <path d="M30 13 A22 22 0 0 1 51 34" stroke="#ffffff" stroke-opacity="0.35" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <!-- Q: kraeftiger Ring -->
+  <circle cx="30" cy="30" r="14" fill="none" stroke="#ffffff" stroke-width="7"/>
+  <!-- Schweif laeuft DURCH den Ring (typische Q-Form, keine Lupe) - Akzentfarbe = "Cue"-Signal -->
+  <line x1="33" y1="33" x2="47" y2="47" stroke="#2a1f8f" stroke-opacity="0.35" stroke-width="8" stroke-linecap="round" transform="translate(0 1.5)"/>
+  <line x1="33" y1="33" x2="47" y2="47" stroke="url(#tail)" stroke-width="8" stroke-linecap="round"/>
 </svg>

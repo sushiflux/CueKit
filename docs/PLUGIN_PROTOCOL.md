@@ -84,7 +84,7 @@ Das Plugin **muss** innerhalb von 15 Sekunden antworten:
 ## Paketformat (Installation)
 
 Plugins werden als **ZIP-Datei** installiert – entweder in der App unter *Plugins › Aus Datei
-installieren* oder automatisch aus dem offiziellen Katalog. Baton entpackt das Paket, startet es mit
+installieren* oder automatisch aus dem offiziellen Katalog. CueKit entpackt das Paket, startet es mit
 der mitgelieferten Node.js-Laufzeit und übergibt die Verbindung per Umgebungsvariable. Plugins
 laufen mit **JavaScript oder TypeScript** (Node.js ≥ 24 führt `.ts` direkt aus); andere Laufzeiten
 oder `.exe`-Dateien werden nicht unterstützt.
@@ -125,7 +125,7 @@ Umgebungsvariablen beim Start:
 | `DECK_PLUGIN_DIR` | Installationsordner des Plugins |
 
 Ausgaben auf stdout/stderr erscheinen in der App im Plugin-Protokoll. Beendet sich das Plugin,
-startet Baton es neu (mit wachsender Pause); nach 5 Abstürzen innerhalb kurzer Zeit wird es angehalten.
+startet CueKit es neu (mit wachsender Pause); nach 5 Abstürzen innerhalb kurzer Zeit wird es angehalten.
 
 ## Katalog-Format (offizielle Website)
 

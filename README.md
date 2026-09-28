@@ -1,8 +1,8 @@
-# Baton
+# CueKit
 
 **Das kostenlose Stream-Deck für OBS – auf jedem Gerät, das du schon besitzt.**
 
-Baton verwandelt Handy, Tablet oder Browser in ein Stream Deck: echte Tasten-Optik, Live-Status
+CueKit verwandelt Handy, Tablet oder Browser in ein Stream Deck: echte Tasten-Optik, Live-Status
 aus OBS, Ordner, Multi-Aktionen, Automationen und eine offene Plugin-Schnittstelle für die
 Community. Ohne Abo, ohne Tastenlimit.
 
@@ -46,7 +46,7 @@ Voraussetzungen: Docker Desktop, OBS ≥ 28.
 4. Im Deck auf den **Bleistift** → „Aus OBS befüllen“ – fertig ist das erste Deck.
 5. **Geräte → Gerät koppeln**: QR-Code mit dem Handy scannen.
 
-Ports kommen fest aus der globalen Registry (`baton`: 5200 Frontend, 5201 Backend, 5202 Live).
+Ports kommen fest aus der globalen Registry (`cuekit`: 5200 Frontend, 5201 Backend, 5202 Live).
 
 ## Status
 
@@ -61,7 +61,7 @@ Oberfläche), erste offizielle Plugins (Photoshop, Lightroom, DaVinci Resolve), 
 
 ## Lizenz
 
-- Baton selbst: **proprietär, kostenlos** ([LICENSE](LICENSE)) – dieses Repository ist privat.
+- CueKit selbst: **proprietär, kostenlos** ([LICENSE](LICENSE)) – dieses Repository ist privat.
 - Plugin-SDK/Beispiele (`plugins/`) und Plugin-Protokoll: [MIT](plugins/LICENSE) – Plugins dürfen
   beliebig lizenziert werden ([CONTRIBUTING.md](CONTRIBUTING.md)).
 - Drittanbieter: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md), erzeugt mit

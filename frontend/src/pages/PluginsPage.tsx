@@ -20,6 +20,7 @@ import { AppShell } from '../components/AppShell'
 import { KeyIcon } from '../components/KeyIcon'
 import { Modal } from '../components/Modal'
 import { toast } from '../components/Toasts'
+import { branding } from '../config/branding'
 
 interface InstalledPlugin {
   id: string
@@ -104,7 +105,7 @@ function LogModal({ plugin, onClose }: { plugin: InstalledPlugin | null; onClose
   return (
     <Modal open={!!plugin} title={`Protokoll · ${plugin?.name ?? ''}`} onClose={onClose} width="max-w-3xl">
       <div className="max-h-[60vh] overflow-auto rounded-ctl bg-canvas p-3 font-mono text-[12px] leading-relaxed text-ink-muted">
-        {lines.length === 0 ? <p>Noch keine Ausgaben.</p> : lines.map((l, i) => <div key={i} className={l.includes('[Baton]') ? 'text-danger' : ''}>{l}</div>)}
+        {lines.length === 0 ? <p>Noch keine Ausgaben.</p> : lines.map((l, i) => <div key={i} className={l.includes('[System]') ? 'text-danger' : ''}>{l}</div>)}
         <div ref={bottom} />
       </div>
     </Modal>
@@ -135,7 +136,7 @@ function InstalledTab({ plugins, onInstallClick }: { plugins: InstalledPlugin[] 
         <IconPuzzle size={40} stroke={1.3} className="text-brand" />
         <p className="text-lg font-bold text-ink">Noch keine Plugins installiert</p>
         <p className="max-w-md text-sm text-ink-muted">
-          Plugins machen weitere Programme steuerbar – etwa Photoshop, Lightroom, DaVinci Resolve oder dein Smart Home. Installiere sie aus dem Katalog oder als ZIP-Datei von der Baton-Website.
+          Plugins machen weitere Programme steuerbar – etwa Photoshop, Lightroom, DaVinci Resolve oder dein Smart Home. Installiere sie aus dem Katalog oder als ZIP-Datei von der {branding.productName}-Website.
         </p>
         <button className="btn btn-create mt-1" onClick={onInstallClick}>
           <IconUpload size={16} /> Aus Datei installieren
@@ -243,7 +244,7 @@ function CatalogTab() {
         <IconDownload size={40} stroke={1.3} className="text-brand" />
         <p className="text-lg font-bold text-ink">Katalog kommt bald</p>
         <p className="max-w-md text-sm text-ink-muted">
-          Hier kannst du Plugins direkt suchen und mit einem Klick installieren, sobald die offizielle Baton-Website online ist. Bis dahin: Plugin als ZIP herunterladen und unter „Aus Datei installieren“ hinzufügen.
+          Hier kannst du Plugins direkt suchen und mit einem Klick installieren, sobald die offizielle {branding.productName}-Website online ist. Bis dahin: Plugin als ZIP herunterladen und unter „Aus Datei installieren“ hinzufügen.
         </p>
       </div>
     )
@@ -479,7 +480,7 @@ export function PluginsPage() {
           <p className="flex gap-2 rounded-ctl border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-sm text-ink">
             <IconAlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-500" />
             <span>
-              Plugins sind Programme und laufen mit den Rechten deines Benutzerkontos. Installiere nur Plugins aus Quellen, denen du vertraust – am sichersten von der offiziellen Baton-Website.
+              Plugins sind Programme und laufen mit den Rechten deines Benutzerkontos. Installiere nur Plugins aus Quellen, denen du vertraust – am sichersten von der offiziellen {branding.productName}-Website.
             </span>
           </p>
           <p className="text-xs text-ink-faint">Ist das Plugin schon installiert, wird es durch diese Version ersetzt.</p>

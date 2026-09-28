@@ -53,7 +53,7 @@ public class ButtonEntity
 
     /// <summary>
     /// Tastenkuerzel, z.B. "Ctrl+Shift+KeyF" (KeyboardEvent.code, tastaturlayout-unabhaengig).
-    /// Im Browser aktiv, solange Baton im Vordergrund ist; die Desktop-App registriert es systemweit.
+    /// Im Browser aktiv, solange das Deck im Browser im Vordergrund ist; die Desktop-App registriert es systemweit.
     /// </summary>
     public string? Hotkey { get; set; }
 }

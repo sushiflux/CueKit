@@ -279,7 +279,7 @@ public sealed class PluginManager(
             process.OutputDataReceived += (_, e) => Append(e.Data);
             process.ErrorDataReceived += (_, e) => Append(e.Data);
             process.Start();
-            // Windows: Plugin endet automatisch mit Baton, auch bei Absturz (Job-Objekt).
+            // Windows: Plugin endet automatisch mit dem Dienst, auch bei Absturz (Job-Objekt).
             if (OperatingSystem.IsWindows()) ChildProcessJob.Assign(process);
             _process = process;
             process.BeginOutputReadLine();
@@ -307,7 +307,7 @@ public sealed class PluginManager(
         {
             _state = state;
             _message = message;
-            if (message is not null) Append($"[Baton] {message}");
+            if (message is not null) Append($"[System] {message}");
             owner.RaiseChanged();
         }
     }

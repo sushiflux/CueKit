@@ -6,6 +6,7 @@ import { BackupCard } from '../components/BackupCard'
 import { AppShell } from '../components/AppShell'
 import { KeyIcon } from '../components/KeyIcon'
 import { toast } from '../components/Toasts'
+import { branding } from '../config/branding'
 import { useStore } from '../state/store'
 
 interface ObsSettings {
@@ -233,7 +234,7 @@ function StreamingSoftwareCard() {
           name="Streamlabs Desktop"
           details={[
             'In Streamlabs: Einstellungen → Fernsteuerung – dort stehen Adresse und API-Token.',
-            'Baton verbindet sich wie bei OBS automatisch und zeigt Szenen, Quellen und Audio in der Palette.',
+            `${branding.productName} verbindet sich wie bei OBS automatisch und zeigt Szenen, Quellen und Audio in der Palette.`,
           ]}
         />
       )}

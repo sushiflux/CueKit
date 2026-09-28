@@ -1,7 +1,7 @@
 # Third-Party Notices / Drittanbieter-Lizenzen
 
-Baton enthält die folgenden Open-Source-Komponenten. Für sie gelten ausschließlich ihre eigenen Lizenzen.
-Baton includes the following open-source components, each governed solely by its own license.
+CueKit enthält die folgenden Open-Source-Komponenten. Für sie gelten ausschließlich ihre eigenen Lizenzen.
+CueKit includes the following open-source components, each governed solely by its own license.
 
 _Automatisch erzeugt von `scripts/generate-third-party-notices.ts` – nicht von Hand bearbeiten._
 

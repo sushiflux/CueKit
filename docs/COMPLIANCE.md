@@ -7,7 +7,7 @@ dem ersten öffentlichen Release von einer Anwältin/einem Anwalt prüfen lassen
 
 | Teil | Lizenz | Datei |
 |---|---|---|
-| Baton (Dienst, Oberfläche, Installer) | Proprietär, kostenlos (Freeware-EULA) | `LICENSE` |
+| CueKit (Dienst, Oberfläche, Installer) | Proprietär, kostenlos (Freeware-EULA) | `LICENSE` |
 | Plugin-SDK, Beispiele, Plugin-Protokoll | MIT | `plugins/LICENSE` |
 | Drittanbieter-Komponenten | jeweils eigene (MIT, Apache-2.0, ISC, BSD, OFL-1.1, CC0, 0BSD, Unlicense) | `THIRD-PARTY-NOTICES.md` |
 
@@ -17,7 +17,7 @@ dem ersten öffentlichen Release von einer Anwältin/einem Anwalt prüfen lassen
 - [x] Keine Copyleft-Abhängigkeit (GPL/AGPL) im Produkt – das Skript warnt, falls sich das ändert
 - [ ] ⚖️ EULA prüfen lassen (insb. Haftungsklausel, Wirksamkeit gegenüber Verbrauchern)
 - [ ] EULA im Installer anzeigen und bestätigen lassen (WiX-Lizenzdialog)
-- [ ] ⚖️ Marke „Baton“ + Logo recherchieren und anmelden (DPMA/EUIPO) – bester Schutz gegen Nachahmer
+- [ ] ⚖️ Marke „CueKit“ + Q-Logo recherchieren und anmelden (DPMA/EUIPO) – bester Schutz gegen Nachahmer
 - [ ] Release-Build: .NET-Code verschleiern (Obfuscation) und signieren (Code-Signing-Zertifikat,
       vermeidet zugleich SmartScreen-Warnungen)
 
@@ -29,7 +29,7 @@ nutzbar, um auf eine Integration hinzuweisen, nicht für eigenes Marketing/Brand
 
 Gilt für „Produkte mit digitalen Elementen“, die im Rahmen einer **Geschäftstätigkeit** auf dem
 EU-Markt bereitgestellt werden – **auch kostenlos**. Die Ausnahme für freie Open-Source-Software
-greift für Baton als Closed Source **nicht**. ⚖️ Klären, ob die Bereitstellung durch
+greift für CueKit als Closed Source **nicht**. ⚖️ Klären, ob die Bereitstellung durch
 SushiFlux Develop als Geschäftstätigkeit gilt (sehr wahrscheinlich ja, sobald ein Unternehmen
 dahintersteht).
 
@@ -40,7 +40,7 @@ Zeitplan:
 - ab **11.12.2027**: alle Hersteller-Pflichten (Konformitätsbewertung, CE-Kennzeichnung,
   technische Dokumentation, Sicherheitsupdates im Unterstützungszeitraum).
 
-Baton ist nach aktuellem Stand ein Produkt der „Standardkategorie“ (nicht in Anhang III/IV) →
+CueKit ist nach aktuellem Stand ein Produkt der „Standardkategorie“ (nicht in Anhang III/IV) →
 Konformitätsbewertung per interner Kontrolle (Selbsterklärung) voraussichtlich ausreichend. ⚖️
 
 Bereits erledigt bzw. angelegt:
@@ -60,7 +60,7 @@ Bereits erledigt bzw. angelegt:
 
 ## 3. Datenschutz (DSGVO)
 
-- [x] Baton verarbeitet alle Daten lokal im eigenen Netz, sendet nichts ins Internet, keine
+- [x] CueKit verarbeitet alle Daten lokal im eigenen Netz, sendet nichts ins Internet, keine
       Telemetrie, keine Konten – Hinweis in der App unter Einstellungen › Über
 - [ ] Sobald die App etwas nach außen sendet (Update-Prüfung, Absturzberichte, Plugin-Katalog):
       Datenschutzerklärung erstellen und ggf. Einwilligung einholen

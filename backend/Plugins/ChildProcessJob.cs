@@ -6,7 +6,7 @@ namespace Deck.Server.Plugins;
 
 /// <summary>
 /// Windows-Job-Objekt mit "KILL_ON_JOB_CLOSE": alle zugeordneten Plugin-Prozesse beendet Windows
-/// automatisch, sobald Baton endet - auch bei Absturz oder hartem Beenden. Ohne das blieben
+/// automatisch, sobald der Dienst endet - auch bei Absturz oder hartem Beenden. Ohne das blieben
 /// verwaiste Plugin-Prozesse zurueck (sperren ihren Ordner, verbinden sich doppelt).
 /// </summary>
 [SupportedOSPlatform("windows")]
@@ -42,7 +42,7 @@ internal static class ChildProcessJob
         {
             Marshal.FreeHGlobal(ptr);
         }
-        // Handle bewusst nie schliessen: es lebt so lange wie Baton und schliesst sich mit dem Prozess.
+        // Handle bewusst nie schliessen: es lebt so lange wie der Dienst und schliesst sich mit dem Prozess.
         return job;
     }
 

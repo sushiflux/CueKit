@@ -22,7 +22,7 @@ namespace Deck.Server;
 /// </summary>
 public static class ServerHost
 {
-    /// <summary>Standard-Port der installierten App (siehe ports.json, Eintrag "baton" -> "live").</summary>
+    /// <summary>Standard-Port der installierten App (siehe ports.json, Eintrag "cuekit" -> "live").</summary>
     public const int DefaultPort = 5202;
 
     public static WebApplication Build(string[] args, Action<WebApplicationBuilder>? configure = null)

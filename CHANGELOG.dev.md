@@ -7,7 +7,23 @@ release lives in `CHANGELOG.md`.
 
 # English
 
-## v2026.9.3 - 2026-09-28 21:29
+## v2026.9.4 - 2026-09-28 21:42
+
+Renamed the product from the working title "Baton" to **CueKit**, new Q logo, project CLAUDE.md.
+
+- `branding.json`: `productName` "CueKit", tagline "Dein Stream. Auf den Punkt.". New
+  `frontend/public/logo.svg` (Q whose amber tail crosses the ring – deliberately not a magnifier).
+- Product name removed from code: frontend strings use `branding.productName`
+  (`PluginsPage`, `SettingsPage`), backend messages/comments are neutral; plugin log marker
+  `[Baton]` → `[System]`; `generate-third-party-notices.ts` reads the name from `branding.json`.
+- Docs renamed: `LICENSE` (EULA), README, CONTRIBUTING, SECURITY, `docs/COMPLIANCE.md`,
+  `docs/PLUGIN_PROTOCOL.md`, VERSIONS, QUELLEN, example plugin.
+- Technical: Compose projects `cuekit` / `cuekit-live`, `start.ps1` registry key `cuekit`
+  (global `ports.json` key renamed, ports unchanged); backup format `cuekit-decks`, legacy
+  `baton-decks` files still importable.
+- Added `CLAUDE.md` (commands, architecture, repo conventions).
+
+## v2026.9.3 - 2026-09-28 21:30
 
 Plugin installation (ZIP + catalog), system-wide hotkeys, deck backup/restore, streaming-software tabs.
 
@@ -127,7 +143,23 @@ Initial scaffold of Baton - a free, community-extensible Stream Deck alternative
 
 # Deutsch
 
-## v2026.9.3 - 2026-09-28 21:29
+## v2026.9.4 - 2026-09-28 21:42
+
+Produkt vom Arbeitstitel „Baton“ in **CueKit** umbenannt, neues Q-Logo, Projekt-CLAUDE.md.
+
+- `branding.json`: `productName` „CueKit“, Slogan „Dein Stream. Auf den Punkt.“. Neues
+  `frontend/public/logo.svg` (Q, dessen gelber Schweif durch den Ring läuft – bewusst keine Lupe).
+- Produktname aus dem Code entfernt: Frontend-Texte nutzen `branding.productName`
+  (`PluginsPage`, `SettingsPage`), Meldungen/Kommentare im Dienst sind neutral; Plugin-Protokoll-
+  Markierung `[Baton]` → `[System]`; `generate-third-party-notices.ts` liest den Namen aus `branding.json`.
+- Dokumente umbenannt: `LICENSE` (EULA), README, CONTRIBUTING, SECURITY, `docs/COMPLIANCE.md`,
+  `docs/PLUGIN_PROTOCOL.md`, VERSIONS, QUELLEN, Beispiel-Plugin.
+- Technik: Compose-Projekte `cuekit` / `cuekit-live`, `start.ps1`-Registry-Schlüssel `cuekit`
+  (Schlüssel in der globalen `ports.json` umbenannt, Ports unverändert); Sicherungsformat
+  `cuekit-decks`, alte `baton-decks`-Dateien bleiben importierbar.
+- Neu: `CLAUDE.md` (Befehle, Architektur, Repo-Konventionen).
+
+## v2026.9.3 - 2026-09-28 21:30
 
 Plugin-Installation (ZIP + Katalog), systemweite Tastenkürzel, Deck-Sicherung, Reiter „Streaming-Software“.
 

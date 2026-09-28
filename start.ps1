@@ -1,5 +1,5 @@
 <#
-  Baton - Docker-Stack fuer Entwicklung/Test. Start/Stopp/Status in einer Datei.
+  CueKit - Docker-Stack fuer Entwicklung/Test. Start/Stopp/Status in einer Datei.
 
   .\start.ps1                     Startet den Dev-Stack (Hot-Reload, Default -Env dev)
   .\start.ps1 -Env prod           Startet den Live-Stack (gebautes Image, eigene Daten)
@@ -28,7 +28,7 @@ $RootDir = $PSScriptRoot
 Set-Location $RootDir
 
 $ProductName = (Get-Content (Join-Path $RootDir 'branding.json') -Raw | ConvertFrom-Json).productName
-$RegistryKey = 'baton'
+$RegistryKey = 'cuekit'
 $ProjectName = if ($Env -eq 'prod') { "$RegistryKey-live" } else { $RegistryKey }
 $OverrideFile = Join-Path $RootDir "docker-compose.$Env.yml"
 $EnvFile = Join-Path $RootDir ".env.$Env"

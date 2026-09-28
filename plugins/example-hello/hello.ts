@@ -2,7 +2,7 @@
  * Minimal-Plugin als Vorlage fuer die Community (Protokoll: docs/PLUGIN_PROTOCOL.md).
  *
  * Start (Node 24 fuehrt TypeScript direkt aus):
- *   Normalerweise installiert und startet Baton das Plugin selbst (ZIP, siehe manifest.json).
+ *   Normalerweise installiert und startet CueKit das Plugin selbst (ZIP, siehe manifest.json).
  *   Zum Entwickeln manuell: DECK_URL="ws://localhost:5201/ws/plugins" DECK_KEY="<schluessel aus der App>" node hello.ts
  */
 

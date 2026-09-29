@@ -7,7 +7,7 @@ release lives in `CHANGELOG.md`.
 
 # English
 
-## v2026.9.6 - 2026-09-29 12:00
+## v2026.9.6 - 2026-09-29 13:53
 
 Add a "System" action category (volume, browser, live hardware monitoring), bind automations to
 existing buttons instead of a separate automation tile, make action/field pickers context-aware,
@@ -41,12 +41,11 @@ and redesign the toggle-state indicator.
   action-type dropdown nor its field picker at all, since the palette entry already fixes it
   completely - editing one no longer offers to turn a "RAM load" tile into "CPU load" or a volume
   action.
-- **Toggle-state indicator redesign** (`index.css`, `DeckKey.tsx`): the LED is now always rendered
-  for any button with a real on/off state (`buttonHasToggleState`), lit in red or green rather than
-  only lit-or-invisible - matching how a real mixing console's status LEDs stay lit in both states.
-  Recessed bezel + separate lens/highlight layers for a physical look, legible against every key
-  color/theme. New alternative per-button style, a simulated toggle switch (`ButtonEntity.ToggleStyle`,
-  `'led' | 'switch'`, chosen in the Inspector next to the color picker).
+- **Toggle-state indicator redesign** (`index.css`, `DeckKey.tsx`): normal deck buttons now always
+  show a physical recessed LED for a real on/off state (`buttonHasToggleState`), lit red or green
+  instead of lit-or-invisible. Separate bezel, lens, highlight and glow layers keep the indicator
+  legible against every key color and theme. Press behavior remains globally selectable between
+  spring return and staying visually pressed for stateful buttons.
 - **Sidebar info card hover fix** (`AppInfoHint.tsx`): the card kept accepting pointer events during
   its exit animation, so briefly re-entering its old screen position right after leaving would
   reopen it; now `pointer-events` is explicitly `none` outside the fully-open state.
@@ -205,7 +204,7 @@ Initial scaffold of Baton - a free, community-extensible Stream Deck alternative
 
 # Deutsch
 
-## v2026.9.6 - 2026-09-29 12:00
+## v2026.9.6 - 2026-09-29 13:53
 
 Neue Aktions-Kategorie „System" (Lautstärke, Browser, Live-Hardware-Monitoring), Automationen
 werden jetzt an bestehende Tasten gebunden statt an eine eigene Automations-Kachel, Aktions-/
@@ -242,13 +241,12 @@ Feld-Auswahl reagiert auf den Kontext, und das Toggle-Zustands-Symbol wurde neu 
   zeigt weder das Aktionstyp-Dropdown noch sein Feld-Auswahlfeld, da der Palette-Eintrag das schon
   vollständig festlegt - eine „RAM-Auslastung"-Kachel lässt sich nicht mehr nachträglich zu
   „CPU-Auslastung" oder einer Lautstärke-Aktion umbiegen.
-- **Neugestaltung der Toggle-Zustandsanzeige** (`index.css`, `DeckKey.tsx`): Die LED wird jetzt
-  immer für jede Taste mit echtem An/Aus-Zustand gerendert (`buttonHasToggleState`), rot oder grün
-  leuchtend statt nur leuchtend-oder-unsichtbar - wie bei einem echten Mischpult, dessen Status-LEDs
-  in beiden Zuständen leuchten. Eingelassene Fassung + getrennte Linsen-/Glanzpunkt-Ebenen für einen
-  physischen Look, gut lesbar auf jeder Tastenfarbe/jedem Theme. Neuer alternativer, pro Taste
-  wählbarer Stil, ein simulierter Kippschalter (`ButtonEntity.ToggleStyle`, `'led' | 'switch'`, im
-  Inspector neben der Farbauswahl wählbar).
+- **Neugestaltung der Toggle-Zustandsanzeige** (`index.css`, `DeckKey.tsx`): Normale Deck-Tasten
+  zeigen bei einem echten An/Aus-Zustand (`buttonHasToggleState`) jetzt immer eine physisch
+  eingelassene LED, die rot oder grün leuchtet statt nur leuchtend oder unsichtbar zu sein.
+  Getrennte Fassungs-, Linsen-, Glanzpunkt- und Glow-Ebenen halten die Anzeige auf jeder Tastenfarbe
+  und in jedem Theme gut erkennbar. Das Tastendruckverhalten bleibt global zwischen „Federt zurück“
+  und „Bleibt gedrückt“ für zustandsbehaftete Tasten wählbar.
 - **Hover-Fehler der Info-Karte in der Seitenleiste behoben** (`AppInfoHint.tsx`): Die Karte nahm
   während ihrer Ausblend-Animation weiterhin Zeigerereignisse an, wodurch ein kurzes erneutes
   Überfahren derselben Stelle sie direkt nach dem Verlassen wieder öffnete; `pointer-events` ist

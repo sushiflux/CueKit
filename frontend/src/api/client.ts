@@ -84,3 +84,39 @@ export function errorMessage(e: unknown): string {
   if (e instanceof Error) return e.message
   return String(e)
 }
+
+/**
+ * Haengt das Geraete-Token als Query-Parameter an eine URL an - nur fuer die seltenen Faelle, in
+ * denen der Browser die Ressource selbst laedt (CSS background-image/<img src>) und daher keinen
+ * Authorization-Header setzen kann (siehe backend DeviceAuthHandler, GET .../background-image).
+ * Nicht fuer normale api()-Aufrufe verwenden - dort gilt weiterhin der Bearer-Header.
+ */
+export function withDeviceToken(url: string): string {
+  const token = getToken()
+  if (!token) return url
+  return `${url}${url.includes('?') ? '&' : '?'}access_token=${encodeURIComponent(token)}`
+}
+
+/** Wie api(), aber fuer multipart/form-data-Uploads (kein JSON-Body/Content-Type) - der Browser
+ * setzt die Content-Type-Grenze samt Boundary selbst, wenn man sie nicht manuell vorgibt. */
+export async function apiUpload<T = void>(path: string, form: FormData): Promise<T> {
+  const headers: Record<string, string> = {}
+  const token = getToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+
+  let res: Response
+  try {
+    res = await fetch(path, { method: 'POST', headers, body: form })
+  } catch {
+    throw new ApiError(0, 'Keine Verbindung zum Dienst. Läuft die App auf dem PC, und ist dieses Gerät im selben Netzwerk?')
+  }
+
+  if (!res.ok) {
+    const message = await readError(res)
+    if (res.status === 401) window.dispatchEvent(new CustomEvent('deck:unauthorized'))
+    throw new ApiError(res.status, message)
+  }
+  if (res.status === 204) return undefined as T
+  const text = await res.text()
+  return (text ? JSON.parse(text) : undefined) as T
+}

@@ -13,8 +13,6 @@ export interface ButtonModel {
   label: string
   icon: string | null
   color: string
-  /** Visueller Stil fuer den An/Aus-Zustand: LED-Punkt oder simulierter Kippschalter. */
-  toggleStyle: 'led' | 'switch'
   actions: ActionStep[]
   /** z.B. "Ctrl+Shift+KeyF" - siehe lib/hotkeys.ts */
   hotkey: string | null
@@ -76,6 +74,28 @@ export interface ObsSnapshot {
   replayBuffer: boolean
   virtualCam: boolean
   filters: { source: string; filterName: string; enabled: boolean }[]
+}
+
+/** Globale Aussehen-Einstellungen - siehe backend AppearanceController. Jedes Geraet darf lesen,
+ * nur der Besitzer darf aendern. */
+export interface AppearanceBackground {
+  kind: 'solid' | 'gradient' | 'preset' | 'image'
+  solid: string
+  gradientFrom: string
+  gradientTo: string
+  gradientAngle: number
+  /** Bei kind "preset": Schluessel eines CSS-Musters ("css:<key>") oder Foto-Presets ("photo:<dateiname>"). */
+  preset: string
+  imageUrl: string | null
+  imageX: number
+  imageY: number
+  imageZoom: number
+}
+
+export interface AppearanceSettings {
+  pressBehavior: 'spring' | 'stay'
+  volumeIndicator: 'led' | 'level'
+  background: AppearanceBackground
 }
 
 export type FieldKind =

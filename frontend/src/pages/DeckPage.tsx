@@ -13,6 +13,7 @@ import { deleteTile } from '../deck/tileOps'
 import { TileMenu, type MenuItem } from '../editor/TileMenu'
 import { buttonLevel, buttonNeedsSystemMonitor, displayMetric, formatDuration, isButtonActive } from '../lib/buttonState'
 import { hotkeyFromEvent, isTypingTarget } from '../lib/hotkeys'
+import { backgroundNeedsOverlay, resolveBackgroundStyle } from '../lib/appearanceBackground'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { HotkeyCaps } from '../components/HotkeyRecorder'
 import { Modal } from '../components/Modal'
@@ -50,6 +51,7 @@ export function DeckPage() {
   const automations = useStore((s) => s.automations)
   const catalog = useStore((s) => s.catalog)
   const systemMonitor = useStore((s) => s.systemMonitor)
+  const appearance = useStore((s) => s.appearance)
   const isOwner = me?.role === 'owner'
 
   // Bearbeiten-Modus direkt im Deck (Bleistift) - in der URL, damit Zurueck/Neuladen passt.
@@ -205,6 +207,11 @@ export function DeckPage() {
 
   const breadcrumb = [root, ...stack.map((id) => deck.pages.find((p) => p.id === id))].filter(Boolean) as PageModel[]
   const obsDown = obs?.status !== 'connected'
+  // Gewaehlter Deck-Hintergrund (siehe Seite "Aussehen") - nur fuer die Live-Ansicht, nicht im
+  // Editor (dort sorgen die Editor-Panels/-Flaechen ohnehin fuer genug Kontrast) und nicht auf
+  // anderen Seiten (AppShell behaelt dort seine normale --c-canvas-Flaeche).
+  const deckBackgroundStyle = !editing ? resolveBackgroundStyle(appearance?.background) : undefined
+  const deckBackgroundOverlay = !editing && backgroundNeedsOverlay(appearance?.background)
 
   const title = (
     <>
@@ -345,6 +352,7 @@ export function DeckPage() {
                       error={errorKey === b.id}
                       monitorMetric={displayMetric(b, catalog)}
                       systemMonitor={systemMonitor}
+                      pressBehavior={appearance?.pressBehavior}
                       onPress={() => void press(b)}
                     />
                   </div>
@@ -360,7 +368,11 @@ export function DeckPage() {
   // Vollbild: nur Tasten, ohne Seitenleiste.
   if (focus && !editing) {
     return (
-      <div className="flex h-full flex-col bg-canvas" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div
+        className="relative flex h-full flex-col bg-canvas"
+        style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)', ...deckBackgroundStyle }}
+      >
+        {deckBackgroundOverlay && <div className="pointer-events-none absolute inset-0 bg-black/15" aria-hidden="true" />}
         {liveGrid}
         <button
           className="fixed right-3 top-3 z-50 rounded-ctl bg-surface/60 p-2 text-ink-muted opacity-40 backdrop-blur transition-opacity hover:opacity-100 focus-visible:opacity-100"
@@ -376,7 +388,8 @@ export function DeckPage() {
 
   return (
     <AppShell title={title}>
-      <div className="flex h-full flex-col">
+      <div className="relative flex h-full flex-col" style={deckBackgroundStyle}>
+        {deckBackgroundOverlay && <div className="pointer-events-none absolute inset-0 bg-black/15" aria-hidden="true" />}
         <AnimatePresence>{obsBanner}</AnimatePresence>
         {editing ? (
           <div className="min-h-0 flex-1">

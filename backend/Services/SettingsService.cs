@@ -13,6 +13,20 @@ public static class SettingKeys
     public const string PluginKey = "plugins.key";             // Schluessel fuer lokale Plugin-Prozesse
     public const string PublicHost = "network.publicHost";     // optionaler Override fuer QR-Code-URLs
     public const string PreviewFps = "preview.fps";
+
+    // Aussehen (app-weit, nicht pro Deck) - siehe AppearanceController.
+    public const string AppearancePressBehavior = "appearance.pressBehavior";
+    public const string AppearanceVolumeIndicator = "appearance.volumeIndicator";
+    public const string AppearanceBackgroundKind = "appearance.background.kind";
+    public const string AppearanceBackgroundSolid = "appearance.background.solid";
+    public const string AppearanceBackgroundGradientFrom = "appearance.background.gradientFrom";
+    public const string AppearanceBackgroundGradientTo = "appearance.background.gradientTo";
+    public const string AppearanceBackgroundGradientAngle = "appearance.background.gradientAngle";
+    public const string AppearanceBackgroundPreset = "appearance.background.preset";
+    public const string AppearanceBackgroundImagePath = "appearance.background.imagePath";
+    public const string AppearanceBackgroundImageX = "appearance.background.imageX";
+    public const string AppearanceBackgroundImageY = "appearance.background.imageY";
+    public const string AppearanceBackgroundImageZoom = "appearance.background.imageZoom";
 }
 
 /// <summary>
@@ -50,6 +64,19 @@ public class SettingsService(IServiceScopeFactory scopes, IDataProtectionProvide
     public int ObsPort => int.TryParse(Get(SettingKeys.ObsPort), out var p) ? p : 4455;
     public bool HasObsPassword => !string.IsNullOrEmpty(Get(SettingKeys.ObsPassword));
     public int PreviewFps => int.TryParse(Get(SettingKeys.PreviewFps), out var f) ? Math.Clamp(f, 1, 15) : 6;
+
+    private static readonly HashSet<string> ValidPressBehaviors = ["spring", "stay"];
+    private static readonly HashSet<string> ValidVolumeIndicators = ["led", "level"];
+    private static readonly HashSet<string> ValidBackgroundKinds = ["solid", "gradient", "preset", "image"];
+
+    /// <summary>Tastendruckverhalten global fuers ganze Deck - kein Pro-Taste-Override.</summary>
+    public string AppearancePressBehavior => Get(SettingKeys.AppearancePressBehavior) is { } v && ValidPressBehaviors.Contains(v) ? v : "spring";
+
+    /// <summary>Ob Lautstaerke-Tasten (Volume/Mute) ihren Zustand ueber die LED oder den Pegelbalken
+    /// anzeigen - betrifft nur Tasten mit einem Lautstaerke-Bezug, siehe buttonLevel() im Frontend.</summary>
+    public string AppearanceVolumeIndicator => Get(SettingKeys.AppearanceVolumeIndicator) is { } v && ValidVolumeIndicators.Contains(v) ? v : "led";
+
+    public string AppearanceBackgroundKind => Get(SettingKeys.AppearanceBackgroundKind) is { } v && ValidBackgroundKinds.Contains(v) ? v : "solid";
 
     public string? ObsPassword
     {

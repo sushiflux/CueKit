@@ -19,6 +19,13 @@ interface Props {
   /** Rastergroesse in px - Icon/Label skalieren mit der Taste. */
   size: number
   /**
+   * "spring" (Standard) = Taste sinkt beim Klick kurz ein und geht sofort wieder hoch.
+   * "stay" = bei Tasten MIT echtem An/Aus-Zustand bleibt die Taste optisch eingedrueckt, bis sich
+   * der Zustand aendert (data-pressed folgt dann `active` statt dem Zeiger-Zyklus). Bei reinen
+   * Einmal-Aktionen (kein Toggle-Zustand) bleibt in jedem Fall das kurze Feedback.
+   */
+  pressBehavior?: 'spring' | 'stay'
+  /**
    * Reine Anzeige-Kachel (z.B. Live-Systemwert) statt klickbarer Auslöser: der Kennwert-Schlüssel
    * (z.B. "cpuLoad"). Wenn gesetzt, ersetzt die Taste Icon/Label durch eine Live-Wert-Anzeige
    * (Tastenhub/LED/Pegel bleiben aus). onPress feuert weiterhin (z.B. im Editor zum Auswaehlen) -
@@ -43,6 +50,7 @@ export function DeckKey({
   showHotkey = false,
   flash = false,
   size,
+  pressBehavior = 'spring',
   monitorMetric = null,
   systemMonitor = null,
   onPress,
@@ -55,6 +63,7 @@ export function DeckKey({
   const fontSize = Math.max(10, Math.round(size * 0.115))
   const monitor = monitorMetric ? monitorDisplay(monitorMetric, systemMonitor) : null
   const isRing = monitorMetric != null && isMonitorLoadMetric(monitorMetric)
+  const stays = pressBehavior === 'stay' && buttonHasToggleState(button)
 
   const release = () => setPressed(false)
 
@@ -64,7 +73,7 @@ export function DeckKey({
       className="deck-key"
       data-color={button.color}
       data-active={active}
-      data-pressed={!monitor && (pressed || flash)}
+      data-pressed={!monitor && (stays ? active : pressed || flash)}
       data-error={error}
       aria-pressed={monitor ? undefined : active}
       aria-label={monitor ? `${monitor.label}: ${monitor.unavailable ? 'nicht verfügbar' : monitor.value}` : button.label || 'Taste ohne Beschriftung'}
@@ -79,7 +88,9 @@ export function DeckKey({
       }}
       onPointerDown={(e) => {
         if (e.button !== 0) return
-        if (!monitor) setPressed(true)
+        // "stay": der eingedrueckte Look folgt dem echten Zustand (siehe data-pressed oben), nicht
+        // dem Zeiger-Zyklus - hier also nichts lokal setzen, sonst zuckt die Taste kurz "falsch herum".
+        if (!monitor && !stays) setPressed(true)
         // Sofort beim Aufsetzen ausloesen (nicht erst beim Loslassen) - fuehlt sich direkter an.
         onPress?.()
         if (!monitor && navigator.vibrate) navigator.vibrate(12)
@@ -110,8 +121,7 @@ export function DeckKey({
         </>
       ) : (
         <>
-          {buttonHasToggleState(button) &&
-            (button.toggleStyle === 'switch' ? <span className="key-toggle-switch" /> : <span className="key-led" />)}
+          {buttonHasToggleState(button) && <span className="key-led"><span className="key-led-emitter" /></span>}
           {showHotkey && button.hotkey && size >= 72 && <span className="key-hotkey">{hotkeyParts(button.hotkey).join('+')}</span>}
           {icon && <KeyIcon name={icon} size={iconSize} className="key-icon" />}
           {hasLabel && <span className="key-label">{button.label}</span>}

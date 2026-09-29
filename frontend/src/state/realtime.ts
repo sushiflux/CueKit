@@ -1,6 +1,6 @@
 import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr'
 import { api, getToken } from '../api/client'
-import type { AutomationState, Catalog, DeckModel, ObsSnapshot, SystemMonitorSnapshot } from '../api/types'
+import type { AppearanceSettings, AutomationState, Catalog, DeckModel, ObsSnapshot, SystemMonitorSnapshot } from '../api/types'
 import { setState } from './store'
 
 let connection: HubConnection | null = null
@@ -22,6 +22,10 @@ export async function reloadHotkeyStatus() {
 
 export async function reloadCatalog() {
   setState({ catalog: await api<Catalog>('/api/catalog') })
+}
+
+export async function reloadAppearance() {
+  setState({ appearance: await api<AppearanceSettings>('/api/settings/appearance') })
 }
 
 /** Baut die Echtzeitverbindung auf (automatischer Reconnect inklusive). */
@@ -49,12 +53,13 @@ export async function startRealtime() {
     void reloadAutomationStates().catch(() => {})
     window.dispatchEvent(new CustomEvent('deck:automations'))
   })
+  connection.on('appearanceChanged', () => void reloadAppearance().catch(() => {}))
 
   connection.onreconnecting(() => setState({ link: 'connecting' }))
   connection.onreconnected(async () => {
     setState({ link: 'online' })
     // Waehrend der Trennung verpasste Aenderungen nachholen.
-    await Promise.allSettled([reloadDecks(), reloadCatalog(), reloadAutomationStates(), reloadHotkeyStatus()])
+    await Promise.allSettled([reloadDecks(), reloadCatalog(), reloadAutomationStates(), reloadHotkeyStatus(), reloadAppearance()])
     if (previewWanted) await connection?.invoke('SetPreview', true).catch(() => {})
     if (systemMonitorWanted) await connection?.invoke('SetSystemMonitor', true).catch(() => {})
   })

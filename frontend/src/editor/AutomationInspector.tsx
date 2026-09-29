@@ -7,6 +7,7 @@ import { HotkeyRecorder } from '../components/HotkeyRecorder'
 import { IconPicker } from '../components/IconPicker'
 import { toast } from '../components/Toasts'
 import { KEY_COLORS } from '../lib/keyColors'
+import { useStore } from '../state/store'
 import { StepEditor, validateSteps } from './StepEditor'
 
 interface Props {
@@ -32,6 +33,7 @@ interface Draft {
  * "Wenn … und nur wenn … dann …" bearbeitet - Name und Aussehen der Taste gleich mit.
  */
 export function AutomationInspector({ button, automationId, catalog, onDeleted }: Props) {
+  const appearance = useStore((s) => s.appearance)
   const [original, setOriginal] = useState<AutomationModel | null>(null)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [saving, setSaving] = useState(false)
@@ -114,7 +116,7 @@ export function AutomationInspector({ button, automationId, catalog, onDeleted }
       <div className="min-h-0 flex-1 space-y-5 overflow-auto p-5">
         <div className="flex items-center gap-4">
           <div className="h-20 w-20 shrink-0">
-            <DeckKey button={preview} size={80} active={draft.enabled} />
+            <DeckKey button={preview} size={80} active={draft.enabled} pressBehavior={appearance?.pressBehavior} />
           </div>
           <div className="min-w-0 flex-1 space-y-2">
             <input className="field font-semibold" maxLength={60} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} aria-label="Name" />

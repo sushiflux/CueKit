@@ -137,6 +137,32 @@ public static class ServerHost
             await next();
         });
 
+        // Unbehandelte Fehler als {error}-JSON statt einer HTML-Fehlerseite (Development-Modus zeigt
+        // sonst die DeveloperExceptionPage, die keine {error}-Property hat - das Frontend faellt dann
+        // auf eine generische Meldung zurueck, siehe api/client.ts readError()/STATUS_FALLBACK). Ganz
+        // vorn in der Pipeline, damit sie jeden Endpunkt abdeckt, nicht nur Controller-Aktionen.
+        app.Use(async (ctx, next) =>
+        {
+            try
+            {
+                await next();
+            }
+            catch (Exception ex)
+            {
+                app.Logger.LogError(ex, "Unbehandelter Fehler bei {Path}", ctx.Request.Path);
+                if (!ctx.Response.HasStarted)
+                {
+                    ctx.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                    await ctx.Response.WriteAsJsonAsync(new
+                    {
+                        error = builder.Environment.IsDevelopment()
+                            ? $"Unerwarteter Fehler im Dienst: {ex.GetType().Name} – {ex.Message}"
+                            : "Unerwarteter Fehler im Dienst. Bitte die Seite neu laden; hält das Problem an, hilft meist ein Neustart des Dienstes.",
+                    });
+                }
+            }
+        });
+
         app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(20) });
         app.UseDefaultFiles();
         app.UseStaticFiles();

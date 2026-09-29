@@ -31,6 +31,9 @@ public sealed class HubNotifier(
     /// <summary>Automationen angelegt/geaendert/an- oder ausgeschaltet -> Tasten-LEDs aktualisieren.</summary>
     public void AutomationsChanged() => _ = hub.Clients.All.SendAsync("automationsChanged");
 
+    /// <summary>App-weite Aussehen-Einstellungen (Zustandsanzeige/Druckverhalten/Hintergrund) geaendert.</summary>
+    public void AppearanceChanged() => _ = hub.Clients.All.SendAsync("appearanceChanged");
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         obs.StateChanged += OnObsStateChanged;

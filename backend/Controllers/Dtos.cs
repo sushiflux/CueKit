@@ -5,7 +5,7 @@ using Deck.Server.Data;
 
 namespace Deck.Server.Controllers;
 
-public record ButtonDto(int Id, int PageId, int Row, int Column, string Label, string? Icon, string Color, string ToggleStyle, IReadOnlyList<ActionStep> Actions, string? Hotkey);
+public record ButtonDto(int Id, int PageId, int Row, int Column, string Label, string? Icon, string Color, IReadOnlyList<ActionStep> Actions, string? Hotkey);
 
 public record PageDto(int Id, int? ParentPageId, string Name, IReadOnlyList<ButtonDto> Buttons);
 
@@ -31,7 +31,6 @@ public record ButtonInput(
     [StringLength(60)] string? Label,
     [StringLength(120)] string? Icon,
     [StringLength(24)] string? Color,
-    [StringLength(24)] string? ToggleStyle,
     List<ActionStep>? Actions,
     // Tastenkuerzel: null = unveraendert lassen, "" = Kuerzel entfernen.
     [StringLength(60)] string? Hotkey = null);

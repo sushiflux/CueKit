@@ -4,4 +4,7 @@ namespace Deck.Server.Services;
 public record DataPaths(string DataDir)
 {
     public string PluginsDir => Path.Combine(DataDir, "plugins");
+
+    /// <summary>Hochgeladenes Deck-Hintergrundbild (Aussehen-Einstellungen) - siehe AppearanceController.</summary>
+    public string AppearanceDir => Path.Combine(DataDir, "appearance");
 }

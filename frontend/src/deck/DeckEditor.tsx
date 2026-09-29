@@ -60,6 +60,7 @@ function EditKey({ button, size, selected, onSelect, onOpen }: { button: ButtonM
   const automations = useStore((s) => s.automations)
   const catalog = useStore((s) => s.catalog)
   const systemMonitor = useStore((s) => s.systemMonitor)
+  const appearance = useStore((s) => s.appearance)
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `key:${button.id}`, data: { button } })
   return (
     <div ref={setNodeRef} {...attributes} {...listeners} className={`h-full w-full touch-none ${isDragging ? 'opacity-30' : ''}`} onDoubleClick={onOpen}>
@@ -70,6 +71,7 @@ function EditKey({ button, size, selected, onSelect, onOpen }: { button: ButtonM
         active={isButtonActive(button, obs, automations, systemMonitor)}
         level={buttonLevel(button, obs, systemMonitor)}
         monitorMetric={displayMetric(button, catalog)}
+        pressBehavior={appearance?.pressBehavior}
         onPress={onSelect}
       />
     </div>
@@ -368,7 +370,7 @@ export function DeckEditor({ deck, page, onOpenFolder, onDeckCreated, onDone, in
         {dragItem && (
           <div className="h-24 w-24 rotate-3 opacity-90">
             <DeckKey
-              button={{ id: -1, pageId: 0, row: 0, column: 0, label: dragItem.label, icon: dragItem.icon, color: dragItem.color, toggleStyle: 'led', actions: [], hotkey: null }}
+              button={{ id: -1, pageId: 0, row: 0, column: 0, label: dragItem.label, icon: dragItem.icon, color: dragItem.color, actions: [], hotkey: null }}
               size={96}
             />
           </div>

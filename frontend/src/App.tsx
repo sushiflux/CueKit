@@ -7,10 +7,11 @@ import { ErrorScreen } from './components/ErrorScreen'
 import { Toaster } from './components/Toasts'
 import { ConnectPage } from './pages/ConnectPage'
 import { DeckPage } from './pages/DeckPage'
+import { AppearancePage } from './pages/AppearancePage'
 import { DevicesPage } from './pages/DevicesPage'
 import { PluginsPage } from './pages/PluginsPage'
 import { SettingsPage } from './pages/SettingsPage'
-import { reloadAutomationStates, reloadCatalog, reloadDecks, reloadHotkeyStatus, startRealtime, stopRealtime } from './state/realtime'
+import { reloadAppearance, reloadAutomationStates, reloadCatalog, reloadDecks, reloadHotkeyStatus, startRealtime, stopRealtime } from './state/realtime'
 import { setState, useStore } from './state/store'
 import { loadIconSet } from './lib/icons'
 
@@ -40,7 +41,7 @@ export default function App() {
         try {
           const me = await api<Me>('/api/auth/me')
           setState({ me })
-          await Promise.all([reloadDecks(), reloadCatalog(), reloadAutomationStates()])
+          await Promise.all([reloadDecks(), reloadCatalog(), reloadAutomationStates(), reloadAppearance()])
           void reloadHotkeyStatus().catch(() => {})
           void startRealtime()
           void loadIconSet('tabler') // Standard-Sammlung vorladen, damit Tasten sofort Icons zeigen
@@ -109,6 +110,7 @@ export default function App() {
           <Route path="/automations" element={<Navigate to="/?edit=1" replace />} />
           <Route path="/plugins" element={<OwnerOnly><PluginsPage /></OwnerOnly>} />
           <Route path="/devices" element={<OwnerOnly><DevicesPage /></OwnerOnly>} />
+          <Route path="/appearance" element={<OwnerOnly><AppearancePage /></OwnerOnly>} />
           <Route path="/settings" element={<OwnerOnly><SettingsPage /></OwnerOnly>} />
           <Route path="*" element={<ErrorScreen code="404" title="Seite nicht gefunden" icon={IconMoodPuzzled} />} />
         </Routes>

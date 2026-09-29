@@ -3,6 +3,7 @@ import {
   IconDeviceMobile,
   IconMenu2,
   IconMoon,
+  IconPalette,
   IconPlayerPlay,
   IconPuzzle,
   IconSun,
@@ -20,6 +21,7 @@ const NAV = [
   { to: '/', label: 'Deck', icon: IconPlayerPlay, end: true },
   { to: '/plugins', label: 'Plugins', icon: IconPuzzle },
   { to: '/devices', label: 'Geräte', icon: IconDeviceMobile },
+  { to: '/appearance', label: 'Aussehen', icon: IconPalette },
   { to: '/settings', label: 'Einstellungen', icon: IconAdjustments },
 ]
 
@@ -82,7 +84,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           </div>
         </div>
         <div className="mx-5 border-t border-line" />
-        <div className="flex justify-center px-5 py-2.5">
+        <div className="px-5 py-3">
           <AppInfoHint />
         </div>
       </div>

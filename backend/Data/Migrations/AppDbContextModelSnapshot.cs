@@ -93,10 +93,6 @@ namespace Deck.Server.Data.Migrations
                     b.Property<int>("Row")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("ToggleStyle")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.HasKey("Id");
 
                     b.HasIndex("Hotkey")

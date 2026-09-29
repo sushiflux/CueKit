@@ -1,4 +1,4 @@
-import { IconBulbFilled, IconCheck, IconFolderOpen, IconPhoto, IconToggleRightFilled, IconTrash } from '@tabler/icons-react'
+import { IconCheck, IconFolderOpen, IconPhoto, IconTrash } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
 import { api, errorMessage } from '../api/client'
 import type { ButtonModel, Catalog, DeckModel } from '../api/types'
@@ -6,14 +6,9 @@ import { DeckKey } from '../components/DeckKey'
 import { HotkeyRecorder } from '../components/HotkeyRecorder'
 import { IconPicker } from '../components/IconPicker'
 import { toast } from '../components/Toasts'
-import { buttonHasToggleState } from '../lib/buttonState'
 import { KEY_COLORS } from '../lib/keyColors'
+import { useStore } from '../state/store'
 import { StepEditor, validateSteps } from './StepEditor'
-
-const TOGGLE_STYLES = [
-  { id: 'led', label: 'LED', icon: IconBulbFilled },
-  { id: 'switch', label: 'Schalter', icon: IconToggleRightFilled },
-] as const
 
 interface Props {
   button: ButtonModel
@@ -27,6 +22,7 @@ export function Inspector({ button, deck, catalog, onOpenFolder, onDeleted }: Pr
   const [draft, setDraft] = useState(button)
   const [saving, setSaving] = useState(false)
   const [pickIcon, setPickIcon] = useState(false)
+  const appearance = useStore((s) => s.appearance)
 
   // Andere Taste gewaehlt oder von aussen (anderes Geraet) geaendert -> Entwurf neu laden.
   useEffect(() => setDraft(button), [button])
@@ -47,7 +43,6 @@ export function Inspector({ button, deck, catalog, onOpenFolder, onDeleted }: Pr
           label: draft.label,
           icon: draft.icon,
           color: draft.color,
-          toggleStyle: draft.toggleStyle,
           actions: draft.actions,
           hotkey: draft.hotkey ?? '',
         },
@@ -82,7 +77,7 @@ export function Inspector({ button, deck, catalog, onOpenFolder, onDeleted }: Pr
       <div className="min-h-0 flex-1 space-y-5 overflow-auto p-5">
         <div className="flex justify-center py-2">
           <div className="h-28 w-28">
-            <DeckKey button={draft} size={112} />
+            <DeckKey button={draft} size={112} pressBehavior={appearance?.pressBehavior} />
           </div>
         </div>
 
@@ -119,27 +114,6 @@ export function Inspector({ button, deck, catalog, onOpenFolder, onDeleted }: Pr
             ))}
           </div>
         </div>
-
-        {buttonHasToggleState(draft) && (
-          <div>
-            <span className="label">Zustandsanzeige</span>
-            <div className="flex gap-1.5">
-              {TOGGLE_STYLES.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  title={s.label}
-                  aria-label={s.label}
-                  aria-pressed={draft.toggleStyle === s.id}
-                  onClick={() => setDraft({ ...draft, toggleStyle: s.id })}
-                  className="btn btn-ghost flex-1 aria-pressed:border-select aria-pressed:bg-select-soft aria-pressed:text-select"
-                >
-                  <s.icon size={16} /> {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         <div>
           <span className="label">Tastenkürzel</span>

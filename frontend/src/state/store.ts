@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { AutomationState, Catalog, DeckModel, Me, ObsSnapshot, SystemMonitorSnapshot } from '../api/types'
+import type { AppearanceSettings, AutomationState, Catalog, DeckModel, Me, ObsSnapshot, SystemMonitorSnapshot } from '../api/types'
 
 export type LinkStatus = 'connecting' | 'online' | 'offline'
 
@@ -16,6 +16,8 @@ export interface AppState {
   link: LinkStatus
   preview: string | null
   version: string | null
+  /** Globale Aussehen-Einstellungen (Zustandsanzeige-Standard, Tastendruckverhalten, Deck-Hintergrund). */
+  appearance: AppearanceSettings | null
 }
 
 let state: AppState = {
@@ -29,6 +31,7 @@ let state: AppState = {
   link: 'connecting',
   preview: null,
   version: null,
+  appearance: null,
 }
 
 const listeners = new Set<() => void>()

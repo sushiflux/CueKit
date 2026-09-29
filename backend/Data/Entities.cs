@@ -48,11 +48,6 @@ public class ButtonEntity
     /// damit Kontrast/Themes zentral im Frontend kontrollierbar bleiben.</summary>
     public string Color { get; set; } = "slate";
 
-    /// <summary>Visueller Stil fuer den An/Aus-Zustand ("led" oder "switch") - kuratierte Werte,
-    /// kein freier String, analog zu <see cref="Color"/>. Nur relevant fuer Tasten mit echtem
-    /// Toggle-Zustand (siehe buttonHasToggleState im Frontend).</summary>
-    public string ToggleStyle { get; set; } = "led";
-
     /// <summary>JSON-Liste von <see cref="Actions.ActionStep"/> (Multi-Action).</summary>
     public string ActionsJson { get; set; } = "[]";
 

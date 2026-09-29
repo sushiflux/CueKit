@@ -7,6 +7,22 @@ release lives in `CHANGELOG.md`.
 
 # English
 
+## v2026.9.5 - 2026-09-29 00:00
+
+Redesigned the sidebar footer into one combined info card, added the `branding/` brand-assets folder convention.
+
+- `AppShell.tsx`: removed `ObsStatusDot` (OBS connection line dropped from the footer) and the
+  inline "made with"/copyright block; footer now just centers the new `AppInfoHint`.
+- New `AppInfoHint.tsx`: info icon in the sidebar footer that opens a floating card (hover/focus/
+  click) showing, top to bottom, `<MadeWith />`, a logo+product-name+version block, then the
+  copyright line — order and single-card layout per explicit request.
+- `MadeWith.tsx`: wrapped output in one `<span className="whitespace-nowrap">` so "Mit ♥ gemacht" /
+  "Made with ♥" always renders inline instead of wrapping word-by-word in narrow flex columns.
+- New standing rule in the global CLAUDE.md: every project gets a dedicated `branding/` folder at
+  the repo root for logo/wordmark source files, alongside `branding.json`. Set up in CueKit itself:
+  `branding/logo.svg` is now the canonical source, `frontend/public/logo.svg` a synced copy (noted
+  in this project's `CLAUDE.md`).
+
 ## v2026.9.4 - 2026-09-28 21:42
 
 Renamed the product from the working title "Baton" to **CueKit**, new Q logo, project CLAUDE.md.
@@ -142,6 +158,26 @@ Initial scaffold of Baton - a free, community-extensible Stream Deck alternative
   note + CLA in `CONTRIBUTING.md`.
 
 # Deutsch
+
+## v2026.9.5 - 2026-09-29 00:00
+
+Fuß der Seitenleiste zu einer kombinierten Info-Karte überarbeitet, Konvention für einen
+Marken-Assets-Ordner (`branding/`) eingeführt.
+
+- `AppShell.tsx`: `ObsStatusDot` entfernt (OBS-Verbindungszeile raus aus dem Fuß) sowie den
+  eingebetteten „Mit ♥ gemacht“/Copyright-Block; der Fuß zentriert jetzt nur noch die neue
+  `AppInfoHint`.
+- Neu `AppInfoHint.tsx`: Info-Symbol im Seitenleisten-Fuß, das per Hover/Fokus/Klick eine
+  schwebende Karte öffnet – von oben nach unten `<MadeWith />`, ein Block mit Logo, Produktname
+  und Version, darunter die Copyright-Zeile (Reihenfolge und einheitliche Karte wie ausdrücklich
+  gewünscht).
+- `MadeWith.tsx`: Ausgabe in ein einzelnes `<span className="whitespace-nowrap">` gepackt, damit
+  „Mit ♥ gemacht“ / „Made with ♥“ immer nebeneinander steht statt in schmalen Flex-Spalten
+  wortweise umzubrechen.
+- Neue Standardregel in der globalen CLAUDE.md: jedes Projekt bekommt einen festen `branding/`-
+  Ordner im Repo-Stamm für Logo-/Wortmarken-Quelldateien, neben `branding.json`. In CueKit selbst
+  umgesetzt: `branding/logo.svg` ist jetzt die kanonische Quelle, `frontend/public/logo.svg` eine
+  synchronisierte Kopie (im Projekt-`CLAUDE.md` vermerkt).
 
 ## v2026.9.4 - 2026-09-28 21:42
 

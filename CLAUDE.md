@@ -10,7 +10,9 @@ lives **only** in `branding.json` (read by backend `AppInfo`, frontend `config/b
 `index.html` title plugin in `vite.config.ts`, `start.ps1`, the notices generator). Technical names
 are deliberately neutral (`Deck.*` namespace, repo folder `Maestro`) – never hardcode the product name
 in code or UI strings; use `branding.productName` / `AppInfo.Brand`. Former working title "Baton"
-survives only in history and as the legacy backup format `baton-decks`.
+survives only in history and as the legacy backup format `baton-decks`. Brand *assets* (logo, etc.)
+live in `branding/` at the repo root – `branding/logo.svg` is the canonical source; `frontend/public/logo.svg`
+is a synced copy for Vite's static serving and must be updated together with it.
 
 ## Commands
 

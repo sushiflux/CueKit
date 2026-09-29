@@ -12,7 +12,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useState, type ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router'
 import { branding } from '../config/branding'
-import { MadeWith } from './MadeWith'
+import { AppInfoHint } from './AppInfoHint'
 import { useTheme } from '../lib/theme'
 import { useStore } from '../state/store'
 
@@ -23,22 +23,8 @@ const NAV = [
   { to: '/settings', label: 'Einstellungen', icon: IconAdjustments },
 ]
 
-function ObsStatusDot() {
-  const obs = useStore((s) => s.obs)
-  const status = obs?.status ?? 'disconnected'
-  const color = status === 'connected' ? 'bg-[var(--c-toggle-on)]' : status === 'connecting' ? 'bg-amber-500' : 'bg-live'
-  const text = status === 'connected' ? `OBS ${obs?.obsVersion ?? ''} verbunden` : status === 'connecting' ? 'Verbinde mit OBS …' : 'OBS getrennt'
-  return (
-    <div className="flex items-center gap-2 text-xs text-ink-muted" title={obs?.error ?? undefined}>
-      <span className={`h-2 w-2 rounded-full ${color} ${status === 'connecting' ? 'live-dot' : ''}`} />
-      <span className="truncate">{text}</span>
-    </div>
-  )
-}
-
 function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const me = useStore((s) => s.me)
-  const version = useStore((s) => s.version)
   const { theme, toggle } = useTheme()
 
   return (
@@ -77,8 +63,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       <div className="mt-auto">
         <div className="mx-5 border-t border-line" />
-        <div className="space-y-3 px-5 py-4">
-          <ObsStatusDot />
+        <div className="px-5 py-4">
           <div className="flex items-center justify-between gap-2">
             {me?.role === 'owner' ? (
               <NavLink to="/devices" onClick={onNavigate} className="group min-w-0 rounded-ctl" title="Gerät umbenennen oder verwalten">
@@ -97,11 +82,8 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           </div>
         </div>
         <div className="mx-5 border-t border-line" />
-        <div className="px-5 py-4 text-[11px] leading-relaxed text-ink-faint">
-          <div><MadeWith /></div>
-          <div>
-            © {new Date().getFullYear()} {branding.company} · <span className="tabular">{version}</span>
-          </div>
+        <div className="flex justify-center px-5 py-2.5">
+          <AppInfoHint />
         </div>
       </div>
     </div>

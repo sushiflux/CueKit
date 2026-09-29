@@ -9,5 +9,6 @@ export function MadeWith({ onDark = false }: { onDark?: boolean }) {
       ♥
     </span>
   )
-  return german ? <>Mit {heart} gemacht</> : <>Made with {heart}</>
+  // Ein Element (kein Fragment): in Flex-Spalten wuerde sonst jedes Wort eine eigene Zeile.
+  return <span className="whitespace-nowrap">{german ? <>Mit {heart} gemacht</> : <>Made with {heart}</>}</span>
 }

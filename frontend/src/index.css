@@ -323,6 +323,7 @@
   [data-color='violet'] { --key-solid: #7c3aed; --key-bright: #b9a4ff; }
   [data-color='indigo'] { --key-solid: #4f46e5; --key-bright: #a5b4fc; }
   [data-color='sky'] { --key-solid: #0369a1; --key-bright: #7dd3fc; }
+  [data-color='cyan'] { --key-solid: #0e7490; --key-bright: #67e8f9; }
   [data-color='teal'] { --key-solid: #0f766e; --key-bright: #5eead4; }
   [data-color='emerald'] { --key-solid: #047857; --key-bright: #6ee7b7; }
   [data-color='amber'] { --key-solid: #b45309; --key-bright: #fcd34d; }
@@ -420,16 +421,191 @@
     -webkit-box-orient: vertical;
     word-break: break-word;
   }
-  /* LED oben rechts - wie die Status-LED einer Hardware-Taste */
+  /* Live-Systemwert-Anzeige (z.B. CPU-Auslastung) - grosser Wert statt Icon+Klick-Taste */
+  .deck-key .key-monitor-value {
+    font-size: 1.7em;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+  }
+  /* Fortschrittsring fuer Auslastungswerte (CPU/GPU/RAM %) - Ring und zentrierter Text uebereinander */
+  .deck-key .key-ring {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .deck-key .key-ring-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.1em;
+  }
+  .deck-key .key-ring-label {
+    font-size: 0.85em;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    opacity: 0.75;
+  }
+  .deck-key .key-ring-value {
+    font-size: 1.3em;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+  }
+  /* LED oben rechts - wie die eingelassene Status-LED eines Mischpults/einer Hardware-Taste.
+     Wichtig (Nutzer-Korrektur): an einem echten Mischpult leuchten die Status-LEDs IMMER, egal ob
+     der Kanal/die Funktion gerade an oder aus ist - "aus" heisst nicht "LED tot/dunkel", sondern
+     "LED leuchtet in der Aus-Farbe" (meist rot statt gruen). Beide Zustaende bekommen deshalb
+     denselben lebendigen Look (satter Kern + Glow), nur die Farbe wechselt.
+     Drei Ebenen, jede mit eigenem Zweck:
+       1. .key-led        = die Fassung: ein kleiner Napf im Tastenkoerper, in den die LED eingelassen
+                             ist (dunkler Boden, heller Kantenreflex oben, Schlagschatten - wirkt auf
+                             JEDER Tastenfarbe/JEDEM Theme gleich, weil die Fassung selbst nie die
+                             Zustandsfarbe traegt, nur die Linse darin).
+       2. .key-led::before = die Linse selbst: satter, gesaettigter Farbkern mit eigenem Verlauf -
+                             rot als Grundzustand, [data-active='true'] schaltet auf gruen um.
+       3. .key-led::after  = der Glanzpunkt: ein kleiner, scharf begrenzter heller Reflex oben-links,
+                             simuliert einfallendes Licht auf einer gewoelbten Kunststofflinse - macht
+                             aus einem flachen Punkt eine glaubwuerdig dreidimensionale Linse.
+     Der Aussen-Glow (box-shadow auf .key-led) ist in beiden Zustaenden aktiv, bewusst weit UND
+     weich, damit die LED spuerbar in ihre Umgebung hinein strahlt statt nur einen harten Farbpunkt
+     zu zeigen. Nur fuer Tasten mit echtem An/Aus-Zustand gerendert (siehe buttonHasToggleState). */
   .deck-key .key-led {
     position: absolute;
-    top: 8%;
-    right: 8%;
-    width: 0.4em;
-    height: 0.4em;
+    top: 7%;
+    right: 7%;
+    width: 0.62em;
+    height: 0.62em;
     border-radius: 999px;
-    background: #fff;
-    box-shadow: 0 0 8px 2px rgb(255 255 255 / 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Napfboden: dunkel, mit einem Hauch Tastenfarbe vermischt, damit die Fassung nicht wie ein
+       reines Fremdkoerper-Schwarz auf jeder Tastenfarbe wirkt. */
+    background: radial-gradient(circle at 50% 42%, color-mix(in oklab, black 78%, var(--key-solid)) 0%, #05060a 78%);
+    box-shadow:
+      /* Kantenreflex oben (Licht von oben auf den erhabenen Fassungsrand) */
+      inset 0 0.6px 0 rgb(255 255 255 / 0.55),
+      /* Vertiefung: dunkler Schatten oben im Napf, wo der Rand ueber das Glas ragt */
+      inset 0 1.5px 2px rgb(0 0 0 / 0.8),
+      /* leichter Aufhellungs-Bounce am Napfboden unten (Umgebungslicht) */
+      inset 0 -0.5px 0.5px rgb(255 255 255 / 0.08),
+      /* Schlagschatten der Fassung auf den Tastenkoerper */
+      0 1px 1.5px rgb(0 0 0 / 0.35),
+      /* Streuschein in der Aus-Farbe (rot) - die LED faerbt sichtbar auf die Taste ab. */
+      0 0 5px 1.5px color-mix(in oklab, var(--c-toggle-off) 50%, transparent),
+      0 0 10px 4px color-mix(in oklab, var(--c-toggle-off) 26%, transparent);
+    transition: box-shadow 200ms ease-out;
+  }
+  .deck-key[data-active='true'] .key-led {
+    box-shadow:
+      inset 0 0.6px 0 rgb(255 255 255 / 0.55),
+      inset 0 1.5px 2px rgb(0 0 0 / 0.8),
+      inset 0 -0.5px 0.5px rgb(255 255 255 / 0.08),
+      0 1px 1.5px rgb(0 0 0 / 0.35),
+      0 0 5px 1.5px color-mix(in oklab, var(--c-toggle-on) 55%, transparent),
+      0 0 10px 4px color-mix(in oklab, var(--c-toggle-on) 30%, transparent);
+  }
+  .deck-key .key-led::before {
+    /* Die Linse - Grundzustand rot, satter Kern mit eigenem Verlauf (nicht matt/tot). */
+    content: '';
+    width: 0.36em;
+    height: 0.36em;
+    border-radius: 999px;
+    background: radial-gradient(
+      circle at 38% 32%,
+      color-mix(in oklab, var(--c-toggle-off) 45%, white) 0%,
+      var(--c-toggle-off) 55%,
+      color-mix(in oklab, var(--c-toggle-off) 85%, black) 100%
+    );
+    box-shadow: inset 0 -1px 1.5px color-mix(in oklab, var(--c-toggle-off) 70%, black);
+    transition:
+      background 200ms ease-out,
+      box-shadow 200ms ease-out;
+  }
+  .deck-key[data-active='true'] .key-led::before {
+    background: radial-gradient(
+      circle at 38% 32%,
+      color-mix(in oklab, var(--c-toggle-on) 45%, white) 0%,
+      var(--c-toggle-on) 55%,
+      color-mix(in oklab, var(--c-toggle-on) 85%, black) 100%
+    );
+    box-shadow: inset 0 -1px 1.5px color-mix(in oklab, var(--c-toggle-on) 70%, black);
+  }
+  .deck-key .key-led::after {
+    /* Glanzpunkt: simuliert die gewoelbte Linsenoberflaeche, immer sichtbar (auch aus) - das macht
+       den Unterschied zwischen "flacher Farbpunkt" und "echtes kleines Bauteil mit Volumen". */
+    content: '';
+    position: absolute;
+    top: 26%;
+    left: 30%;
+    width: 0.12em;
+    height: 0.09em;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.85);
+    filter: blur(0.2px);
+    transform: rotate(-35deg);
+  }
+  /* Kippschalter - alternative Zustandsanzeige (pro Taste waehlbar, siehe Inspector "Zustandsanzeige").
+     Gleiche Position/Fassung wie die LED, aber eine kleine Wippe: im "an"-Zustand wirkt die obere
+     Haelfte eingedrueckt (gruener Akzent oben), im "aus"-Zustand die untere (roter Akzent unten). */
+  .deck-key .key-toggle-switch {
+    position: absolute;
+    top: 7%;
+    right: 7%;
+    width: 0.62em;
+    height: 0.92em;
+    border-radius: 999px;
+    background: radial-gradient(circle at 50% 35%, color-mix(in oklab, black 78%, var(--key-solid)) 0%, #05060a 78%);
+    box-shadow:
+      inset 0 0.6px 0 rgb(255 255 255 / 0.55),
+      inset 0 1.5px 2px rgb(0 0 0 / 0.8),
+      inset 0 -0.5px 0.5px rgb(255 255 255 / 0.08),
+      0 1px 1.5px rgb(0 0 0 / 0.35);
+    overflow: hidden;
+  }
+  .deck-key .key-toggle-switch::before,
+  .deck-key .key-toggle-switch::after {
+    content: '';
+    position: absolute;
+    left: 12%;
+    right: 12%;
+    height: 42%;
+    border-radius: 999px;
+    transition:
+      background 150ms,
+      box-shadow 150ms,
+      transform 150ms;
+  }
+  .deck-key .key-toggle-switch::before {
+    /* obere Wippenhaelfte - "aus": nicht eingedrueckt, matt, kein Akzent. */
+    top: 8%;
+    background: color-mix(in oklab, #3a3f4d 60%, var(--key-solid));
+    box-shadow: inset 0 1px 1px rgb(255 255 255 / 0.18);
+  }
+  .deck-key .key-toggle-switch::after {
+    /* untere Wippenhaelfte - "aus": eingedrueckt (Vertiefung), mattes rotes "totes Glas". */
+    bottom: 8%;
+    background: color-mix(in oklab, var(--c-toggle-off) 30%, #1a1a1a);
+    box-shadow: inset 0 2px 3px rgb(0 0 0 / 0.7);
+  }
+  .deck-key[data-active='true'] .key-toggle-switch::before {
+    /* obere Wippenhaelfte - "an": eingedrueckt, satter gruener Kern mit Glow. */
+    background: radial-gradient(circle at 40% 25%, color-mix(in oklab, var(--c-toggle-on) 45%, white) 0%, var(--c-toggle-on) 60%, color-mix(in oklab, var(--c-toggle-on) 85%, black) 100%);
+    box-shadow:
+      inset 0 2px 3px rgb(0 0 0 / 0.5),
+      0 0 6px 2px color-mix(in oklab, var(--c-toggle-on) 55%, transparent);
+  }
+  .deck-key[data-active='true'] .key-toggle-switch::after {
+    /* untere Wippenhaelfte - "an": nicht eingedrueckt, matt, kein Akzent. */
+    background: color-mix(in oklab, #3a3f4d 60%, var(--key-solid));
+    box-shadow: inset 0 -1px 1px rgb(255 255 255 / 0.12);
   }
   /* Tastenkuerzel-Etikett oben links */
   .deck-key .key-hotkey {

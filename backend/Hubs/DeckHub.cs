@@ -3,6 +3,7 @@ using System.Text.Json;
 using Deck.Server.Actions;
 using Deck.Server.Auth;
 using Deck.Server.Data;
+using Deck.Server.Hardware;
 using Deck.Server.Obs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
@@ -14,10 +15,11 @@ public record PressResult(bool Ok, string? Error);
 
 /// <summary>
 /// Echtzeitkanal zu allen gekoppelten Geraeten. Server -> Client: "obsState", "preview",
-/// "decksChanged", "catalogChanged", "automationsChanged". Client -> Server: Press, SetPreview.
+/// "decksChanged", "catalogChanged", "automationsChanged", "systemState". Client -> Server:
+/// Press, SetPreview, SetSystemMonitor.
 /// </summary>
 [Authorize(AuthenticationSchemes = DeviceAuth.Scheme)]
-public class DeckHub(AppDbContext db, ActionExecutor executor, ObsService obs, PreviewSubscribers preview) : Hub
+public class DeckHub(AppDbContext db, ActionExecutor executor, ObsService obs, PreviewSubscribers preview, SystemMonitorSubscribers systemMonitor) : Hub
 {
     public const string PreviewGroup = "preview";
 
@@ -30,6 +32,7 @@ public class DeckHub(AppDbContext db, ActionExecutor executor, ObsService obs, P
     public override Task OnDisconnectedAsync(Exception? exception)
     {
         preview.Remove(Context.ConnectionId);
+        systemMonitor.Remove(Context.ConnectionId);
         return base.OnDisconnectedAsync(exception);
     }
 
@@ -67,6 +70,14 @@ public class DeckHub(AppDbContext db, ActionExecutor executor, ObsService obs, P
             preview.Remove(Context.ConnectionId);
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, PreviewGroup);
         }
+    }
+
+    /// <summary>Ein Geraet zeigt (mind.) eine "system.monitor.display"-Kachel an - startet/stoppt den
+    /// periodischen "systemState"-Broadcast (siehe SystemMonitorBroadcaster).</summary>
+    public void SetSystemMonitor(bool enabled)
+    {
+        if (enabled) systemMonitor.Add(Context.ConnectionId);
+        else systemMonitor.Remove(Context.ConnectionId);
     }
 }
 

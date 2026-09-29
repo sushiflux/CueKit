@@ -45,6 +45,7 @@ public static class FieldKind
     public const string Text = "text";
     public const string Number = "number";
     public const string Select = "select";
+    public const string Url = "url";
 }
 
 public record FieldOption(string Value, string Label);
@@ -62,4 +63,6 @@ public record ActionDefinition(
     string Description,
     string Icon,
     IReadOnlyList<ActionField> Fields,
-    string? SuggestedColor = null);
+    string? SuggestedColor = null,
+    /// <summary>Reine Anzeige statt Aktion (z.B. Live-Systemwerte) - der Editor rendert dafuer keinen klickbaren Ausloeser.</summary>
+    bool DisplayOnly = false);

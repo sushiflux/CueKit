@@ -1,6 +1,6 @@
 import { DndContext, DragOverlay, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core'
-import { IconCheck, IconDownload, IconLayoutGrid, IconPlus, IconSparkles } from '@tabler/icons-react'
-import { useMemo, useState, type ReactNode } from 'react'
+import { IconCheck, IconClick, IconDownload, IconLayoutGrid, IconPlus, IconRoute, IconSparkles } from '@tabler/icons-react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api, errorMessage } from '../api/client'
 import type { ButtonModel, DeckModel, PageModel } from '../api/types'
 import { DeckGrid } from '../components/DeckGrid'
@@ -8,11 +8,12 @@ import { DeckKey } from '../components/DeckKey'
 import { Modal } from '../components/Modal'
 import { toast } from '../components/Toasts'
 import { AutomationInspector } from '../editor/AutomationInspector'
+import { ButtonAutomationPanel } from '../editor/ButtonAutomationPanel'
 import { Inspector } from '../editor/Inspector'
 import { buildPalette, Palette, type PaletteItem } from '../editor/Palette'
 import { TileMenu, type MenuItem } from '../editor/TileMenu'
 import { downloadExport } from '../lib/backup'
-import { buttonLevel, isButtonActive } from '../lib/buttonState'
+import { buttonLevel, displayMetric, isButtonActive } from '../lib/buttonState'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { useStore } from '../state/store'
 import { GridModal, NewDeckModal } from './DeckModals'
@@ -20,11 +21,11 @@ import { automationIdOf, deleteTile, folderTargetOf, isMulti } from './tileOps'
 
 type Slot = { row: number; column: number }
 type Menu = { x: number; y: number; slot: Slot; button?: ButtonModel }
+type InspectorTab = 'action' | 'automation'
 
 const NEW_TILE_MENU: MenuItem[] = [
   { id: 'single', label: 'Einzelne Aktion …', hint: 'Szene, Audio, Stream, Plugin …', icon: 'tabler:click' },
   { id: 'multi', label: 'Multifunktion', hint: 'Mehrere Aktionen nacheinander', icon: 'tabler:stack-3' },
-  { id: 'automation', label: 'Automation', hint: 'Wenn … dann …', icon: 'tabler:route' },
   { id: 'folder', label: 'Ordner', hint: 'Weitere Tasten dahinter', icon: 'tabler:folder-plus' },
 ]
 
@@ -57,10 +58,20 @@ function EditSlot({ slot, selected, onClick, onMenu, children }: { slot: Slot; s
 function EditKey({ button, size, selected, onSelect, onOpen }: { button: ButtonModel; size: number; selected: boolean; onSelect: () => void; onOpen: () => void }) {
   const obs = useStore((s) => s.obs)
   const automations = useStore((s) => s.automations)
+  const catalog = useStore((s) => s.catalog)
+  const systemMonitor = useStore((s) => s.systemMonitor)
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `key:${button.id}`, data: { button } })
   return (
     <div ref={setNodeRef} {...attributes} {...listeners} className={`h-full w-full touch-none ${isDragging ? 'opacity-30' : ''}`} onDoubleClick={onOpen}>
-      <DeckKey button={button} size={size} selected={selected} active={isButtonActive(button, obs, automations)} level={buttonLevel(button, obs)} onPress={onSelect} />
+      <DeckKey
+        button={button}
+        size={size}
+        selected={selected}
+        active={isButtonActive(button, obs, automations, systemMonitor)}
+        level={buttonLevel(button, obs, systemMonitor)}
+        monitorMetric={displayMetric(button, catalog)}
+        onPress={onSelect}
+      />
     </div>
   )
 }
@@ -80,7 +91,10 @@ export function DeckEditor({ deck, page, onOpenFolder, onDeckCreated, onDone, in
   const obs = useStore((s) => s.obs)
   const catalog = useStore((s) => s.catalog)
   const wide = useMediaQuery('(min-width: 1024px)')
+  // Ab dieser Breite passt das Inspektor-Panel breiter und zeigt Aktion + Automation nebeneinander statt als Tabs.
+  const veryWide = useMediaQuery('(min-width: 1600px)')
   const [selectedId, setSelectedId] = useState<number | null>(initialSelectedId)
+  const [inspectorTab, setInspectorTab] = useState<InspectorTab>('action')
   const [menu, setMenu] = useState<Menu | null>(null)
   const [pickerSlot, setPickerSlot] = useState<Slot | null>(null)
   const [dragItem, setDragItem] = useState<{ label: string; icon: string | null; color: string } | null>(null)
@@ -90,6 +104,9 @@ export function DeckEditor({ deck, page, onOpenFolder, onDeckCreated, onDone, in
   const groups = useMemo(() => buildPalette(obs, catalog), [obs, catalog])
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
+  // Andere Taste gewaehlt -> zurueck auf den Aktion-Tab, statt den zuletzt betrachteten Automation-Tab zu behalten.
+  useEffect(() => setInspectorTab('action'), [selectedId])
+
   const at = (row: number, column: number) => page.buttons.find((b) => b.row === row && b.column === column)
   const selected = page.buttons.find((b) => b.id === selectedId)
   const firstFree = (): Slot | null => {
@@ -98,21 +115,12 @@ export function DeckEditor({ deck, page, onOpenFolder, onDeckCreated, onDone, in
   }
 
   const createAt = async (item: PaletteItem, slot: Slot) => {
-    let created: ButtonModel
-    if (item.kind === 'folder') {
-      created = await api<ButtonModel>(`/api/pages/${page.id}/folders`, { body: { name: 'Ordner', row: slot.row, column: slot.column } })
-    } else if (item.kind === 'automation') {
-      const automation = await api<{ id: number }>('/api/automations', {
-        body: { name: 'Neue Automation', enabled: false, trigger: { type: 'obs.sceneActiveFor', params: { scene: obs?.programScene ?? '', seconds: 300 } }, conditions: [], actions: [] },
-      })
-      created = await api<ButtonModel>(`/api/pages/${page.id}/buttons`, {
-        body: { row: slot.row, column: slot.column, label: 'Neue Automation', icon: 'tabler:route', color: 'violet', actions: [{ type: 'automation.toggle', params: { automation: automation.id, mode: 'toggle' } }] },
-      })
-    } else {
-      created = await api<ButtonModel>(`/api/pages/${page.id}/buttons`, {
-        body: { row: slot.row, column: slot.column, label: item.kind === 'multi' ? 'Multi' : item.label, icon: item.icon, color: item.color, actions: item.actions },
-      })
-    }
+    const created =
+      item.kind === 'folder'
+        ? await api<ButtonModel>(`/api/pages/${page.id}/folders`, { body: { name: 'Ordner', row: slot.row, column: slot.column } })
+        : await api<ButtonModel>(`/api/pages/${page.id}/buttons`, {
+            body: { row: slot.row, column: slot.column, label: item.kind === 'multi' ? 'Multi' : item.label, icon: item.icon, color: item.color, actions: item.actions },
+          })
     setSelectedId(created.id)
   }
 
@@ -121,7 +129,7 @@ export function DeckEditor({ deck, page, onOpenFolder, onDeckCreated, onDone, in
     const target = at(slot.row, slot.column)
     try {
       if (!target) return await createAt(item, slot)
-      if (item.kind) return toast('Ordner, Multifunktionen und Automationen bitte auf eine leere Taste ziehen.', 'error')
+      if (item.kind) return toast('Ordner und Multifunktionen bitte auf eine leere Taste ziehen.', 'error')
       if (automationIdOf(target) != null || isFolder(target))
         return toast('Ordner- und Automations-Tasten lassen sich nicht überschreiben – zieh die Aktion auf eine leere Taste.', 'error')
       if (isMulti(target)) {
@@ -216,11 +224,35 @@ export function DeckEditor({ deck, page, onOpenFolder, onDeckCreated, onDone, in
     }
   }
 
+  // Eigenstaendige, nicht tastengebundene Automations-Tasten (automation.toggle) behalten ihren eigenen,
+  // einfachen Inspector ohne Tabs - die Taste IST hier die Automation, kein zusaetzliches "Aktion"-Konzept.
+  const legacyAutomationId = selected ? automationIdOf(selected) : null
+
+  const actionPanel = selected && legacyAutomationId == null && (
+    <Inspector key={selected.id} button={selected} deck={deck} catalog={catalog} onOpenFolder={onOpenFolder} onDeleted={() => setSelectedId(null)} />
+  )
+  const automationPanel = selected && legacyAutomationId == null && <ButtonAutomationPanel key={selected.id} buttonId={selected.id} catalog={catalog} />
+
   const inspector = selected ? (
-    automationIdOf(selected) != null ? (
-      <AutomationInspector key={selected.id} button={selected} automationId={automationIdOf(selected)!} catalog={catalog} onDeleted={() => setSelectedId(null)} />
+    legacyAutomationId != null ? (
+      <AutomationInspector key={selected.id} button={selected} automationId={legacyAutomationId} catalog={catalog} onDeleted={() => setSelectedId(null)} />
+    ) : veryWide ? (
+      <div className="flex h-full min-w-0 divide-x divide-line">
+        <div className="min-w-0 flex-1">{actionPanel}</div>
+        <div className="min-w-0 flex-1">{automationPanel}</div>
+      </div>
     ) : (
-      <Inspector key={selected.id} button={selected} deck={deck} catalog={catalog} onOpenFolder={onOpenFolder} onDeleted={() => setSelectedId(null)} />
+      <div className="flex h-full flex-col">
+        <div className="flex shrink-0 gap-2 border-b border-line p-3" role="tablist">
+          <button role="tab" aria-selected={inspectorTab === 'action'} aria-pressed={inspectorTab === 'action'} className="chip-select h-8 gap-1.5 px-3" onClick={() => setInspectorTab('action')}>
+            <IconClick size={14} /> Aktion
+          </button>
+          <button role="tab" aria-selected={inspectorTab === 'automation'} aria-pressed={inspectorTab === 'automation'} className="chip-select h-8 gap-1.5 px-3" onClick={() => setInspectorTab('automation')}>
+            <IconRoute size={14} /> Automation
+          </button>
+        </div>
+        <div className="min-h-0 flex-1">{inspectorTab === 'action' ? actionPanel : automationPanel}</div>
+      </div>
     )
   ) : null
 
@@ -254,7 +286,7 @@ export function DeckEditor({ deck, page, onOpenFolder, onDeckCreated, onDone, in
             </button>
           </div>
           <p className="px-4 pt-2 text-xs text-ink-faint">
-            Ziehen zum Belegen/Tauschen · leere Taste anklicken für Multifunktion, Automation, Ordner · Rechtsklick für mehr
+            Ziehen zum Belegen/Tauschen · leere Taste anklicken für Multifunktion, Ordner · Rechtsklick für mehr
           </p>
           <div className="min-h-0 flex-1 p-4">
             <DeckGrid
@@ -290,7 +322,7 @@ export function DeckEditor({ deck, page, onOpenFolder, onDeckCreated, onDone, in
         </section>
 
         {wide && (
-        <aside className="w-[24rem] shrink-0 border-l border-line bg-surface">
+        <aside className={`shrink-0 border-l border-line bg-surface transition-[width] duration-150 ${veryWide ? 'w-[46rem]' : 'w-[24rem]'}`}>
           {inspector ?? (
             <div className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
               <IconLayoutGrid size={36} stroke={1.3} className="text-ink-faint" />
@@ -335,7 +367,10 @@ export function DeckEditor({ deck, page, onOpenFolder, onDeckCreated, onDone, in
       <DragOverlay dropAnimation={null}>
         {dragItem && (
           <div className="h-24 w-24 rotate-3 opacity-90">
-            <DeckKey button={{ id: -1, pageId: 0, row: 0, column: 0, label: dragItem.label, icon: dragItem.icon, color: dragItem.color, actions: [], hotkey: null }} size={96} />
+            <DeckKey
+              button={{ id: -1, pageId: 0, row: 0, column: 0, label: dragItem.label, icon: dragItem.icon, color: dragItem.color, toggleStyle: 'led', actions: [], hotkey: null }}
+              size={96}
+            />
           </div>
         )}
       </DragOverlay>

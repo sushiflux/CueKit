@@ -20,7 +20,7 @@ public sealed class AutomationEngine(
 {
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    private sealed record Loaded(int Id, string Name, AutomationPart Trigger, IReadOnlyList<AutomationPart> Conditions, IReadOnlyList<ActionStep> Actions);
+    private sealed record Loaded(int Id, string Name, int? ButtonId, AutomationPart Trigger, IReadOnlyList<AutomationPart> Conditions, IReadOnlyList<ActionStep> Actions);
 
     private volatile IReadOnlyList<Loaded> _automations = [];
     private readonly ConcurrentDictionary<int, AutomationRunInfo> _lastRuns = new();
@@ -35,6 +35,21 @@ public sealed class AutomationEngine(
 
     /// <summary>Nach jeder Aenderung an Automationen aufrufen.</summary>
     public void Invalidate() => Interlocked.Exchange(ref _reloadRequested, 1);
+
+    /// <summary>
+    /// Von einem Controller aufzurufen, NACHDEM die Sofort-Aktionen einer Taste erfolgreich (ohne
+    /// Exception) durchgelaufen sind. Feuert alle an diese Taste gebundenen "button.pressed"-Automationen
+    /// im Hintergrund (siehe <see cref="Fire"/>) - blockiert die Tastendruck-Antwort selbst nicht.
+    /// </summary>
+    public void NotifyButtonPressed(int buttonId)
+    {
+        var state = obs.State;
+        foreach (var a in _automations)
+        {
+            if (a.Trigger.Type == "button.pressed" && a.ButtonId == buttonId)
+                Fire(a, state);
+        }
+    }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -65,7 +80,7 @@ public sealed class AutomationEngine(
         {
             try
             {
-                list.Add(new Loaded(a.Id, a.Name,
+                list.Add(new Loaded(a.Id, a.Name, a.ButtonId,
                     JsonSerializer.Deserialize<AutomationPart>(a.TriggerJson, Json) ?? throw new JsonException("Trigger fehlt"),
                     JsonSerializer.Deserialize<List<AutomationPart>>(a.ConditionsJson, Json) ?? [],
                     JsonSerializer.Deserialize<List<ActionStep>>(a.ActionsJson, Json) ?? []));

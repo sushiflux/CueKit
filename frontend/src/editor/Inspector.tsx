@@ -1,4 +1,4 @@
-import { IconCheck, IconFolderOpen, IconPhoto, IconTrash } from '@tabler/icons-react'
+import { IconBulbFilled, IconCheck, IconFolderOpen, IconPhoto, IconToggleRightFilled, IconTrash } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
 import { api, errorMessage } from '../api/client'
 import type { ButtonModel, Catalog, DeckModel } from '../api/types'
@@ -6,8 +6,14 @@ import { DeckKey } from '../components/DeckKey'
 import { HotkeyRecorder } from '../components/HotkeyRecorder'
 import { IconPicker } from '../components/IconPicker'
 import { toast } from '../components/Toasts'
+import { buttonHasToggleState } from '../lib/buttonState'
 import { KEY_COLORS } from '../lib/keyColors'
 import { StepEditor, validateSteps } from './StepEditor'
+
+const TOGGLE_STYLES = [
+  { id: 'led', label: 'LED', icon: IconBulbFilled },
+  { id: 'switch', label: 'Schalter', icon: IconToggleRightFilled },
+] as const
 
 interface Props {
   button: ButtonModel
@@ -35,7 +41,16 @@ export function Inspector({ button, deck, catalog, onOpenFolder, onDeleted }: Pr
     try {
       await api(`/api/buttons/${button.id}`, {
         method: 'PUT',
-        body: { row: draft.row, column: draft.column, label: draft.label, icon: draft.icon, color: draft.color, actions: draft.actions, hotkey: draft.hotkey ?? '' },
+        body: {
+          row: draft.row,
+          column: draft.column,
+          label: draft.label,
+          icon: draft.icon,
+          color: draft.color,
+          toggleStyle: draft.toggleStyle,
+          actions: draft.actions,
+          hotkey: draft.hotkey ?? '',
+        },
       })
       toast('Taste gespeichert.', 'success')
     } catch (e) {
@@ -104,6 +119,27 @@ export function Inspector({ button, deck, catalog, onOpenFolder, onDeleted }: Pr
             ))}
           </div>
         </div>
+
+        {buttonHasToggleState(draft) && (
+          <div>
+            <span className="label">Zustandsanzeige</span>
+            <div className="flex gap-1.5">
+              {TOGGLE_STYLES.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  title={s.label}
+                  aria-label={s.label}
+                  aria-pressed={draft.toggleStyle === s.id}
+                  onClick={() => setDraft({ ...draft, toggleStyle: s.id })}
+                  className="btn btn-ghost flex-1 aria-pressed:border-select aria-pressed:bg-select-soft aria-pressed:text-select"
+                >
+                  <s.icon size={16} /> {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div>
           <span className="label">Tastenkürzel</span>

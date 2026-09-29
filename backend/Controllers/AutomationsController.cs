@@ -25,10 +25,18 @@ public class AutomationsController(AppDbContext db, AutomationEngine engine, Act
         return list.Select(ToDto).ToList();
     }
 
+    /// <summary>Die an eine bestimmte Taste gebundene Automation (falls vorhanden) - fuer den Tasten-Inspector.</summary>
+    [HttpGet("~/api/buttons/{buttonId:int}/automation")]
+    public async Task<ActionResult<AutomationDto>> GetForButton(int buttonId)
+    {
+        var entity = await db.Automations.AsNoTracking().FirstOrDefaultAsync(a => a.ButtonId == buttonId);
+        return entity is null ? NotFound() : ToDto(entity);
+    }
+
     [HttpPost]
     public async Task<ActionResult<AutomationDto>> Create(AutomationInput input)
     {
-        if (Validate(input) is { } error) return BadRequest(new { error });
+        if (await Validate(input) is { } error) return BadRequest(new { error });
         var entity = new AutomationEntity();
         Apply(entity, input);
         db.Automations.Add(entity);
@@ -43,7 +51,7 @@ public class AutomationsController(AppDbContext db, AutomationEngine engine, Act
     {
         var entity = await db.Automations.FirstOrDefaultAsync(a => a.Id == id);
         if (entity is null) return NotFound(new { error = "Automation nicht gefunden." });
-        if (Validate(input) is { } error) return BadRequest(new { error });
+        if (await Validate(input) is { } error) return BadRequest(new { error });
         Apply(entity, input);
         await db.SaveChangesAsync();
         engine.Invalidate();
@@ -78,7 +86,7 @@ public class AutomationsController(AppDbContext db, AutomationEngine engine, Act
         }
     }
 
-    private static string? Validate(AutomationInput input)
+    private async Task<string?> Validate(AutomationInput input)
     {
         if (!AutomationCatalog.Triggers.Any(t => t.Type == input.Trigger.Type)) return $"Unbekannter Auslöser '{input.Trigger.Type}'.";
         var badCondition = input.Conditions?.FirstOrDefault(c => !AutomationCatalog.Conditions.Any(d => d.Type == c.Type));
@@ -93,6 +101,17 @@ public class AutomationsController(AppDbContext db, AutomationEngine engine, Act
             return ActionCatalog.IsClientSide(badAction.Type)
                 ? "Deck-Navigation (Ordner öffnen/zurück) geht nur auf Buttons, nicht in Automationen."
                 : $"Unbekannte Aktion '{badAction.Type}'.";
+
+        // "button.pressed" ist implizit an ButtonId gekoppelt - jeder andere Ausloeser darf nicht an eine Taste gebunden sein.
+        if (input.Trigger.Type == "button.pressed")
+        {
+            if (input.ButtonId is not { } buttonId) return "Der Auslöser „Diese Taste wurde gedrückt“ braucht eine zugeordnete Taste.";
+            if (!await db.Buttons.AnyAsync(b => b.Id == buttonId)) return "Die zugeordnete Taste wurde nicht gefunden.";
+        }
+        else if (input.ButtonId is not null)
+        {
+            return "Eine an eine Taste gebundene Automation muss den Auslöser „Diese Taste wurde gedrückt“ verwenden.";
+        }
         return null;
     }
 
@@ -100,13 +119,14 @@ public class AutomationsController(AppDbContext db, AutomationEngine engine, Act
     {
         e.Name = input.Name.Trim();
         e.Enabled = input.Enabled;
+        e.ButtonId = input.ButtonId;
         e.TriggerJson = JsonSerializer.Serialize(input.Trigger, Json);
         e.ConditionsJson = JsonSerializer.Serialize(input.Conditions ?? [], Json);
         e.ActionsJson = JsonSerializer.Serialize(input.Actions ?? [], Json);
     }
 
     private AutomationDto ToDto(AutomationEntity e) => new(
-        e.Id, e.Name, e.Enabled,
+        e.Id, e.Name, e.Enabled, e.ButtonId,
         JsonSerializer.Deserialize<AutomationPart>(e.TriggerJson, Json) ?? new AutomationPart("", null),
         JsonSerializer.Deserialize<List<AutomationPart>>(e.ConditionsJson, Json) ?? [],
         JsonSerializer.Deserialize<List<ActionStep>>(e.ActionsJson, Json) ?? [],

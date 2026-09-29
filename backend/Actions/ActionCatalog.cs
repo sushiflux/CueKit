@@ -1,3 +1,5 @@
+using Deck.Server.Hardware;
+
 namespace Deck.Server.Actions;
 
 /// <summary>
@@ -17,6 +19,7 @@ public static class ActionCatalog
     public const string Deck = "Deck";
     public const string Automation = "Automation";
     public const string Flow = "Ablauf";
+    public const string System = "System";
 
     private static readonly FieldOption[] ToggleModes =
     [
@@ -47,6 +50,15 @@ public static class ActionCatalog
     [
         new("playpause", "Abspielen/Pause"), new("play", "Abspielen"), new("pause", "Pause"), new("stop", "Stopp"),
         new("restart", "Von vorn"), new("next", "Nächstes"), new("previous", "Vorheriges"),
+    ];
+
+    private static readonly FieldOption[] SystemMonitorMetrics =
+    [
+        new(SystemMetric.CpuLoad, "CPU-Auslastung"),
+        new(SystemMetric.CpuTemp, "CPU-Temperatur"),
+        new(SystemMetric.GpuLoad, "GPU-Auslastung"),
+        new(SystemMetric.GpuTemp, "GPU-Temperatur"),
+        new(SystemMetric.RamLoad, "RAM-Auslastung"),
     ];
 
     public static readonly IReadOnlyList<ActionDefinition> BuiltIn =
@@ -133,8 +145,25 @@ public static class ActionCatalog
         // --- Ablauf ---
         new("flow.delay", Flow, "Warten", "Wartet eine Zeit, bevor der nächste Schritt läuft.", "tabler:hourglass",
             [new("ms", "Millisekunden", FieldKind.Number, Default: "1000")], "slate"),
+
+        // --- System (nur nativ unter Windows - siehe Hardware/SystemVolumeService.cs, Hardware/SystemMonitorService.cs) ---
+        new("system.volume", System, "Systemlautstärke", "Windows-Master-Lautstärke lauter, leiser oder auf einen festen Wert (nicht die OBS-Audioquellen).", "tabler:volume",
+            [new("mode", "Modus", FieldKind.Select, Options: VolumeModes, Default: "up"),
+             new("step", "Schritt in % (lauter/leiser)", FieldKind.Number, Required: false, Default: "5"),
+             new("value", "Zielwert in % (0-100)", FieldKind.Number, Required: false, Default: "50")], "cyan"),
+        new("system.mute", System, "Systemlautstärke stumm", "Schaltet die Windows-Master-Lautstärke stumm oder laut.", "tabler:volume-3",
+            [new("mode", "Modus", FieldKind.Select, Options: MuteModes, Default: "toggle")], "cyan"),
+        new("system.browser.open", System, "Browser öffnen", "Öffnet eine fest hinterlegte Adresse im Standardbrowser.", "tabler:world",
+            [new("url", "Adresse (http/https)", FieldKind.Url)], "cyan"),
+        new("system.monitor.display", System, "System-Wert anzeigen", "Zeigt einen Live-Systemwert auf der Kachel an (kein Auslöser).", "tabler:activity",
+            [new("metric", "Kennwert", FieldKind.Select, Options: SystemMonitorMetrics, Default: SystemMetric.CpuLoad)], "cyan", DisplayOnly: true),
     ];
 
     /// <summary>Aktionen, die nur im Client (Navigation) wirken und serverseitig ignoriert werden.</summary>
     public static bool IsClientSide(string type) => type.StartsWith("deck.", StringComparison.Ordinal);
+
+    /// <summary>Reine Anzeige-Kacheln ohne Ausloese-Verhalten - der Client rendert einen Live-Wert
+    /// statt eines Klick-Buttons; serverseitig gibt es dafuer nichts auszufuehren. Liest das
+    /// DisplayOnly-Flag aus der ActionDefinition, damit es nur eine Quelle der Wahrheit gibt.</summary>
+    public static bool IsDisplayOnly(string type) => BuiltIn.FirstOrDefault(d => d.Type == type)?.DisplayOnly ?? false;
 }

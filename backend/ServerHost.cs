@@ -5,6 +5,7 @@ using Deck.Server.Actions;
 using Deck.Server.Auth;
 using Deck.Server.Automation;
 using Deck.Server.Data;
+using Deck.Server.Hardware;
 using Deck.Server.Hotkeys;
 using Deck.Server.Hubs;
 using Deck.Server.Obs;
@@ -76,6 +77,28 @@ public static class ServerHost
         {
             builder.Services.AddSingleton<IGlobalHotkeys, NoGlobalHotkeys>();
         }
+
+        // Systemlautstaerke + Sensoren (CPU/GPU/RAM): nur nativ unter Windows verfuegbar, siehe
+        // Hardware/SystemVolumeService.cs und Hardware/SystemMonitorService.cs.
+        builder.Services.AddSingleton<SystemMonitorSubscribers>();
+        if (OperatingSystem.IsWindows())
+        {
+            AddWindowsHardware(builder.Services);
+        }
+        else
+        {
+            builder.Services.AddSingleton<ISystemVolume, NoSystemVolume>();
+            // Entwickler-Notbehelf nur im Docker-Dev-Stack: Container-eigene CPU/RAM-Werte statt
+            // "nicht verfuegbar", damit Anzeige-Kacheln ueberhaupt Live-Zahlen zeigen (siehe
+            // Hardware/ContainerSystemMonitor.cs - das sind Container-, nicht PC-Werte). In
+            // Production/Live bleibt es bei NoSystemMonitor, auch ohne natives Windows.
+            if (builder.Environment.IsDevelopment())
+                builder.Services.AddSingleton<ISystemMonitor, ContainerSystemMonitor>();
+            else
+                builder.Services.AddSingleton<ISystemMonitor, NoSystemMonitor>();
+        }
+        AddHostedSingleton<SystemMonitorBroadcaster>(builder.Services);
+
         AddHostedSingleton<ObsService>(builder.Services);
         AddHostedSingleton<AutomationEngine>(builder.Services);
         AddHostedSingleton<HubNotifier>(builder.Services);
@@ -181,6 +204,14 @@ public static class ServerHost
         services.AddSingleton<GlobalHotkeyService>();
         services.AddSingleton<IGlobalHotkeys>(sp => sp.GetRequiredService<GlobalHotkeyService>());
         services.AddHostedService(sp => sp.GetRequiredService<GlobalHotkeyService>());
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static void AddWindowsHardware(IServiceCollection services)
+    {
+        services.AddSingleton<ISystemVolume, SystemVolumeService>();
+        services.AddSingleton<SystemMonitorService>();
+        services.AddSingleton<ISystemMonitor>(sp => sp.GetRequiredService<SystemMonitorService>());
     }
 
     private static void AddHostedSingleton<T>(IServiceCollection services) where T : class, IHostedService

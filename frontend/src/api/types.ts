@@ -13,6 +13,8 @@ export interface ButtonModel {
   label: string
   icon: string | null
   color: string
+  /** Visueller Stil fuer den An/Aus-Zustand: LED-Punkt oder simulierter Kippschalter. */
+  toggleStyle: 'led' | 'switch'
   actions: ActionStep[]
   /** z.B. "Ctrl+Shift+KeyF" - siehe lib/hotkeys.ts */
   hotkey: string | null
@@ -73,6 +75,7 @@ export interface ObsSnapshot {
   recordStartedAt: string | null
   replayBuffer: boolean
   virtualCam: boolean
+  filters: { source: string; filterName: string; enabled: boolean }[]
 }
 
 export type FieldKind =
@@ -91,6 +94,7 @@ export type FieldKind =
   | 'text'
   | 'number'
   | 'select'
+  | 'url'
 
 export interface ActionField {
   key: string
@@ -109,6 +113,8 @@ export interface ActionDefinition {
   icon: string
   fields: ActionField[]
   suggestedColor: string | null
+  /** Reine Anzeige-Kachel (z.B. Live-Systemwert) statt klickbarer Auslöser. */
+  displayOnly: boolean
 }
 
 export interface Catalog {
@@ -138,6 +144,8 @@ export interface AutomationModel {
   id: number
   name: string
   enabled: boolean
+  /** Gesetzt = an diese Taste gebunden (Ausloeser dann implizit "button.pressed"). */
+  buttonId: number | null
   trigger: ActionStep
   conditions: ActionStep[]
   actions: ActionStep[]
@@ -157,4 +165,17 @@ export interface AutomationState {
   id: number
   name: string
   enabled: boolean
+}
+
+/** Live-Systemwerte (CPU/GPU/RAM) - Werte sind null, wenn kein Sensor gefunden wurde. */
+export interface SystemMonitorSnapshot {
+  available: boolean
+  cpuLoad: number | null
+  cpuTemp: number | null
+  gpuLoad: number | null
+  gpuTemp: number | null
+  ramLoad: number | null
+  volumePercent: number | null
+  volumeMuted: boolean | null
+  error: string | null
 }

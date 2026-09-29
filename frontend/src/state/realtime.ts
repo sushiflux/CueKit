@@ -1,10 +1,11 @@
 import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr'
 import { api, getToken } from '../api/client'
-import type { AutomationState, Catalog, DeckModel, ObsSnapshot } from '../api/types'
+import type { AutomationState, Catalog, DeckModel, ObsSnapshot, SystemMonitorSnapshot } from '../api/types'
 import { setState } from './store'
 
 let connection: HubConnection | null = null
 let previewWanted = false
+let systemMonitorWanted = false
 let stopped = false
 
 export async function reloadDecks() {
@@ -35,6 +36,7 @@ export async function startRealtime() {
 
   connection.on('obsState', (obs: ObsSnapshot) => setState({ obs }))
   connection.on('preview', (dataUrl: string) => setState({ preview: dataUrl }))
+  connection.on('systemState', (systemMonitor: SystemMonitorSnapshot) => setState({ systemMonitor }))
   connection.on('decksChanged', () => void reloadDecks().catch(() => {}))
   connection.on('catalogChanged', () => void reloadCatalog().catch(() => {}))
   connection.on('pluginsChanged', () => window.dispatchEvent(new CustomEvent('deck:plugins')))
@@ -54,6 +56,7 @@ export async function startRealtime() {
     // Waehrend der Trennung verpasste Aenderungen nachholen.
     await Promise.allSettled([reloadDecks(), reloadCatalog(), reloadAutomationStates(), reloadHotkeyStatus()])
     if (previewWanted) await connection?.invoke('SetPreview', true).catch(() => {})
+    if (systemMonitorWanted) await connection?.invoke('SetSystemMonitor', true).catch(() => {})
   })
   connection.onclose(() => {
     if (stopped) return
@@ -68,6 +71,7 @@ export async function startRealtime() {
     await connection.start()
     setState({ link: 'online' })
     if (previewWanted) await connection.invoke('SetPreview', true)
+    if (systemMonitorWanted) await connection.invoke('SetSystemMonitor', true)
   } catch {
     setState({ link: 'offline' })
     connection = null
@@ -101,4 +105,10 @@ export async function setPreviewEnabled(enabled: boolean) {
   previewWanted = enabled
   if (!enabled) setState({ preview: null })
   if (connection?.state === HubConnectionState.Connected) await connection.invoke('SetPreview', enabled).catch(() => {})
+}
+
+export async function setSystemMonitorEnabled(enabled: boolean) {
+  systemMonitorWanted = enabled
+  if (!enabled) setState({ systemMonitor: null })
+  if (connection?.state === HubConnectionState.Connected) await connection.invoke('SetSystemMonitor', enabled).catch(() => {})
 }

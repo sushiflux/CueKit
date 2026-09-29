@@ -48,6 +48,11 @@ public class ButtonEntity
     /// damit Kontrast/Themes zentral im Frontend kontrollierbar bleiben.</summary>
     public string Color { get; set; } = "slate";
 
+    /// <summary>Visueller Stil fuer den An/Aus-Zustand ("led" oder "switch") - kuratierte Werte,
+    /// kein freier String, analog zu <see cref="Color"/>. Nur relevant fuer Tasten mit echtem
+    /// Toggle-Zustand (siehe buttonHasToggleState im Frontend).</summary>
+    public string ToggleStyle { get; set; } = "led";
+
     /// <summary>JSON-Liste von <see cref="Actions.ActionStep"/> (Multi-Action).</summary>
     public string ActionsJson { get; set; } = "[]";
 
@@ -68,6 +73,14 @@ public class AutomationEntity
     public string ConditionsJson { get; set; } = "[]";
     public string ActionsJson { get; set; } = "[]";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    /// <summary>
+    /// Null = eigenstaendige Automation (rein zeit-/ereignisbasiert, ueber die Uebersicht verwaltet).
+    /// Gesetzt = diese Automation gehoert zu genau dieser Taste (Trigger "button.pressed") und wird
+    /// mitgeloescht, wenn die Taste geloescht wird.
+    /// </summary>
+    public int? ButtonId { get; set; }
+    public ButtonEntity? Button { get; set; }
 }
 
 public enum DeviceRole

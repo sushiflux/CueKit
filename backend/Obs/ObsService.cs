@@ -16,6 +16,7 @@ public sealed class ObsService(SettingsService settings, ILogger<ObsService> log
         "InputCreated", "InputRemoved", "InputNameChanged",
         "CurrentSceneCollectionChanged", "SceneCollectionListChanged", "ProfileListChanged",
         "SceneTransitionCreated", "SceneTransitionRemoved", "SceneTransitionNameChanged",
+        "SourceFilterCreated", "SourceFilterRemoved", "SourceFilterNameChanged", "SourceFilterListReindexed",
     ];
 
     private readonly object _lock = new();
@@ -149,6 +150,7 @@ public sealed class ObsService(SettingsService settings, ILogger<ObsService> log
         var inputs = new List<ObsInput>();
         var audio = new List<ObsAudioInput>();
         var media = new List<ObsMediaInput>();
+        var filters = new List<ObsSourceFilter>();
         foreach (var input in inputList?["inputs"]?.AsArray() ?? [])
         {
             var name = input!["inputName"]!.GetValue<string>();
@@ -170,7 +172,10 @@ public sealed class ObsService(SettingsService settings, ILogger<ObsService> log
                 }
                 catch (ObsRequestException) { media.Add(new ObsMediaInput(name, false)); }
             }
+            filters.AddRange(await LoadSourceFiltersAsync(name, ct));
         }
+        foreach (var name in sceneNames)
+            filters.AddRange(await LoadSourceFiltersAsync(name, ct));
 
         var transitions = await TryRequest("GetSceneTransitionList", ct);
         var collections = await TryRequest("GetSceneCollectionList", ct);
@@ -198,6 +203,7 @@ public sealed class ObsService(SettingsService settings, ILogger<ObsService> log
             audio,
             inputs,
             media,
+            filters,
             transitions?["transitions"]?.AsArray().Select(t => t!["transitionName"]!.GetValue<string>()).ToList() ?? [],
             transitions?["currentSceneTransitionName"]?.GetValue<string>(),
             collections?["sceneCollections"]?.AsArray().Select(n => n!.GetValue<string>()).ToList() ?? [],
@@ -226,6 +232,21 @@ public sealed class ObsService(SettingsService settings, ILogger<ObsService> log
     {
         try { return await RequestAsync(requestType, ct: ct); }
         catch (ObsRequestException) { return null; }
+    }
+
+    /// <summary>Filter einer Quelle oder Szene laden. Quellen ohne Filter (oder nicht existente
+    /// Quellen, z.B. eine gerade umbenannte) duerfen die restliche Initialisierung nie blockieren -
+    /// sauber abfangen und einfach keine Filter eintragen.</summary>
+    private async Task<IReadOnlyList<ObsSourceFilter>> LoadSourceFiltersAsync(string sourceName, CancellationToken ct)
+    {
+        try
+        {
+            var result = await RequestAsync("GetSourceFilterList", new { sourceName }, ct);
+            return result?["filters"]?.AsArray()
+                .Select(f => new ObsSourceFilter(sourceName, f!["filterName"]!.GetValue<string>(), f["filterEnabled"]?.GetValue<bool>() ?? false))
+                .ToList() ?? [];
+        }
+        catch (ObsRequestException) { return []; }
     }
     private async Task<IReadOnlyList<ObsSceneItem>> LoadSceneItemsAsync(string sceneName, CancellationToken ct)
     {
@@ -279,6 +300,17 @@ public sealed class ObsService(SettingsService settings, ILogger<ObsService> log
                 var name = Str(data, "inputName");
                 var muted = Bool(data, "inputMuted");
                 Update(s => s with { AudioInputs = s.AudioInputs.Select(a => a.Name == name ? a with { Muted = muted } : a).ToList() });
+                break;
+            }
+            case "SourceFilterEnableStateChanged":
+            {
+                var source = Str(data, "sourceName");
+                var filterName = Str(data, "filterName");
+                var enabled = Bool(data, "filterEnabled");
+                Update(s => s with
+                {
+                    Filters = s.Filters.Select(f => f.Source == source && f.FilterName == filterName ? f with { Enabled = enabled } : f).ToList(),
+                });
                 break;
             }
             case "StreamStateChanged":

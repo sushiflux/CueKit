@@ -27,6 +27,9 @@ namespace Deck.Server.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("ButtonId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("ConditionsJson")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -47,6 +50,8 @@ namespace Deck.Server.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ButtonId");
 
                     b.ToTable("Automations");
                 });
@@ -87,6 +92,10 @@ namespace Deck.Server.Data.Migrations
 
                     b.Property<int>("Row")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("ToggleStyle")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
@@ -245,6 +254,16 @@ namespace Deck.Server.Data.Migrations
                     b.HasKey("Key");
 
                     b.ToTable("Settings");
+                });
+
+            modelBuilder.Entity("Deck.Server.Data.AutomationEntity", b =>
+                {
+                    b.HasOne("Deck.Server.Data.ButtonEntity", "Button")
+                        .WithMany()
+                        .HasForeignKey("ButtonId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Button");
                 });
 
             modelBuilder.Entity("Deck.Server.Data.ButtonEntity", b =>

@@ -1,6 +1,7 @@
 using Deck.Server.Actions;
 using Deck.Server.Auth;
 using Deck.Server.Automation;
+using Deck.Server.Hardware;
 using Deck.Server.Obs;
 using Deck.Server.Plugins;
 using Deck.Server.Services;
@@ -55,6 +56,43 @@ public class CatalogController(PluginHost plugins, Hotkeys.IGlobalHotkeys global
         triggers = AutomationCatalog.Triggers,
         conditions = AutomationCatalog.Conditions,
     };
+}
+
+/// <summary>Windows-Systemlautstaerke (Master, nicht OBS-Audio) + Live-Sensoren (CPU/GPU/RAM) - nur
+/// nativ unter Windows verfuegbar, siehe Hardware/SystemVolumeService.cs und Hardware/SystemMonitorService.cs.
+/// Systemweite Aenderungen bleiben Owner vorbehalten, wie die uebrigen Settings-Endpunkte.</summary>
+[ApiController]
+[Route("api/system")]
+[Authorize(AuthenticationSchemes = DeviceAuth.Scheme, Policy = DeviceAuth.OwnerPolicy)]
+public class SystemHardwareController(ISystemVolume volume, ISystemMonitor monitor) : ControllerBase
+{
+    [HttpGet("volume")]
+    public SystemVolumeStatus GetVolume() => volume.Status;
+
+    [HttpPut("volume")]
+    public IActionResult SetVolume(SystemVolumeInput input)
+    {
+        try { volume.SetPercent(input.Percent); }
+        catch (InvalidOperationException ex) { return UnprocessableEntity(new { error = ex.Message }); }
+        return Ok(volume.Status);
+    }
+
+    [HttpPost("volume/mute")]
+    public IActionResult ToggleMute()
+    {
+        try { volume.ToggleMuted(); }
+        catch (InvalidOperationException ex) { return UnprocessableEntity(new { error = ex.Message }); }
+        return Ok(volume.Status);
+    }
+
+    /// <summary>Aktueller Sensor-Schnappschuss fuer den ersten Ladezustand einer Anzeige-Kachel -
+    /// danach kommen laufende Werte per SignalR-Event "systemState" (siehe SystemMonitorBroadcaster).</summary>
+    [HttpGet("monitor")]
+    public SystemMonitorSnapshot GetMonitor()
+    {
+        monitor.Refresh();
+        return monitor.Current;
+    }
 }
 
 [ApiController]

@@ -7,7 +7,53 @@ release lives in `CHANGELOG.md`.
 
 # English
 
-## v2026.9.5 - 2026-09-29 00:00
+## v2026.9.6 - 2026-09-29 12:00
+
+Add a "System" action category (volume, browser, live hardware monitoring), bind automations to
+existing buttons instead of a separate automation tile, make action/field pickers context-aware,
+and redesign the toggle-state indicator.
+
+- **System actions** (`backend/Hardware/`, Windows-only, same `[SupportedOSPlatform("windows")]`
+  pattern as `GlobalHotkeyService`): `SystemVolumeService` (Core Audio COM interop) and
+  `SystemMonitorService` (LibreHardwareMonitorLib) for CPU/GPU load+temp and RAM load;
+  `SystemMonitorBroadcaster` pushes a `systemState` SignalR snapshot every ~2s, gated by
+  `SetSystemMonitor(bool)` subscriptions. New `ContainerSystemMonitor` (Development-only, non-
+  Windows) reads `/proc/stat`/`/proc/meminfo` for the container's own CPU/RAM as a dev-stack
+  fallback so the ring gauges show live numbers without a native Windows run - clearly flagged via
+  `SystemMonitorSnapshot.Error`, never used outside `IsDevelopment()`. New `ActionCatalog` entries
+  `system.volume`, `system.mute`, `system.browser.open`, `system.monitor.display` (category
+  `System`); `ActionDefinition.DisplayOnly` flags the monitor action as a pure display tile (no
+  action-type dropdown, no field picker in `StepEditor` - the palette entry already fixes the
+  metric). New `FieldKind.Url`, validated server-side (http/https only) before `Process.Start`.
+  Frontend: new `Palette.tsx` "System" group, `RingGauge.tsx` (SVG progress ring, 300°/60° gap) for
+  the three load metrics, plain icon+value layout kept for the two temperature metrics.
+- **Automation moved from its own tile to a panel on the button itself**: `AutomationEntity` gets
+  a nullable `ButtonId` FK (cascade delete) and a new trigger `button.pressed` (fires after a
+  button's own action steps complete, see `AutomationEngine.NotifyButtonPressed`); new endpoint
+  `GET /api/buttons/{id}/automation`. The old `kind: 'automation'` palette tile and its dedicated
+  `AutomationInspector` are gone from the "create new" flow; a normal button's `Inspector` now has
+  an "Aktion"/"Automation" tab pair (new `ButtonAutomationPanel.tsx`), shown side-by-side instead
+  of tabbed once the editor panel is wide enough (≥1600px, panel grows from 24rem to 46rem).
+  `automation.toggle` (independent, non-button-bound automations) is untouched.
+- **Context-aware pickers** (`StepEditor.tsx`): changing an existing step's action type now
+  defaults to only that action's own category (with a toggle to show the full catalog) instead of
+  always listing every category; a `displayOnly` step (e.g. a monitor tile) shows neither the
+  action-type dropdown nor its field picker at all, since the palette entry already fixes it
+  completely - editing one no longer offers to turn a "RAM load" tile into "CPU load" or a volume
+  action.
+- **Toggle-state indicator redesign** (`index.css`, `DeckKey.tsx`): the LED is now always rendered
+  for any button with a real on/off state (`buttonHasToggleState`), lit in red or green rather than
+  only lit-or-invisible - matching how a real mixing console's status LEDs stay lit in both states.
+  Recessed bezel + separate lens/highlight layers for a physical look, legible against every key
+  color/theme. New alternative per-button style, a simulated toggle switch (`ButtonEntity.ToggleStyle`,
+  `'led' | 'switch'`, chosen in the Inspector next to the color picker).
+- **Sidebar info card hover fix** (`AppInfoHint.tsx`): the card kept accepting pointer events during
+  its exit animation, so briefly re-entering its old screen position right after leaving would
+  reopen it; now `pointer-events` is explicitly `none` outside the fully-open state.
+- New `branding/` folder convention (global CLAUDE.md) for logo/wordmark source files, applied here
+  (`branding/logo.svg` canonical, `frontend/public/logo.svg` a synced copy).
+
+## v2026.9.5 - 2026-09-29 08:01
 
 Redesigned the sidebar footer into one combined info card, added the `branding/` brand-assets folder convention.
 
@@ -159,7 +205,59 @@ Initial scaffold of Baton - a free, community-extensible Stream Deck alternative
 
 # Deutsch
 
-## v2026.9.5 - 2026-09-29 00:00
+## v2026.9.6 - 2026-09-29 12:00
+
+Neue Aktions-Kategorie „System" (Lautstärke, Browser, Live-Hardware-Monitoring), Automationen
+werden jetzt an bestehende Tasten gebunden statt an eine eigene Automations-Kachel, Aktions-/
+Feld-Auswahl reagiert auf den Kontext, und das Toggle-Zustands-Symbol wurde neu gestaltet.
+
+- **System-Aktionen** (`backend/Hardware/`, nur nativ unter Windows, gleiches
+  `[SupportedOSPlatform("windows")]`-Muster wie `GlobalHotkeyService`): `SystemVolumeService`
+  (Core-Audio-COM-Interop) und `SystemMonitorService` (LibreHardwareMonitorLib) für CPU-/
+  GPU-Auslastung+Temperatur sowie RAM-Auslastung; `SystemMonitorBroadcaster` sendet alle ~2s einen
+  `systemState`-Schnappschuss per SignalR, nur solange mindestens ein Gerät per
+  `SetSystemMonitor(bool)` abonniert hat. Neuer `ContainerSystemMonitor` (nur `Development`,
+  Nicht-Windows) liest `/proc/stat`/`/proc/meminfo` für die eigenen Container-Werte als
+  Entwickler-Notbehelf, damit die Ring-Anzeigen im Docker-Dev-Stack ohne nativen Windows-Lauf Live-
+  Zahlen zeigen - klar über `SystemMonitorSnapshot.Error` gekennzeichnet, nie außerhalb von
+  `IsDevelopment()` aktiv. Neue `ActionCatalog`-Einträge `system.volume`, `system.mute`,
+  `system.browser.open`, `system.monitor.display` (Kategorie „System"); `ActionDefinition.DisplayOnly`
+  markiert die Monitor-Aktion als reine Anzeige-Kachel (kein Aktionstyp-Dropdown, kein Feld-Picker
+  im `StepEditor` - der Kennwert steht durch den Palette-Eintrag schon fest). Neuer `FieldKind.Url`,
+  serverseitig geprüft (nur http/https) vor `Process.Start`. Frontend: neue „System"-Gruppe in
+  `Palette.tsx`, `RingGauge.tsx` (SVG-Fortschrittsring, 300°/60°-Lücke) für die drei
+  Auslastungswerte, unverändertes Icon+Zahl-Layout für die beiden Temperaturwerte.
+- **Automation von eigener Kachel zu einem Bereich an der Taste selbst verschoben**:
+  `AutomationEntity` bekommt eine nullable `ButtonId`-FK (Cascade-Delete) und einen neuen Trigger
+  `button.pressed` (feuert, nachdem die eigenen Aktionsschritte der Taste durchgelaufen sind, siehe
+  `AutomationEngine.NotifyButtonPressed`); neuer Endpunkt `GET /api/buttons/{id}/automation`. Die
+  alte `kind: 'automation'`-Palette-Kachel samt eigenem `AutomationInspector` ist aus dem
+  Neuanlage-Fluss verschwunden; der `Inspector` einer normalen Taste hat jetzt ein „Aktion"/
+  „Automation"-Tab-Paar (neu: `ButtonAutomationPanel.tsx`), ab genug Breite (≥1600px, Panel wächst
+  von 24rem auf 46rem) nebeneinander statt als Tabs. `automation.toggle` (eigenständige, nicht
+  tastengebundene Automationen) bleibt unverändert.
+- **Kontextsensitive Auswahlfelder** (`StepEditor.tsx`): Beim Ändern des Aktionstyps eines
+  bestehenden Schritts wird standardmäßig nur die eigene Kategorie gezeigt (mit Umschalter für den
+  vollen Katalog) statt immer aller Kategorien; ein `displayOnly`-Schritt (z.B. eine Monitor-Kachel)
+  zeigt weder das Aktionstyp-Dropdown noch sein Feld-Auswahlfeld, da der Palette-Eintrag das schon
+  vollständig festlegt - eine „RAM-Auslastung"-Kachel lässt sich nicht mehr nachträglich zu
+  „CPU-Auslastung" oder einer Lautstärke-Aktion umbiegen.
+- **Neugestaltung der Toggle-Zustandsanzeige** (`index.css`, `DeckKey.tsx`): Die LED wird jetzt
+  immer für jede Taste mit echtem An/Aus-Zustand gerendert (`buttonHasToggleState`), rot oder grün
+  leuchtend statt nur leuchtend-oder-unsichtbar - wie bei einem echten Mischpult, dessen Status-LEDs
+  in beiden Zuständen leuchten. Eingelassene Fassung + getrennte Linsen-/Glanzpunkt-Ebenen für einen
+  physischen Look, gut lesbar auf jeder Tastenfarbe/jedem Theme. Neuer alternativer, pro Taste
+  wählbarer Stil, ein simulierter Kippschalter (`ButtonEntity.ToggleStyle`, `'led' | 'switch'`, im
+  Inspector neben der Farbauswahl wählbar).
+- **Hover-Fehler der Info-Karte in der Seitenleiste behoben** (`AppInfoHint.tsx`): Die Karte nahm
+  während ihrer Ausblend-Animation weiterhin Zeigerereignisse an, wodurch ein kurzes erneutes
+  Überfahren derselben Stelle sie direkt nach dem Verlassen wieder öffnete; `pointer-events` ist
+  jetzt außerhalb des vollständig geöffneten Zustands explizit `none`.
+- Neue `branding/`-Ordner-Konvention (globale CLAUDE.md) für Logo-/Wortmarken-Quelldateien, hier
+  umgesetzt (`branding/logo.svg` als kanonische Quelle, `frontend/public/logo.svg` eine
+  synchronisierte Kopie).
+
+## v2026.9.5 - 2026-09-29 08:01
 
 Fuß der Seitenleiste zu einer kombinierten Info-Karte überarbeitet, Konvention für einen
 Marken-Assets-Ordner (`branding/`) eingeführt.

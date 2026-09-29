@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { AutomationState, Catalog, DeckModel, Me, ObsSnapshot } from '../api/types'
+import type { AutomationState, Catalog, DeckModel, Me, ObsSnapshot, SystemMonitorSnapshot } from '../api/types'
 
 export type LinkStatus = 'connecting' | 'online' | 'offline'
 
@@ -11,6 +11,8 @@ export interface AppState {
   /** global = Kuerzel systemweit bei Windows angemeldet; conflicts = von anderen Programmen belegt. */
   hotkeys: { global: boolean; conflicts: string[] }
   obs: ObsSnapshot | null
+  /** Live-Systemwerte (CPU/GPU/RAM) - nur gesetzt, waehrend mindestens eine Anzeige-Kachel sichtbar ist. */
+  systemMonitor: SystemMonitorSnapshot | null
   link: LinkStatus
   preview: string | null
   version: string | null
@@ -23,6 +25,7 @@ let state: AppState = {
   automations: [],
   hotkeys: { global: false, conflicts: [] },
   obs: null,
+  systemMonitor: null,
   link: 'connecting',
   preview: null,
   version: null,

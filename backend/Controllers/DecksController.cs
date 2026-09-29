@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Deck.Server.Actions;
 using Deck.Server.Auth;
+using Deck.Server.Automation;
 using Deck.Server.Data;
 using Deck.Server.Hubs;
 using Deck.Server.Obs;
@@ -16,7 +17,7 @@ namespace Deck.Server.Controllers;
 [ApiController]
 [Route("api")]
 [Authorize(AuthenticationSchemes = DeviceAuth.Scheme)]
-public partial class DecksController(AppDbContext db, HubNotifier notifier, ObsService obs, ActionExecutor executor) : ControllerBase
+public partial class DecksController(AppDbContext db, HubNotifier notifier, ObsService obs, ActionExecutor executor, AutomationEngine automationEngine) : ControllerBase
 {
     private const int MaxSteps = 20;
 
@@ -41,6 +42,9 @@ public partial class DecksController(AppDbContext db, HubNotifier notifier, ObsS
         try
         {
             await executor.ExecuteAsync(ParseSteps(button.ActionsJson), $"Button '{button.Label}'", ct);
+            // Erst NACH erfolgreichem Abschluss der Sofort-Aktionen - feuert selbst im Hintergrund
+            // (Task.Run in AutomationEngine.Fire) und blockiert diese Antwort nicht.
+            automationEngine.NotifyButtonPressed(id);
             return NoContent();
         }
         catch (ActionExecutionException ex)
@@ -295,6 +299,10 @@ public partial class DecksController(AppDbContext db, HubNotifier notifier, ObsS
     {
         var deleted = await db.Buttons.Where(b => b.Id == id).ExecuteDeleteAsync();
         if (deleted == 0) return NotFound(new { error = "Button nicht gefunden." });
+        // Eine an diese Taste gebundene Automation faellt per DB-Cascade mit weg (siehe AppDbContext) -
+        // die Engine muss das mitbekommen, sonst haelt sie einen veralteten "button.pressed"-Trigger vor.
+        automationEngine.Invalidate();
+        notifier.AutomationsChanged();
         await notifier.DecksChangedAsync();
         return NoContent();
     }
@@ -325,9 +333,12 @@ public partial class DecksController(AppDbContext db, HubNotifier notifier, ObsS
         return $"Dieses Tastenkürzel ist schon der Taste „{label}“ im Deck „{other.Page?.Deck?.Name}“ zugewiesen.";
     }
 
+    private static readonly HashSet<string> ValidToggleStyles = ["led", "switch"];
+
     private static string? ValidateInput(ButtonInput input)
     {
         if (input.Color is { } c && !ColorPattern().IsMatch(c)) return "Ungültige Farbe.";
+        if (input.ToggleStyle is { } ts && !ValidToggleStyles.Contains(ts)) return "Ungültige Zustandsanzeige – erlaubt sind „led“ oder „switch“.";
         if (input.Icon is { Length: > 0 } i && !IconPattern().IsMatch(i)) return "Ungültiger Icon-Name (erwartet z.B. 'tabler:video').";
         if (input.Hotkey is { Length: > 0 } hk)
         {
@@ -346,6 +357,7 @@ public partial class DecksController(AppDbContext db, HubNotifier notifier, ObsS
         b.Label = input.Label?.Trim() ?? "";
         b.Icon = string.IsNullOrWhiteSpace(input.Icon) ? null : input.Icon;
         b.Color = input.Color ?? "slate";
+        b.ToggleStyle = input.ToggleStyle ?? "led";
         b.ActionsJson = Serialize(input.Actions ?? []);
         if (input.Hotkey is not null) b.Hotkey = input.Hotkey.Length == 0 ? null : input.Hotkey;
     }
@@ -374,7 +386,7 @@ public partial class DecksController(AppDbContext db, HubNotifier notifier, ObsS
 
     private static string Truncate(string s, int max) => s.Length <= max ? s : s[..max];
 
-    private static ButtonDto ToDto(ButtonEntity b) => new(b.Id, b.PageId, b.Row, b.Column, b.Label, b.Icon, b.Color, ParseSteps(b.ActionsJson), b.Hotkey);
+    private static ButtonDto ToDto(ButtonEntity b) => new(b.Id, b.PageId, b.Row, b.Column, b.Label, b.Icon, b.Color, b.ToggleStyle, ParseSteps(b.ActionsJson), b.Hotkey);
 
     private static DeckDto ToDto(DeckEntity d) => new(d.Id, d.Name, d.Rows, d.Columns, d.SortOrder,
         d.Pages.OrderBy(p => p.ParentPageId.HasValue).ThenBy(p => p.Id)

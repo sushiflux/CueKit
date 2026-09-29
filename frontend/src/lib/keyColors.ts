@@ -4,6 +4,7 @@ export const KEY_COLORS = [
   { id: 'violet', label: 'Violett', swatch: '#7c3aed' },
   { id: 'indigo', label: 'Indigo', swatch: '#4f46e5' },
   { id: 'sky', label: 'Himmel', swatch: '#0284c7' },
+  { id: 'cyan', label: 'Cyan', swatch: '#0891b2' },
   { id: 'teal', label: 'Petrol', swatch: '#0d9488' },
   { id: 'emerald', label: 'Smaragd', swatch: '#059669' },
   { id: 'amber', label: 'Bernstein', swatch: '#d97706' },

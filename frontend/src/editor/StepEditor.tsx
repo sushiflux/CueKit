@@ -1,4 +1,4 @@
-import { IconArrowDown, IconArrowUp, IconTrash } from '@tabler/icons-react'
+import { IconArrowDown, IconArrowUp, IconListDetails, IconTrash } from '@tabler/icons-react'
 import { useEffect, useId, useState } from 'react'
 import { api } from '../api/client'
 import type { ActionDefinition, ActionField, ActionStep, DeckModel, Params } from '../api/types'
@@ -140,6 +140,16 @@ interface Props {
 export function StepEditor({ steps, definitions, onChange, deck, addLabel = 'Aktion hinzufügen' }: Props) {
   const byType = new Map(definitions.map((d) => [d.type, d]))
   const categories = [...new Set(definitions.map((d) => d.category))]
+  // Pro Schritt-Index: Aktionstyp-Dropdown zeigt standardmaessig nur die Kategorie des aktuellen Typs,
+  // hier gemerkt, welche Schritte auf "alle Kategorien anzeigen" umgeschaltet wurden.
+  const [showAllTypes, setShowAllTypes] = useState<Set<number>>(new Set())
+  const toggleShowAllTypes = (index: number) =>
+    setShowAllTypes((prev) => {
+      const next = new Set(prev)
+      if (next.has(index)) next.delete(index)
+      else next.add(index)
+      return next
+    })
 
   const update = (index: number, step: ActionStep) => onChange(steps.map((s, i) => (i === index ? step : s)))
   const move = (index: number, delta: number) => {
@@ -153,6 +163,12 @@ export function StepEditor({ steps, definitions, onChange, deck, addLabel = 'Akt
     <div className="space-y-3">
       {steps.map((step, index) => {
         const def = byType.get(step.type)
+        // Reine Anzeige-Kacheln (z.B. "System-Wert anzeigen") sind kein austauschbarer Aktionstyp -
+        // kein Dropdown dafuer, nur Icon/Name und das eigentliche Konfigurationsfeld (z.B. Kennwert).
+        const isDisplayOnly = def?.displayOnly ?? false
+        // Ohne bekannten Typ (Plugin entfernt o.ae.) gibt es keinen sinnvollen Kategorie-Anker -> voller Katalog.
+        const restrictToCategory = def && !showAllTypes.has(index)
+        const visibleDefinitions = restrictToCategory ? definitions.filter((d) => d.category === def.category) : definitions
         return (
           <div key={index} className="rounded-card border border-line bg-surface-2/60 p-3">
             <div className="mb-3 flex items-center gap-2">
@@ -160,23 +176,47 @@ export function StepEditor({ steps, definitions, onChange, deck, addLabel = 'Akt
                 {index + 1}
               </span>
               <KeyIcon name={def?.icon ?? 'tabler:help'} size={16} className="shrink-0 text-brand" />
-              <select
-                className="field h-8 min-w-0 flex-1 font-semibold"
-                value={step.type}
-                onChange={(e) => update(index, { type: e.target.value, params: defaultParams(byType.get(e.target.value)) })}
-                aria-label="Aktionstyp"
-              >
-                {!def && <option value={step.type}>{step.type} (nicht verfügbar)</option>}
-                {categories.map((c) => (
-                  <optgroup key={c} label={c}>
-                    {definitions.filter((d) => d.category === c).map((d) => (
-                      <option key={d.type} value={d.type}>
-                        {d.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
+              {def && isDisplayOnly ? (
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{def.name}</span>
+              ) : (
+                <>
+                  <select
+                    className="field h-8 min-w-0 flex-1 font-semibold"
+                    value={step.type}
+                    onChange={(e) => update(index, { type: e.target.value, params: defaultParams(byType.get(e.target.value)) })}
+                    aria-label="Aktionstyp"
+                  >
+                    {!def && <option value={step.type}>{step.type} (nicht verfügbar)</option>}
+                    {restrictToCategory
+                      ? visibleDefinitions.map((d) => (
+                          <option key={d.type} value={d.type}>
+                            {d.name}
+                          </option>
+                        ))
+                      : categories.map((c) => (
+                          <optgroup key={c} label={c}>
+                            {definitions.filter((d) => d.category === c).map((d) => (
+                              <option key={d.type} value={d.type}>
+                                {d.name}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
+                  </select>
+                  {def && (
+                    <button
+                      type="button"
+                      className={`btn btn-sm btn-icon shrink-0 ${showAllTypes.has(index) ? 'text-brand' : 'text-ink-muted hover:text-ink'}`}
+                      onClick={() => toggleShowAllTypes(index)}
+                      aria-pressed={showAllTypes.has(index)}
+                      aria-label={showAllTypes.has(index) ? 'Nur Kategorie anzeigen' : 'Alle Aktionen anzeigen'}
+                      title={showAllTypes.has(index) ? 'Nur Kategorie anzeigen' : 'Alle Aktionen anzeigen'}
+                    >
+                      <IconListDetails size={15} />
+                    </button>
+                  )}
+                </>
+              )}
               <div className="flex shrink-0">
                 {steps.length > 1 && (
                   <>
@@ -198,7 +238,7 @@ export function StepEditor({ steps, definitions, onChange, deck, addLabel = 'Akt
                 </button>
               </div>
             </div>
-            {def && def.fields.length > 0 && (
+            {def && def.fields.length > 0 && !isDisplayOnly && (
               <div className="grid gap-3">
                 {def.fields.map((f) => (
                   <FieldInput

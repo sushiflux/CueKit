@@ -4,20 +4,21 @@ using Deck.Server.Hubs;
 using Deck.Server.Obs;
 using Deck.Server.Plugins;
 using Microsoft.EntityFrameworkCore;
+using SystemVolume = Deck.Server.Hardware.ISystemVolume;
 
 namespace Deck.Server.Actions;
 
 public class ActionExecutionException(string message, Exception? inner = null) : Exception(message, inner);
 
 /// <summary>Fuehrt Aktionsschritte nacheinander aus - von Buttons wie von Automationen.</summary>
-public class ActionExecutor(ObsService obs, PluginHost plugins, IServiceProvider services, ILogger<ActionExecutor> log)
+public class ActionExecutor(ObsService obs, PluginHost plugins, SystemVolume systemVolume, IServiceProvider services, ILogger<ActionExecutor> log)
 {
     public async Task ExecuteAsync(IReadOnlyList<ActionStep> steps, string origin, CancellationToken ct = default)
     {
         for (var i = 0; i < steps.Count; i++)
         {
             var step = steps[i];
-            if (ActionCatalog.IsClientSide(step.Type)) continue;
+            if (ActionCatalog.IsClientSide(step.Type) || ActionCatalog.IsDisplayOnly(step.Type)) continue;
             try
             {
                 await ExecuteStepAsync(step, ct);
@@ -194,6 +195,18 @@ public class ActionExecutor(ObsService obs, PluginHost plugins, IServiceProvider
                 await Task.Delay(Math.Clamp(step.Int("ms") ?? 1000, 0, 600_000), ct);
                 break;
 
+            case "system.volume":
+                ExecuteSystemVolume(step);
+                break;
+
+            case "system.mute":
+                ExecuteSystemMute(step);
+                break;
+
+            case "system.browser.open":
+                OpenBrowser(Required(step, "url"));
+                break;
+
             default:
                 if (PluginHost.TryParseActionType(step.Type, out var pluginId, out var actionId))
                 {
@@ -237,4 +250,55 @@ public class ActionExecutor(ObsService obs, PluginHost plugins, IServiceProvider
 
     private static string Required(ActionStep step, string key) =>
         step.Str(key) is { Length: > 0 } v ? v : throw new ActionExecutionException($"Pflichtfeld '{key}' ist nicht gesetzt.");
+
+    private void ExecuteSystemVolume(ActionStep step)
+    {
+        try
+        {
+            switch (step.Mode)
+            {
+                case "set":
+                    var value = step.Int("value") ?? throw new ActionExecutionException("Zielwert in % fehlt.");
+                    systemVolume.SetPercent(value);
+                    break;
+                case "down":
+                    systemVolume.Adjust(-Math.Abs(step.Int("step") ?? 5));
+                    break;
+                default:
+                    systemVolume.Adjust(Math.Abs(step.Int("step") ?? 5));
+                    break;
+            }
+        }
+        catch (InvalidOperationException ex) { throw new ActionExecutionException(ex.Message, ex); }
+    }
+
+    private void ExecuteSystemMute(ActionStep step)
+    {
+        try
+        {
+            switch (step.Mode)
+            {
+                case "on": systemVolume.SetMuted(true); break;
+                case "off": systemVolume.SetMuted(false); break;
+                default: systemVolume.ToggleMuted(); break;
+            }
+        }
+        catch (InvalidOperationException ex) { throw new ActionExecutionException(ex.Message, ex); }
+    }
+
+    /// <summary>Oeffnet eine Adresse im Standardbrowser. Nur http/https - kein UseShellExecute auf
+    /// beliebige Strings (file://, javascript: usw. explizit abgelehnt, siehe Sicherheits-Baseline).</summary>
+    private static void OpenBrowser(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
+            throw new ActionExecutionException($"„{url}“ ist keine gültige http/https-Adresse.");
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(uri.ToString()) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            throw new ActionExecutionException($"Browser konnte nicht geöffnet werden: {ex.Message}", ex);
+        }
+    }
 }

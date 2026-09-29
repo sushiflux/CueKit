@@ -7,7 +7,7 @@ import { KeyIcon } from '../components/KeyIcon'
 import { defaultParams } from './StepEditor'
 
 /** Sonderfaelle, die statt einer einfachen Taste etwas Besonderes anlegen. */
-export type TileKind = 'folder' | 'multi' | 'automation'
+export type TileKind = 'folder' | 'multi'
 
 export interface PaletteItem {
   id: string
@@ -178,10 +178,61 @@ export function buildPalette(obs: ObsSnapshot | null, catalog: Catalog | null): 
         title: 'Tasten & Navigation',
         entries: [
           { id: 'deck:multi', label: 'Multifunktion', sublabel: 'Mehrere Aktionen nacheinander', icon: 'tabler:stack-3', color: 'violet', actions: [], kind: 'multi' },
-          { id: 'deck:automation', label: 'Automation', sublabel: 'Wenn … dann …', icon: 'tabler:route', color: 'violet', actions: [], kind: 'automation' },
           { id: 'deck:folder', label: 'Ordner', icon: 'tabler:folder-plus', color: 'amber', actions: [], kind: 'folder' },
           { id: 'deck:back', label: 'Zurück', icon: 'tabler:arrow-back-up', color: 'slate', actions: step('deck.back') },
         ],
+      },
+    ],
+  }
+
+  const monitorMetrics: { metric: string; label: string; icon: string }[] = [
+    { metric: 'cpuLoad', label: 'CPU-Auslastung', icon: 'tabler:cpu' },
+    { metric: 'cpuTemp', label: 'CPU-Temperatur', icon: 'tabler:thermometer' },
+    { metric: 'gpuLoad', label: 'GPU-Auslastung', icon: 'tabler:gpu' },
+    { metric: 'gpuTemp', label: 'GPU-Temperatur', icon: 'tabler:thermometer' },
+    { metric: 'ramLoad', label: 'RAM-Auslastung', icon: 'tabler:database' },
+  ]
+
+  const systemGroup: PaletteGroup = {
+    id: 'system',
+    title: 'System',
+    icon: 'tabler:cpu',
+    sections: [
+      {
+        id: 'volume',
+        title: 'Lautstärke',
+        entries: [
+          {
+            id: 'system:mute',
+            label: 'Stumm / Ton an',
+            icon: 'tabler:volume',
+            color: 'cyan',
+            actions: step('system.mute', def('system.mute')),
+            variants: [
+              { id: 'system:vol-up', short: 'Lauter', label: 'Systemlautstärke +', icon: 'tabler:volume-2', color: 'cyan', actions: step('system.volume', { mode: 'up', step: 5 }) },
+              { id: 'system:vol-down', short: 'Leiser', label: 'Systemlautstärke −', icon: 'tabler:volume-3', color: 'cyan', actions: step('system.volume', { mode: 'down', step: 5 }) },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'misc',
+        title: 'Sonstiges',
+        entries: [
+          { id: 'system:browser', label: 'Browser öffnen', sublabel: 'URL danach eintragen', icon: 'tabler:world', color: 'cyan', actions: step('system.browser.open', def('system.browser.open')) },
+        ],
+      },
+      {
+        id: 'monitor',
+        title: 'System-Wert anzeigen',
+        entries: monitorMetrics.map((m) => ({
+          id: `system:monitor:${m.metric}`,
+          label: m.label,
+          sublabel: 'Live-Anzeige, kein Auslöser',
+          icon: m.icon,
+          color: 'cyan',
+          actions: step('system.monitor.display', { metric: m.metric }),
+        })),
       },
     ],
   }
@@ -203,7 +254,7 @@ export function buildPalette(obs: ObsSnapshot | null, catalog: Catalog | null): 
     ],
   }))
 
-  return [obsGroup, deckGroup, ...pluginGroups]
+  return [obsGroup, deckGroup, systemGroup, ...pluginGroups]
 }
 
 function DragHandle({ item, children, className, onAdd, title }: { item: PaletteItem; children: React.ReactNode; className: string; onAdd: (item: PaletteItem) => void; title?: string }) {
@@ -341,7 +392,7 @@ export function Palette({ groups, onAdd }: { groups: PaletteGroup[]; onAdd: (ite
           })
         )}
         <p className="px-3 pt-3 text-[11px] leading-relaxed text-ink-faint">
-          Tipp: Auf eine Taste ziehen – oder eine leere Taste anklicken für Multifunktion, Automation und Ordner.
+          Tipp: Auf eine Taste ziehen – oder eine leere Taste anklicken für Multifunktion und Ordner.
         </p>
       </div>
     </div>

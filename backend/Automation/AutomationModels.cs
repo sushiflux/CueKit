@@ -17,6 +17,8 @@ public static class AutomationCatalog
 
     public static readonly IReadOnlyList<ActionDefinition> Triggers =
     [
+        new("button.pressed", "Auslöser", "Diese Taste wurde gedrückt", "Feuert, nachdem die Sofort-Aktionen dieser Taste vollständig ausgeführt wurden. Nur für Automationen, die an eine Taste gebunden sind.", "tabler:hand-click",
+            []),
         new("obs.sceneChanged", "Auslöser", "Szene wurde gewechselt", "Wenn live auf eine bestimmte (oder beliebige) Szene gewechselt wird.", "tabler:layout-board",
             [new("scene", "Szene (leer = jede)", FieldKind.Scene, Required: false)]),
         new("obs.sceneActiveFor", "Auslöser", "Szene läuft seit …", "Wenn eine Szene eine bestimmte Zeit ununterbrochen live ist - z.B. nach 5 Minuten automatisch weiterschalten.", "tabler:clock-play",

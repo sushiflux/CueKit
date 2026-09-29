@@ -11,12 +11,12 @@ import { toast } from '../components/Toasts'
 import { DeckEditor } from '../deck/DeckEditor'
 import { deleteTile } from '../deck/tileOps'
 import { TileMenu, type MenuItem } from '../editor/TileMenu'
-import { buttonLevel, formatDuration, isButtonActive } from '../lib/buttonState'
+import { buttonLevel, buttonNeedsSystemMonitor, displayMetric, formatDuration, isButtonActive } from '../lib/buttonState'
 import { hotkeyFromEvent, isTypingTarget } from '../lib/hotkeys'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { HotkeyCaps } from '../components/HotkeyRecorder'
 import { Modal } from '../components/Modal'
-import { pressButton, setPreviewEnabled } from '../state/realtime'
+import { pressButton, setPreviewEnabled, setSystemMonitorEnabled } from '../state/realtime'
 import { useStore } from '../state/store'
 
 const DECK_KEY = 'deck.selectedDeck'
@@ -48,6 +48,8 @@ export function DeckPage() {
   const me = useStore((s) => s.me)
   const link = useStore((s) => s.link)
   const automations = useStore((s) => s.automations)
+  const catalog = useStore((s) => s.catalog)
+  const systemMonitor = useStore((s) => s.systemMonitor)
   const isOwner = me?.role === 'owner'
 
   // Bearbeiten-Modus direkt im Deck (Bleistift) - in der URL, damit Zurueck/Neuladen passt.
@@ -81,6 +83,15 @@ export function DeckPage() {
     return () => void setPreviewEnabled(false)
   }, [preview, editing])
 
+  // Live-Systemwerte nur abonnieren, waehrend mindestens eine Taste auf der aktuellen Seite sie
+  // braucht - Anzeige-Kachel (Kennwert) oder eine Taste mit system.mute/system.volume (LED/Pegel) -
+  // und nur in der Live-Ansicht, nicht im Editor (dort reicht der statische Platzhalter).
+  const hasVisibleMonitor = !editing && (page?.buttons.some((b) => buttonNeedsSystemMonitor(b)) ?? false)
+  useEffect(() => {
+    void setSystemMonitorEnabled(hasVisibleMonitor)
+    return () => void setSystemMonitorEnabled(false)
+  }, [hasVisibleMonitor])
+
   // Echter Browser-Vollbildmodus zusaetzlich zum "nur Tasten"-Modus.
   useEffect(() => {
     const onChange = () => setFocus(!!document.fullscreenElement)
@@ -106,6 +117,8 @@ export function DeckPage() {
 
   const press = useCallback(
     async (button: ButtonModel) => {
+      // Reine Anzeige-Kacheln (z.B. Live-Systemwert) loesen nichts aus.
+      if (displayMetric(button, catalog) != null) return
       const nav = button.actions.filter((a) => a.type.startsWith('deck.'))
       const serverSteps = button.actions.length - nav.length
 
@@ -131,7 +144,7 @@ export function DeckPage() {
         else if (step.type === 'deck.home') setStack([])
       }
     },
-    [deck],
+    [deck, catalog],
   )
 
   // ---------- Tastenkuerzel ----------
@@ -325,11 +338,13 @@ export function DeckPage() {
                     <DeckKey
                       button={b}
                       size={size}
-                      active={isButtonActive(b, obs, automations)}
-                      level={buttonLevel(b, obs)}
+                      active={isButtonActive(b, obs, automations, systemMonitor)}
+                      level={buttonLevel(b, obs, systemMonitor)}
                       showHotkey={hasKeyboard}
                       flash={flashKey === b.id}
                       error={errorKey === b.id}
+                      monitorMetric={displayMetric(b, catalog)}
+                      systemMonitor={systemMonitor}
                       onPress={() => void press(b)}
                     />
                   </div>

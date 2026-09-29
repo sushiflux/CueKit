@@ -39,7 +39,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasIndex(x => x.Hotkey).IsUnique();
         });
 
-        b.Entity<AutomationEntity>(e => e.Property(x => x.Name).HasMaxLength(80));
+        b.Entity<AutomationEntity>(e =>
+        {
+            e.Property(x => x.Name).HasMaxLength(80);
+            // Wird die gebundene Taste geloescht, verschwindet die daran haengende Automation mit -
+            // sie kann ohne ihre Taste (Name/Icon/Farbe/Aktionen fuer den "button.pressed"-Trigger) nicht sinnvoll weiterleben.
+            e.HasOne(x => x.Button).WithMany().HasForeignKey(x => x.ButtonId).OnDelete(DeleteBehavior.Cascade);
+        });
 
         b.Entity<DeviceEntity>(e =>
         {

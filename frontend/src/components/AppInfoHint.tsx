@@ -35,10 +35,14 @@ export function AppInfoHint() {
           <motion.div
             id={id}
             role="tooltip"
+            // Waehrend der Exit-Animation (Spring, laeuft nach setOpen(false) noch kurz weiter) darf
+            // die Flaeche keine Maus-Events mehr annehmen - sonst loest ein erneutes kurzes Ueberfahren
+            // derselben Stelle faelschlich wieder onMouseEnter aus, obwohl man nicht mehr ueber dem
+            // Info-Icon ist (die Box war zu dem Zeitpunkt nur noch optisch am Verschwinden).
             className="absolute bottom-0 left-full z-50 ml-3 w-60"
-            initial={{ opacity: 0, x: -6, scale: 0.97 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: -6, scale: 0.97 }}
+            initial={{ opacity: 0, x: -6, scale: 0.97, pointerEvents: 'none' }}
+            animate={{ opacity: 1, x: 0, scale: 1, pointerEvents: 'auto' }}
+            exit={{ opacity: 0, x: -6, scale: 0.97, pointerEvents: 'none' }}
             transition={{ type: 'spring', stiffness: 460, damping: 32 }}
           >
             <div className="card relative overflow-hidden shadow-2xl">

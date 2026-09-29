@@ -14,6 +14,9 @@ public record ObsInput(string Name, string Kind);
 
 public record ObsMediaInput(string Name, bool Playing);
 
+/// <summary>Ein Filter einer Quelle oder Szene ("obs.filter"-Aktion) mit seinem Live-Ein/Aus-Zustand.</summary>
+public record ObsSourceFilter(string Source, string FilterName, bool Enabled);
+
 /// <summary>
 /// Unveraenderlicher Schnappschuss des OBS-Zustands - wird komplett an alle Clients gepusht,
 /// sobald sich etwas aendert (klein genug, dass Diffs den Aufwand nicht lohnen).
@@ -30,6 +33,7 @@ public record ObsSnapshot(
     IReadOnlyList<ObsAudioInput> AudioInputs,
     IReadOnlyList<ObsInput> Inputs,
     IReadOnlyList<ObsMediaInput> MediaInputs,
+    IReadOnlyList<ObsSourceFilter> Filters,
     IReadOnlyList<string> Transitions,
     string? CurrentTransition,
     IReadOnlyList<string> SceneCollections,
@@ -46,6 +50,6 @@ public record ObsSnapshot(
 {
     public static readonly ObsSnapshot Empty = new(
         ObsConnectionStatus.Disconnected, null, null, null, null, null, false,
-        [], [], [], [], [], null, [], null, [], null,
+        [], [], [], [], [], [], null, [], null, [], null,
         false, null, false, false, null, false, false);
 }

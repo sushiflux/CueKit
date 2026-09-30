@@ -53,12 +53,19 @@ for (const [path, info] of Object.entries(lock.packages)) {
 // ---------- Backend (NuGet) ----------
 // Nur-Build-Pakete (EF-Design-Werkzeuge, Roslyn) werden nicht ausgeliefert.
 const buildOnly = /^(Microsoft\.EntityFrameworkCore\.Design|Microsoft\.CodeAnalysis.*|Humanizer.*|Microsoft\.Build.*|Mono\.TextTemplating|System\.CodeDom|System\.Composition.*|Microsoft\.VisualStudio\.SolutionPersistence)$/
-const listing = JSON.parse(
-  execFileSync('dotnet', ['list', 'package', '--include-transitive', '--format', 'json'], { cwd: join(root, 'backend'), encoding: 'utf8' }),
-) as { projects: { frameworks?: { topLevelPackages?: { id: string; resolvedVersion: string }[]; transitivePackages?: { id: string; resolvedVersion: string }[] }[] }[] }
+type NugetListing = { projects: { frameworks?: { topLevelPackages?: { id: string; resolvedVersion: string }[]; transitivePackages?: { id: string; resolvedVersion: string }[] }[] }[] }
 const nugetRoot = join(homedir(), '.nuget', 'packages')
 const seen = new Set<string>()
-for (const fw of listing.projects[0]?.frameworks ?? []) {
+// Der Dienst zuerst: Pakete, die beide Projekte nutzen, zaehlen als "Dienst"; nur Huellen-eigene (z.B. WebView2) als "Desktop-App".
+const nugetProjects = [
+  { dir: 'backend', component: 'Dienst' },
+  { dir: join('desktop', 'Deck.Desktop'), component: 'Desktop-App' },
+]
+for (const project of nugetProjects) {
+  const listing = JSON.parse(
+    execFileSync('dotnet', ['list', 'package', '--include-transitive', '--format', 'json'], { cwd: join(root, project.dir), encoding: 'utf8' }),
+  ) as NugetListing
+  for (const fw of listing.projects[0]?.frameworks ?? []) {
   for (const p of [...(fw.topLevelPackages ?? []), ...(fw.transitivePackages ?? [])]) {
     if (seen.has(p.id) || buildOnly.test(p.id)) continue
     seen.add(p.id)
@@ -74,7 +81,8 @@ for (const fw of listing.projects[0]?.frameworks ?? []) {
       license = expr ? expr[1] : file ? `Siehe Lizenzdatei (${file[1]})` : legacy ? `Siehe ${legacy[1]}` : license
       url = /<projectUrl>([^<]+)<\/projectUrl>/i.exec(xml)?.[1] ?? url
     }
-    entries.push({ name: p.id, version: p.resolvedVersion, license, url, component: 'Dienst', text: licenseText(dir) })
+    entries.push({ name: p.id, version: p.resolvedVersion, license, url, component: project.component, text: licenseText(dir) })
+  }
   }
 }
 

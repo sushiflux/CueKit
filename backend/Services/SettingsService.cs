@@ -12,21 +12,13 @@ public static class SettingKeys
     public const string ObsPassword = "obs.password";          // verschluesselt (DataProtection)
     public const string PluginKey = "plugins.key";             // Schluessel fuer lokale Plugin-Prozesse
     public const string PublicHost = "network.publicHost";     // optionaler Override fuer QR-Code-URLs
-    public const string PreviewFps = "preview.fps";
 
     // Aussehen (app-weit, nicht pro Deck) - siehe AppearanceController.
     public const string AppearancePressBehavior = "appearance.pressBehavior";
     public const string AppearanceVolumeIndicator = "appearance.volumeIndicator";
-    public const string AppearanceBackgroundKind = "appearance.background.kind";
-    public const string AppearanceBackgroundSolid = "appearance.background.solid";
-    public const string AppearanceBackgroundGradientFrom = "appearance.background.gradientFrom";
-    public const string AppearanceBackgroundGradientTo = "appearance.background.gradientTo";
-    public const string AppearanceBackgroundGradientAngle = "appearance.background.gradientAngle";
-    public const string AppearanceBackgroundPreset = "appearance.background.preset";
-    public const string AppearanceBackgroundImagePath = "appearance.background.imagePath";
-    public const string AppearanceBackgroundImageX = "appearance.background.imageX";
-    public const string AppearanceBackgroundImageY = "appearance.background.imageY";
-    public const string AppearanceBackgroundImageZoom = "appearance.background.imageZoom";
+    /// <summary>Gewaehlte Gehaeuse-Plate-Fassung um das Tastenraster ("house:&lt;key&gt;", siehe
+    /// frontend lib/housePlates.ts) oder leer fuer kein Gehaeuse.</summary>
+    public const string AppearancePlate = "appearance.plate";
 }
 
 /// <summary>
@@ -63,11 +55,9 @@ public class SettingsService(IServiceScopeFactory scopes, IDataProtectionProvide
     public string ObsHost => Get(SettingKeys.ObsHost) ?? config["Deck:ObsDefaultHost"] ?? "127.0.0.1";
     public int ObsPort => int.TryParse(Get(SettingKeys.ObsPort), out var p) ? p : 4455;
     public bool HasObsPassword => !string.IsNullOrEmpty(Get(SettingKeys.ObsPassword));
-    public int PreviewFps => int.TryParse(Get(SettingKeys.PreviewFps), out var f) ? Math.Clamp(f, 1, 15) : 6;
 
     private static readonly HashSet<string> ValidPressBehaviors = ["spring", "stay"];
     private static readonly HashSet<string> ValidVolumeIndicators = ["led", "level"];
-    private static readonly HashSet<string> ValidBackgroundKinds = ["solid", "gradient", "preset", "image"];
 
     /// <summary>Tastendruckverhalten global fuers ganze Deck - kein Pro-Taste-Override.</summary>
     public string AppearancePressBehavior => Get(SettingKeys.AppearancePressBehavior) is { } v && ValidPressBehaviors.Contains(v) ? v : "spring";
@@ -76,7 +66,10 @@ public class SettingsService(IServiceScopeFactory scopes, IDataProtectionProvide
     /// anzeigen - betrifft nur Tasten mit einem Lautstaerke-Bezug, siehe buttonLevel() im Frontend.</summary>
     public string AppearanceVolumeIndicator => Get(SettingKeys.AppearanceVolumeIndicator) is { } v && ValidVolumeIndicators.Contains(v) ? v : "led";
 
-    public string AppearanceBackgroundKind => Get(SettingKeys.AppearanceBackgroundKind) is { } v && ValidBackgroundKinds.Contains(v) ? v : "solid";
+    /// <summary>Gewaehlte Gehaeuse-Plate ("house:&lt;key&gt;") oder "" fuer kein Gehaeuse - keine
+    /// serverseitige Preset-Liste noetig, das Frontend validiert nur das Namensschema (siehe
+    /// AppearanceController.Save).</summary>
+    public string AppearancePlate => Get(SettingKeys.AppearancePlate) ?? "";
 
     public string? ObsPassword
     {
@@ -102,5 +95,28 @@ public class SettingsService(IServiceScopeFactory scopes, IDataProtectionProvide
         await db.SaveChangesAsync(ct);
         _cache[key] = value;
         Changed?.Invoke(key);
+    }
+
+    /// <summary>
+    /// Mehrere Werte in EINEM Scope/EINER Transaktion speichern, statt SetAsync() wiederholt
+    /// aufzurufen - jeder SetAsync()-Aufruf oeffnet eine eigene SQLite-Verbindung/Transaktion, was
+    /// bei mehreren Werten hintereinander (z.B. den 11 Aussehen-Einstellungen) unnoetig viele
+    /// Lock-Gelegenheiten auf derselben Datenbankdatei erzeugt und im Zusammenspiel mit dem
+    /// SQLite-Default-Timeout (30s) zu spuerbaren Verzoegerungen fuehren kann.
+    /// </summary>
+    public async Task SetManyAsync(IReadOnlyDictionary<string, string> values, CancellationToken ct = default)
+    {
+        using var scope = scopes.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var keys = values.Keys.ToList();
+        var existing = await db.Settings.Where(s => keys.Contains(s.Key)).ToDictionaryAsync(s => s.Key, ct);
+        foreach (var (key, value) in values)
+        {
+            if (existing.TryGetValue(key, out var entity)) entity.Value = value;
+            else db.Settings.Add(new SettingEntity { Key = key, Value = value });
+        }
+        await db.SaveChangesAsync(ct);
+        foreach (var (key, value) in values) _cache[key] = value;
+        foreach (var key in values.Keys) Changed?.Invoke(key);
     }
 }

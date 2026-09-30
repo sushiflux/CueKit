@@ -5,6 +5,24 @@
 frontend/dist/
 backend/wwwroot/
 
+# Desktop-App: Publish-/Installer-Ausgaben (scripts/build-desktop.ps1, spaeter Installer + CI)
+/artifacts/
+*.msi
+*.msix
+*.msixbundle
+*.appx
+*.wixpdb
+*.wixobj
+*.binlog
+
+# Signier-Schluessel/-Zertifikate mit privatem Schluessel - niemals committen (Code-Signing, siehe docs/DISTRIBUTION.md)
+*.pfx
+*.p12
+*.snk
+*.pem
+*.key
+/signing/
+
 # Lokale Umgebung (von start.ps1 erzeugt)
 .env
 .env.*

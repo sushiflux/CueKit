@@ -1,7 +1,6 @@
 using Deck.Server.Automation;
 using Deck.Server.Obs;
 using Deck.Server.Plugins;
-using Deck.Server.Services;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Deck.Server.Hubs;
@@ -12,10 +11,7 @@ public sealed class HubNotifier(
     ObsService obs,
     PluginHost plugins,
     PluginManager pluginManager,
-    AutomationEngine automations,
-    PreviewSubscribers previewSubscribers,
-    SettingsService settings,
-    ILogger<HubNotifier> log) : BackgroundService
+    AutomationEngine automations) : BackgroundService
 {
     private int _statePending;
 
@@ -34,25 +30,22 @@ public sealed class HubNotifier(
     /// <summary>App-weite Aussehen-Einstellungen (Zustandsanzeige/Druckverhalten/Hintergrund) geaendert.</summary>
     public void AppearanceChanged() => _ = hub.Clients.All.SendAsync("appearanceChanged");
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
         obs.StateChanged += OnObsStateChanged;
         plugins.Changed += OnCatalogChanged;
         plugins.Changed += OnPluginsChanged;
         pluginManager.Changed += OnPluginsChanged;
         automations.RunsChanged += OnAutomationsChanged;
-        try
-        {
-            await RunPreviewLoopAsync(stoppingToken);
-        }
-        finally
+        stoppingToken.Register(() =>
         {
             obs.StateChanged -= OnObsStateChanged;
             plugins.Changed -= OnCatalogChanged;
             plugins.Changed -= OnPluginsChanged;
             pluginManager.Changed -= OnPluginsChanged;
             automations.RunsChanged -= OnAutomationsChanged;
-        }
+        });
+        return Task.CompletedTask;
     }
 
     /// <summary>OBS-Events kommen oft in Salven - auf 50 ms entprellen, dann den aktuellen Stand senden.</summary>
@@ -73,44 +66,4 @@ public sealed class HubNotifier(
     private void OnPluginsChanged() => _ = hub.Clients.All.SendAsync("pluginsChanged");
 
     private void OnAutomationsChanged() => _ = hub.Clients.All.SendAsync("automationsChanged");
-
-    /// <summary>
-    /// Live-Vorschau des Programm-Ausgangs: nur solange mindestens ein Geraet sie angefordert hat,
-    /// damit OBS nicht grundlos Screenshots rendert.
-    /// </summary>
-    private async Task RunPreviewLoopAsync(CancellationToken ct)
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            var interval = TimeSpan.FromMilliseconds(1000.0 / settings.PreviewFps);
-            try
-            {
-                var state = obs.State;
-                if (previewSubscribers.Any && state.Status == ObsConnectionStatus.Connected && state.ProgramScene is { } scene)
-                {
-                    var shot = await obs.RequestAsync("GetSourceScreenshot", new
-                    {
-                        sourceName = scene,
-                        imageFormat = "jpg",
-                        imageWidth = 640,
-                        imageCompressionQuality = 70,
-                    }, ct);
-                    if (shot?["imageData"]?.GetValue<string>() is { } dataUrl)
-                        await hub.Clients.Group(DeckHub.PreviewGroup).SendAsync("preview", dataUrl, ct);
-                }
-                else
-                {
-                    interval = TimeSpan.FromMilliseconds(500);
-                }
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }
-            catch (Exception ex)
-            {
-                log.LogDebug("Vorschaubild fehlgeschlagen: {Message}", ex.Message);
-                interval = TimeSpan.FromSeconds(1);
-            }
-
-            try { await Task.Delay(interval, ct); } catch (OperationCanceledException) { break; }
-        }
-    }
 }

@@ -1,11 +1,12 @@
 import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr'
 import { api, getToken } from '../api/client'
 import type { AppearanceSettings, AutomationState, Catalog, DeckModel, ObsSnapshot, SystemMonitorSnapshot } from '../api/types'
+import { clearMeters, setMeters, type MeterPayload } from './meters'
 import { setState } from './store'
 
 let connection: HubConnection | null = null
-let previewWanted = false
 let systemMonitorWanted = false
+let metersWanted = false
 let stopped = false
 
 export async function reloadDecks() {
@@ -39,8 +40,8 @@ export async function startRealtime() {
     .build()
 
   connection.on('obsState', (obs: ObsSnapshot) => setState({ obs }))
-  connection.on('preview', (dataUrl: string) => setState({ preview: dataUrl }))
   connection.on('systemState', (systemMonitor: SystemMonitorSnapshot) => setState({ systemMonitor }))
+  connection.on('meters', (payload: MeterPayload) => setMeters(payload))
   connection.on('decksChanged', () => void reloadDecks().catch(() => {}))
   connection.on('catalogChanged', () => void reloadCatalog().catch(() => {}))
   connection.on('pluginsChanged', () => window.dispatchEvent(new CustomEvent('deck:plugins')))
@@ -60,8 +61,8 @@ export async function startRealtime() {
     setState({ link: 'online' })
     // Waehrend der Trennung verpasste Aenderungen nachholen.
     await Promise.allSettled([reloadDecks(), reloadCatalog(), reloadAutomationStates(), reloadHotkeyStatus(), reloadAppearance()])
-    if (previewWanted) await connection?.invoke('SetPreview', true).catch(() => {})
     if (systemMonitorWanted) await connection?.invoke('SetSystemMonitor', true).catch(() => {})
+    if (metersWanted) await connection?.invoke('SetMeters', true).catch(() => {})
   })
   connection.onclose(() => {
     if (stopped) return
@@ -75,8 +76,8 @@ export async function startRealtime() {
   try {
     await connection.start()
     setState({ link: 'online' })
-    if (previewWanted) await connection.invoke('SetPreview', true)
     if (systemMonitorWanted) await connection.invoke('SetSystemMonitor', true)
+    if (metersWanted) await connection.invoke('SetMeters', true)
   } catch {
     setState({ link: 'offline' })
     connection = null
@@ -94,6 +95,8 @@ export async function stopRealtime() {
 export interface PressResult {
   ok: boolean
   error: string | null
+  /** Hinweis trotz Erfolg, z.B. "OBS-Schritte uebersprungen, weil OBS nicht verbunden ist". */
+  notice?: string | null
 }
 
 export async function pressButton(buttonId: number): Promise<PressResult> {
@@ -106,14 +109,14 @@ export async function pressButton(buttonId: number): Promise<PressResult> {
   }
 }
 
-export async function setPreviewEnabled(enabled: boolean) {
-  previewWanted = enabled
-  if (!enabled) setState({ preview: null })
-  if (connection?.state === HubConnectionState.Connected) await connection.invoke('SetPreview', enabled).catch(() => {})
-}
-
 export async function setSystemMonitorEnabled(enabled: boolean) {
   systemMonitorWanted = enabled
   if (!enabled) setState({ systemMonitor: null })
   if (connection?.state === HubConnectionState.Connected) await connection.invoke('SetSystemMonitor', enabled).catch(() => {})
+}
+
+export async function setMetersEnabled(enabled: boolean) {
+  metersWanted = enabled
+  if (!enabled) clearMeters()
+  if (connection?.state === HubConnectionState.Connected) await connection.invoke('SetMeters', enabled).catch(() => {})
 }

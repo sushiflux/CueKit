@@ -7,7 +7,19 @@ release lives in `CHANGELOG.md`.
 
 # English
 
-## v2026.9.6 - 2026-09-29 13:53
+## v2026.9.8 - 2026-09-30 17:45
+
+Add the Windows desktop shell with a Velopack installer and a release workflow, live audio level meters, house plates instead of the deck background, new System actions, and OBS-offline handling.
+
+- **Desktop shell** (`desktop/Deck.Desktop`, WinForms + WebView2, net10.0-windows): `ServiceHost` runs `ServerHost.Build` in-process; tray icon, single instance (named mutex + show event), close-to-tray, autostart (HKCU Run with `--tray`), persisted window bounds, dark title bar. Exe name/company/version come only from `branding.json`/`version.txt` (MSBuild property functions). `EulaGate` confirms `LICENSE` on first start, `UpdateService` (Velopack, `Deck:UpdateFeedUrl`, `--auto-update`, restart keeps the start args), `AppLog` (desktop.log). Backend: `ServerHost.ResolveDataDir`, `AddApplicationPart` so controllers are found when embedded.
+- **Installer/CI**: `scripts/desktop-build.ps1`, `scripts/desktop-pack.ps1` (Velopack `vpk` via local tool manifest `desktop/dotnet-tools.json`), `branding/icon.ico`, `branding/installer-splash.png`, `.github/workflows/release.yml` (tag `v*-rcN` -> draft release, `v*` -> release, optional mirror to a public releases repo via `RELEASES_REPO`), `docs/DISTRIBUTION.md` (installer decision, SmartScreen/signing options, private-repo update feed), `.gitignore` (artifacts, signing keys). The third-party notices generator also scans the desktop project. Verified locally: install, uninstall (incl. autostart cleanup); update flow and the pack step in this environment are not verified (vpk post-process hit "access denied").
+- **Live level meters**: obs-websocket `InputVolumeMeters` (subscription toggled via Reidentify, `ObsService.SetMetersWanted`, `ObsMeterLevel(Peak, InputPeak)`), `SystemVolumeService.ReadPeakDb` (IAudioMeterInformation), `MeterBroadcaster` + `DeckHub.SetMeters`; frontend `state/meters.ts` and `KeyMeter` in `DeckKey` (green/orange/red zones like OBS, gray input level while muted). Volume bar and meter only on source (mute) keys, not on volume up/down keys.
+- **House plates** replace the deck background: `HousePlate.tsx`, `lib/housePlates.ts`, `DeckGrid` `frame`/`frameInset`; photo/pattern backgrounds and the image upload endpoints removed, `AppearanceController` reduced to `plate`. `SettingsService.SetManyAsync` + SQLite WAL fix multi-second appearance saves.
+- **System actions**: `system.program.open`, `system.path.open`, `system.shutdown` (normal `/s /t 0`, force `/s /f /t 0`); palette order OBS, System, plugins, Deck; key labels shrink to fit instead of wrapping mid-word (`useFitLabel`).
+- **OBS offline**: `ActionExecutor.ExecuteAsync` skips OBS steps when OBS is not connected and still runs the others (`PressResult.Notice`); OBS-only keys are dimmed (`isButtonUnavailable`, `data-unavailable`).
+- Also: stronger pressed-key feedback and per-theme edge colors, live preview removed (`PreviewSubscribers`, screenshot loop, FPS setting), browser-side hotkey listener removed (service-side global hotkeys stay), sidebar info block without box, unused upload helpers removed.
+
+## v2026.9.7 - 2026-09-29 19:11
 
 Add a "System" action category (volume, browser, live hardware monitoring), bind automations to
 existing buttons instead of a separate automation tile, make action/field pickers context-aware,
@@ -204,7 +216,19 @@ Initial scaffold of Baton - a free, community-extensible Stream Deck alternative
 
 # Deutsch
 
-## v2026.9.6 - 2026-09-29 13:53
+## v2026.9.8 - 2026-09-30 17:45
+
+Windows-Desktop-Hülle mit Velopack-Installer und Release-Workflow, Live-Pegelanzeige, Gehäuse-Plates statt Deck-Hintergrund, neue System-Aktionen und OBS-offline-Verhalten.
+
+- **Desktop-Hülle** (`desktop/Deck.Desktop`, WinForms + WebView2): hostet den Dienst im selben Prozess, Tray-Symbol, Einzelinstanz, Schließen schickt ins Tray, Autostart (`--tray`), Fensterposition gemerkt, dunkle Titelleiste. Exe-Name/Firma/Version nur aus `branding.json`/`version.txt`. `EulaGate` (Lizenz beim ersten Start), `UpdateService` (Velopack, `Deck:UpdateFeedUrl`, `--auto-update`, Neustart behält die Startargumente), `AppLog`. Backend: `ServerHost.ResolveDataDir`, `AddApplicationPart`.
+- **Installer/CI**: `scripts/desktop-build.ps1`, `scripts/desktop-pack.ps1` (Velopack), Icon und Splash unter `branding/`, `.github/workflows/release.yml` (Tag `v*-rcN` = privater Entwurf, `v*` = Release, optionale Spiegelung ins öffentliche Release-Repo), `docs/DISTRIBUTION.md`, `.gitignore` (Artefakte, Signier-Schlüssel). Lokal geprüft: Installation und Deinstallation; Update-Ablauf und der Pack-Schritt sind in dieser Umgebung nicht bestätigt (vpk: „Zugriff verweigert“ beim Nachbearbeiten).
+- **Live-Pegel**: OBS `InputVolumeMeters` (per Reidentify zuschaltbar), Windows-Pegel über `IAudioMeterInformation`, `MeterBroadcaster`, Frontend `KeyMeter` (grün/orange/rot, bei Stumm grau mit Eingangspegel). Lautstärke-Balken und Pegel nur an Quellen-Tasten (Stumm), nicht an Lauter/Leiser.
+- **Gehäuse-Plates** ersetzen den Deck-Hintergrund; Foto-/Muster-Hintergründe und Bild-Upload entfernt. Gesammeltes Speichern (`SetManyAsync`) + SQLite-WAL beheben das minutenlange Speichern.
+- **System-Aktionen**: Programm öffnen, Datei/Ordner öffnen, Herunterfahren (normal/erzwungen); Palette: OBS, System, Plugins, Deck; Tastenbeschriftung wird kleiner statt mitten im Wort umzubrechen.
+- **OBS offline**: OBS-Schritte werden übersprungen, übrige laufen weiter (Hinweis an die Oberfläche); reine OBS-Tasten werden abgeblendet.
+- Außerdem: stärkeres Tasten-Eindrück-Feedback, Kantenfarben je Theme, Live-Vorschau und Browser-Tastenkürzel entfernt (systemweite Kürzel bleiben), Sidebar-Infoblock ohne Box.
+
+## v2026.9.7 - 2026-09-29 19:11
 
 Neue Aktions-Kategorie „System" (Lautstärke, Browser, Live-Hardware-Monitoring), Automationen
 werden jetzt an bestehende Tasten gebunden statt an eine eigene Automations-Kachel, Aktions-/

@@ -28,6 +28,28 @@ export function buttonHasToggleState(button: ButtonModel): boolean {
 }
 
 /**
+ * Ob eine Taste gerade keine Funktion hat, weil sie ausschliesslich OBS steuert und OBS nicht
+ * verbunden ist. Tasten mit mindestens einem anderen ausfuehrbaren Schritt (Browser oeffnen,
+ * Systemlautstaerke, Ordner ...) bleiben voll bedienbar - dort werden nur die OBS-Schritte
+ * uebersprungen (siehe ActionExecutor im Backend). Die Taste selbst bleibt immer erhalten.
+ */
+export function isButtonUnavailable(button: ButtonModel, obs: ObsSnapshot | null): boolean {
+  if (obs?.status === 'connected') return false
+  const steps = button.actions.filter((a) => a.type !== 'flow.delay')
+  return steps.length > 0 && steps.every((a) => a.type.startsWith('obs.'))
+}
+
+/** Aktionstypen, bei denen "aktiv" = stummgeschaltet bedeutet - Warnzustand, deshalb umgekehrte
+ * Zustandsfarbe (rot statt gruen), siehe .deck-key[data-mute='true'] in index.css. */
+const MUTE_ACTION_TYPES = new Set(['obs.audio.mute', 'system.mute'])
+
+/** Ob diese Taste eine Mute-Taste ist (umgekehrte Zustandsfarbe: rot = stumm statt gruen = an). */
+export function isMuteAction(button: ButtonModel): boolean {
+  const type = button.actions[0]?.type
+  return type != null && MUTE_ACTION_TYPES.has(type)
+}
+
+/**
  * Ob eine Taste "leuchtet": abgeleitet aus dem ersten Aktionsschritt und dem Live-Zustand -
  * z.B. leuchtet "Szene wechseln: Pause", solange "Pause" live ist.
  */
@@ -79,19 +101,44 @@ export function isButtonActive(button: ButtonModel, obs: ObsSnapshot | null, aut
 }
 
 /**
- * Pegel (0..1) fuer Lautstaerke-Tasten - die Taste zeigt dann einen Balken wie ein Fader.
- * Abbildung wie der OBS-Mixer grob: -60 dB = leer, 0 dB = voll.
+ * Lautstaerke (0..1) einer Quelle als Fader-Balken - nur an den Quellen-Tasten (Stumm/Ton an), NICHT an
+ * den Lauter/Leiser-Tasten: dort waeren es dieselben Balken doppelt (die Quelle hat ja ihre eigene
+ * Taste). Abbildung wie der OBS-Mixer grob: -60 dB = leer, 0 dB = voll.
  */
 export function buttonLevel(button: ButtonModel, obs: ObsSnapshot | null, systemMonitor: SystemMonitorSnapshot | null = null): number | null {
   const step = button.actions[0]
   if (!step) return null
   // Systemlautstaerke ist kein OBS-Zustand - unabhaengig vom OBS-Verbindungsstatus pruefen.
-  if (step.type === 'system.volume') return systemMonitor?.volumePercent != null ? systemMonitor.volumePercent / 100 : null
+  if (step.type === 'system.mute') return systemMonitor?.volumePercent != null ? systemMonitor.volumePercent / 100 : null
   if (!obs || obs.status !== 'connected') return null
-  if (step.type !== 'obs.audio.volume' && step.type !== 'obs.audio.mute') return null
+  if (step.type !== 'obs.audio.mute') return null
   const input = obs.audioInputs.find((a) => a.name === step.params?.input)
   if (!input) return null
   return Math.max(0, Math.min(1, (input.volumeDb + 60) / 60))
+}
+
+const METER_ACTION_TYPES = new Set(['obs.audio.mute', 'system.mute'])
+
+/** Ob diese Taste einen Live-Pegel zeigen kann (Stumm-Taste einer OBS-Audioquelle oder des Systems). */
+export function buttonNeedsMeters(button: ButtonModel): boolean {
+  const type = button.actions[0]?.type
+  return type != null && METER_ACTION_TYPES.has(type)
+}
+
+/**
+ * Live-Pegel einer Taste: Schluessel im Pegel-Store ("obs:<Eingang>" bzw. "system") und ob das Geraet
+ * stummgeschaltet ist (dann zeigt der Pegel grau statt farbig, wie in OBS). Null, wenn die Taste
+ * keinen Pegel hat oder die Quelle gerade nicht verfuegbar ist.
+ */
+export function buttonMeter(button: ButtonModel, obs: ObsSnapshot | null, systemMonitor: SystemMonitorSnapshot | null = null): { key: string; muted: boolean } | null {
+  const step = button.actions[0]
+  if (!step || !METER_ACTION_TYPES.has(step.type)) return null
+  if (step.type === 'system.mute') {
+    return systemMonitor?.volumePercent != null ? { key: 'system', muted: systemMonitor.volumeMuted === true } : null
+  }
+  if (!obs || obs.status !== 'connected') return null
+  const input = obs.audioInputs.find((a) => a.name === step.params?.input)
+  return input ? { key: `obs:${input.name}`, muted: input.muted } : null
 }
 
 /** Fuer Mute-Tasten ein passenderes Icon im aktiven (stummen) Zustand. */
@@ -116,9 +163,9 @@ export function displayMetric(button: ButtonModel, catalog: Catalog | null): str
   return step.params?.metric != null ? String(step.params.metric) : null
 }
 
-const SYSTEM_MONITOR_ACTION_TYPES = new Set(['system.monitor.display', 'system.mute', 'system.volume'])
+const SYSTEM_MONITOR_ACTION_TYPES = new Set(['system.monitor.display', 'system.mute'])
 
-/** Ob diese Taste Live-Systemwerte braucht (Anzeige-Kachel oder LED/Pegel fuer Systemlautstaerke). */
+/** Ob diese Taste Live-Systemwerte braucht (Anzeige-Kachel oder LED/Lautstaerke der Systemquelle). */
 export function buttonNeedsSystemMonitor(button: ButtonModel): boolean {
   const step = button.actions[0]
   return step != null && SYSTEM_MONITOR_ACTION_TYPES.has(step.type)

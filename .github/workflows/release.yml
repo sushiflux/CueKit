@@ -1,0 +1,128 @@
+# Baut den Windows-Installer (Velopack) bei einem Versions-Tag.
+#
+#   v2026.9.7-rc1  ->  Release-Kandidat: privater ENTWURF (nur Personen mit Schreibrechten im Repo sehen ihn),
+#                      dient zum Testen des echten Installers. Schwachstellen-Funde warnen nur.
+#   v2026.9.7      ->  Release: normales Release. Schwachstellen-Funde (hoch/kritisch) brechen den Lauf ab.
+#
+# Das Repository ist privat: ein Release hier ist NICHT anonym abrufbar. Fuer echte Nutzer (Auto-Update, winget,
+# Download-Seite) wird ein Release zusaetzlich in ein separates OEFFENTLICHES Release-Repository gespiegelt - sobald
+# die Repository-Variable RELEASES_REPO (z.B. "SushiFlux-Develop/cuekit-releases") und das Secret RELEASES_REPO_TOKEN
+# (fein abgestufter Token, nur "Contents: write" auf genau diesem Repo) gesetzt sind. Details: docs/DISTRIBUTION.md.
+name: Release (Windows)
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  windows-installer:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      TAG: ${{ github.ref_name }}
+      IS_RC: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Version aus dem Tag ableiten
+        shell: pwsh
+        run: |
+          $version = $env:TAG.TrimStart('v')
+          if ($version -notmatch '^\d+\.\d+\.\d+(-(rc|beta)\d+)?$') {
+            throw "Tag '$($env:TAG)' hat kein gueltiges Format (erwartet: v2026.9.7 oder v2026.9.7-rc1)."
+          }
+          "VERSION=$version" >> $env:GITHUB_ENV
+          # Exe-/Dateiversion der Huelle kommt aus version.txt: auf die Basisversion des Tags setzen (ohne -rcN).
+          Set-Content -Path version.txt -Value ('v' + ($version -replace '-.*$', ''))
+
+      - name: Abhaengigkeiten der Oberflaeche installieren
+        working-directory: frontend
+        run: npm ci
+
+      - name: TypeScript pruefen
+        working-directory: frontend
+        run: npx tsc -b
+
+      - name: Lint
+        working-directory: frontend
+        run: npx oxlint src
+
+      - name: Bekannte Schwachstellen - npm
+        working-directory: frontend
+        continue-on-error: ${{ env.IS_RC == 'true' }}
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Bekannte Schwachstellen - NuGet
+        shell: pwsh
+        continue-on-error: ${{ env.IS_RC == 'true' }}
+        run: |
+          $report = ''
+          foreach ($project in 'backend/Deck.Server.csproj', 'desktop/Deck.Desktop/Deck.Desktop.csproj') {
+            $report += (dotnet list $project package --vulnerable --include-transitive 2>&1 | Out-String)
+          }
+          Write-Host $report
+          if ($report -match 'has the following vulnerable packages') { throw 'Anfaellige NuGet-Pakete gefunden (siehe oben).' }
+
+      - name: Installer bauen
+        shell: pwsh
+        run: ./scripts/desktop-pack.ps1 -Version $env:VERSION
+
+      - name: Pruefsummen (SHA-256)
+        shell: pwsh
+        run: |
+          Get-ChildItem artifacts/installer -File |
+            Where-Object { $_.Extension -in '.exe', '.zip', '.nupkg' } |
+            ForEach-Object { '{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name } |
+            Set-Content artifacts/installer/SHA256SUMS.txt
+          Get-Content artifacts/installer/SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ env.VERSION }}
+          path: artifacts/installer/*
+          retention-days: 14
+
+      - name: GitHub-Release anlegen
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $product = (Get-Content branding.json -Raw | ConvertFrom-Json).productName
+          $files = Get-ChildItem artifacts/installer -File | ForEach-Object { $_.FullName }
+          $release = @('release', 'create', $env:TAG, '--title', "$product $($env:VERSION)", '--verify-tag')
+          if ($env:IS_RC -eq 'true') {
+            $release += @('--draft', '--prerelease', '--notes', "Release-Kandidat $($env:VERSION) - nur zum Testen (privater Entwurf, ungesigniert).")
+          }
+          else {
+            $release += '--generate-notes'
+          }
+          gh @release @files
+
+      - name: Oeffentliches Release-Repository befuellen
+        if: ${{ env.IS_RC != 'true' && vars.RELEASES_REPO != '' }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
+          RELEASES_REPO: ${{ vars.RELEASES_REPO }}
+        run: |
+          $product = (Get-Content branding.json -Raw | ConvertFrom-Json).productName
+          $files = Get-ChildItem artifacts/installer -File | ForEach-Object { $_.FullName }
+          gh release create $env:TAG @files --repo $env:RELEASES_REPO --title "$product $($env:VERSION)" --generate-notes

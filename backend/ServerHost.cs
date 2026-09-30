@@ -26,14 +26,19 @@ public static class ServerHost
     /// <summary>Standard-Port der installierten App (siehe ports.json, Eintrag "cuekit" -> "live").</summary>
     public const int DefaultPort = 5202;
 
+    /// <summary>Datenordner (Datenbank, Schluessel, Plugins): <c>Deck:DataDir</c> oder <c>%LOCALAPPDATA%\SushiFluxDevelop\Deck</c>.
+    /// Oeffentlich, damit die Desktop-Huelle vor dem Dienststart dieselben Dateien (z.B. EULA-Zustimmung) dort ablegen kann.</summary>
+    public static string ResolveDataDir(IConfiguration configuration) =>
+        configuration["Deck:DataDir"] is { Length: > 0 } configured
+            ? configured
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SushiFluxDevelop", "Deck");
+
     public static WebApplication Build(string[] args, Action<WebApplicationBuilder>? configure = null)
     {
         var builder = WebApplication.CreateBuilder(args);
         configure?.Invoke(builder);
 
-        var dataDir = builder.Configuration["Deck:DataDir"] is { Length: > 0 } configured
-            ? configured
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SushiFluxDevelop", "Deck");
+        var dataDir = ResolveDataDir(builder.Configuration);
         Directory.CreateDirectory(dataDir);
 
         if (string.IsNullOrEmpty(builder.Configuration["ASPNETCORE_URLS"]) && string.IsNullOrEmpty(builder.Configuration["urls"]))
@@ -57,7 +62,6 @@ public static class ServerHost
         builder.Services.AddSingleton<BootstrapPolicy>();
         builder.Services.AddSingleton<DeviceTokenCache>();
         builder.Services.AddSingleton<PluginHost>();
-        builder.Services.AddSingleton<PreviewSubscribers>();
         builder.Services.AddSingleton<ActionExecutor>();
         builder.Services.AddSingleton<ObsDiscovery>();
         builder.Services.AddSingleton(new DataPaths(dataDir));
@@ -98,6 +102,8 @@ public static class ServerHost
                 builder.Services.AddSingleton<ISystemMonitor, NoSystemMonitor>();
         }
         AddHostedSingleton<SystemMonitorBroadcaster>(builder.Services);
+        builder.Services.AddSingleton<MeterSubscribers>();
+        AddHostedSingleton<MeterBroadcaster>(builder.Services);
 
         AddHostedSingleton<ObsService>(builder.Services);
         AddHostedSingleton<AutomationEngine>(builder.Services);
@@ -120,7 +126,11 @@ public static class ServerHost
                 _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
         });
 
-        builder.Services.AddControllers().AddJsonOptions(o => ConfigureJson(o.JsonSerializerOptions));
+        // Controller ausdruecklich aus dieser Assembly laden: standardmaessig sucht ASP.NET nur in der
+        // Start-Assembly - und die ist beim Einbetten (Desktop-Huelle) nicht Deck.Server.
+        builder.Services.AddControllers()
+            .AddApplicationPart(typeof(ServerHost).Assembly)
+            .AddJsonOptions(o => ConfigureJson(o.JsonSerializerOptions));
         builder.Services.AddSignalR().AddJsonProtocol(o => ConfigureJson(o.PayloadSerializerOptions));
         builder.Services.ConfigureHttpJsonOptions(o => ConfigureJson(o.SerializerOptions));
 
@@ -213,6 +223,13 @@ public static class ServerHost
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             await db.Database.MigrateAsync();
+            // WAL statt des SQLite-Default-Rollback-Journals: erlaubt gleichzeitige Leser neben einem
+            // Schreiber, statt jeden Schreibzugriff alle anderen Verbindungen blockieren zu lassen.
+            // Mehrere BackgroundServices/Controller oeffnen hier im selben Prozess unabhaengige
+            // Scopes/Connections (siehe SettingsService) - ohne WAL fuehrten kollidierende Zugriffe
+            // zu spuerbaren Wartezeiten (bis zum SQLite-Default-Timeout von 30s). WAL ist eine
+            // dauerhafte Dateieigenschaft, das Setzen hier beim Start reicht.
+            await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
             if (!await db.Decks.AnyAsync())
             {
                 db.Decks.Add(new DeckEntity { Name = "Mein Deck", Rows = 3, Columns = 5, Pages = [new PageEntity { Name = "Start" }] });

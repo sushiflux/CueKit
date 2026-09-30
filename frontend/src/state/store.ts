@@ -14,7 +14,6 @@ export interface AppState {
   /** Live-Systemwerte (CPU/GPU/RAM) - nur gesetzt, waehrend mindestens eine Anzeige-Kachel sichtbar ist. */
   systemMonitor: SystemMonitorSnapshot | null
   link: LinkStatus
-  preview: string | null
   version: string | null
   /** Globale Aussehen-Einstellungen (Zustandsanzeige-Standard, Tastendruckverhalten, Deck-Hintergrund). */
   appearance: AppearanceSettings | null
@@ -29,7 +28,6 @@ let state: AppState = {
   obs: null,
   systemMonitor: null,
   link: 'connecting',
-  preview: null,
   version: null,
   appearance: null,
 }

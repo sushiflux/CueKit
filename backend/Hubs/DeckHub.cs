@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Text.Json;
 using Deck.Server.Actions;
 using Deck.Server.Auth;
@@ -11,17 +10,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Deck.Server.Hubs;
 
-public record PressResult(bool Ok, string? Error);
+/// <summary>Notice: Hinweis trotz Erfolg, z.B. wenn OBS-Schritte mangels OBS-Verbindung uebersprungen wurden.</summary>
+public record PressResult(bool Ok, string? Error, string? Notice = null);
 
 /// <summary>
-/// Echtzeitkanal zu allen gekoppelten Geraeten. Server -> Client: "obsState", "preview",
-/// "decksChanged", "catalogChanged", "automationsChanged", "systemState". Client -> Server:
-/// Press, SetPreview, SetSystemMonitor.
+/// Echtzeitkanal zu allen gekoppelten Geraeten. Server -> Client: "obsState", "decksChanged",
+/// "catalogChanged", "automationsChanged", "systemState". Client -> Server: Press, SetSystemMonitor.
 /// </summary>
 [Authorize(AuthenticationSchemes = DeviceAuth.Scheme)]
-public class DeckHub(AppDbContext db, ActionExecutor executor, ObsService obs, PreviewSubscribers preview, SystemMonitorSubscribers systemMonitor) : Hub
+public class DeckHub(AppDbContext db, ActionExecutor executor, ObsService obs, SystemMonitorSubscribers systemMonitor, MeterSubscribers meters) : Hub
 {
-    public const string PreviewGroup = "preview";
+    public const string MetersGroup = "meters";
 
     public override async Task OnConnectedAsync()
     {
@@ -31,9 +30,25 @@ public class DeckHub(AppDbContext db, ActionExecutor executor, ObsService obs, P
 
     public override Task OnDisconnectedAsync(Exception? exception)
     {
-        preview.Remove(Context.ConnectionId);
         systemMonitor.Remove(Context.ConnectionId);
+        meters.Remove(Context.ConnectionId);
         return base.OnDisconnectedAsync(exception);
+    }
+
+    /// <summary>Ein Geraet zeigt (mind.) eine Taste mit Live-Pegel an - startet/stoppt die Pegel-
+    /// Uebertragung ("meters", siehe MeterBroadcaster).</summary>
+    public async Task SetMeters(bool enabled)
+    {
+        if (enabled)
+        {
+            meters.Add(Context.ConnectionId);
+            await Groups.AddToGroupAsync(Context.ConnectionId, MetersGroup);
+        }
+        else
+        {
+            meters.Remove(Context.ConnectionId);
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, MetersGroup);
+        }
     }
 
     public async Task<PressResult> Press(int buttonId)
@@ -49,26 +64,12 @@ public class DeckHub(AppDbContext db, ActionExecutor executor, ObsService obs, P
 
         try
         {
-            await executor.ExecuteAsync(steps, $"Button '{button.Label}'", Context.ConnectionAborted);
-            return new PressResult(true, null);
+            var notice = await executor.ExecuteAsync(steps, $"Button '{button.Label}'", Context.ConnectionAborted);
+            return new PressResult(true, null, notice);
         }
         catch (ActionExecutionException ex)
         {
             return new PressResult(false, ex.Message);
-        }
-    }
-
-    public async Task SetPreview(bool enabled)
-    {
-        if (enabled)
-        {
-            preview.Add(Context.ConnectionId);
-            await Groups.AddToGroupAsync(Context.ConnectionId, PreviewGroup);
-        }
-        else
-        {
-            preview.Remove(Context.ConnectionId);
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, PreviewGroup);
         }
     }
 
@@ -79,12 +80,4 @@ public class DeckHub(AppDbContext db, ActionExecutor executor, ObsService obs, P
         if (enabled) systemMonitor.Add(Context.ConnectionId);
         else systemMonitor.Remove(Context.ConnectionId);
     }
-}
-
-public class PreviewSubscribers
-{
-    private readonly ConcurrentDictionary<string, byte> _ids = new();
-    public void Add(string id) => _ids[id] = 0;
-    public void Remove(string id) => _ids.TryRemove(id, out _);
-    public bool Any => !_ids.IsEmpty;
 }

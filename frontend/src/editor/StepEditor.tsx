@@ -84,7 +84,11 @@ function FieldInput({ field, params, deck, onChange }: { field: ActionField; par
   }
 
   // OBS offline: gespeicherten Wert trotzdem anzeigen/behalten, statt ihn stillschweigend zu verlieren.
-  if (options && value && !options.some((o) => o.value === value)) options = [{ value, label: `${value} (nicht gefunden)` }, ...options]
+  if (options && value && !options.some((o) => o.value === value)) {
+    const obsBound = field.kind !== 'select' && field.kind !== 'automation' && field.kind !== 'page'
+    const hint = obsBound && obs?.status !== 'connected' ? 'OBS nicht verbunden' : 'nicht gefunden'
+    options = [{ value, label: `${value} (${hint})` }, ...options]
+  }
 
   return (
     <div>

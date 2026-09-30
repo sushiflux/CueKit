@@ -1,0 +1,83 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Windows-Desktop-Huelle: Tray-Symbol + WebView2-Fenster, hostet den kompletten Dienst
+    (Deck.Server, ServerHost.Build) im selben Prozess. Neutraler technischer Name "Deck.Desktop"; der
+    Produktname (Exe-Dateiname, Firma) und die Version kommen ausschliesslich aus ../../branding.json
+    und ../../version.txt - ein Umbenennen fasst diese Projektdatei nicht an.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <RootNamespace>Deck.Desktop</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <ApplicationIcon>..\..\branding\icon.ico</ApplicationIcon>
+
+    <!-- Der Dienst (Web-SDK-Projekt) wird als Bibliothek eingebunden; bei self-contained-Publish der Huelle
+         wuerde .NET sonst die Kombination "self-contained Huelle + framework-abhaengiger Dienst" ablehnen. -->
+    <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
+
+    <!-- Das WebView2-Paket bringt einen (hier ungenutzten) WPF-Verweis mit, der eine harmlose
+         WindowsBase-Konfliktwarnung erzeugt. -->
+    <NoWarn>$(NoWarn);MSB3277</NoWarn>
+  </PropertyGroup>
+
+  <!-- Branding + Version aus den Wurzeldateien des Repos (eine Quelle der Wahrheit). -->
+  <PropertyGroup>
+    <RepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\'))</RepoRoot>
+    <BrandProductName>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(RepoRoot)branding.json')), '"productName"\s*:\s*"([^"]+)"').Groups[1].Value)</BrandProductName>
+    <BrandCompany>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(RepoRoot)branding.json')), '"company"\s*:\s*"([^"]+)"').Groups[1].Value)</BrandCompany>
+    <BrandVersion Condition="Exists('$(RepoRoot)version.txt')">$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(RepoRoot)version.txt')), '(\d+\.\d+\.\d+)').Groups[1].Value)</BrandVersion>
+    <BrandVersion Condition="'$(BrandVersion)' == ''">0.0.0</BrandVersion>
+
+    <AssemblyName>$(BrandProductName)</AssemblyName>
+    <Product>$(BrandProductName)</Product>
+    <Company>$(BrandCompany)</Company>
+    <Version>$(BrandVersion)</Version>
+    <Copyright>© $([System.DateTime]::Now.Year) $(BrandCompany)</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
+    <PackageReference Include="Velopack" Version="1.2.161" />
+    <ProjectReference Include="..\..\backend\Deck.Server.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\branding\icon.ico" LogicalName="icon.ico" />
+
+    <!-- Branding/Version neben die Exe (AppInfo sucht sie dort). -->
+    <Content Include="..\..\branding.json" Link="branding.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\version.txt" Link="version.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('..\..\version.txt')" />
+
+    <!-- Lizenzvereinbarung: wird beim ersten Start bestaetigt (EulaGate). -->
+    <Content Include="..\..\LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+
+    <!-- Gebaute Oberflaeche (npm run build in ../../frontend) als wwwroot neben die Exe. Fehlt frontend/dist,
+         startet die Huelle trotzdem (Entwicklung: Startparameter dev-url auf den Vite-Server, siehe CLAUDE.md). -->
+    <Content Include="..\..\frontend\dist\**\*" Link="wwwroot\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Die Exe des eingebetteten Dienstes wird von der Projektreferenz mitkopiert und ist nicht ueber die
+       Publish-Liste entfernbar - nach dem Publish loeschen. -->
+  <Target Name="RemoveEmbeddedServerExe" AfterTargets="Publish">
+    <Delete Files="$(PublishDir)Deck.Server.exe" />
+  </Target>
+
+  <!-- Nicht ausliefern: die eigenstaendige Exe des Dienstes (laeuft nur eingebettet in der Huelle), der
+       ungenutzte WPF-Teil von WebView2 sowie Entwicklungs-Hilfsdateien. -->
+  <Target Name="TrimPublishItems" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Filename)%(Extension)' == 'Deck.Server.exe'&#xA;                                        Or '%(Filename)%(Extension)' == 'Deck.Server.runtimeconfig.json'&#xA;                                        Or '%(Filename)%(Extension)' == 'Deck.Server.deps.json'&#xA;                                        Or '%(Filename)%(Extension)' == 'Deck.Server.staticwebassets.endpoints.json'&#xA;                                        Or '%(Filename)%(Extension)' == 'dotnet-tools.json'&#xA;                                        Or '%(Filename)' == 'Microsoft.Web.WebView2.Wpf'&#xA;                                        Or '%(Extension)' == '.pdb'" />
+      <!-- version.txt kommt aus dem Repo-Stamm (siehe oben); die Kopie aus backend/ wuerde kollidieren. -->
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Filename)%(Extension)' == 'version.txt' And $([System.String]::Copy('%(FullPath)').Contains('backend'))" />
+    </ItemGroup>
+  </Target>
+
+</Project>

@@ -22,7 +22,9 @@ public class ObsRequestException(string requestType, int code, string? comment)
 public sealed class ObsWebSocketClient : IAsyncDisposable
 {
     // EventSubscription.All (General..Ui, Bits 0-10) - ohne die hochfrequenten Volume-Meter-Events.
-    private const int EventSubscriptionsAll = (1 << 11) - 1;
+    // Die Pegel-Events (Bit 16) werden nur bei Bedarf zugeschaltet, siehe ReidentifyAsync.
+    public const int EventSubscriptionsAll = (1 << 11) - 1;
+    public const int EventSubscriptionInputVolumeMeters = 1 << 16;
 
     private readonly ClientWebSocket _socket = new();
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonNode?>> _pending = new();
@@ -34,7 +36,7 @@ public sealed class ObsWebSocketClient : IAsyncDisposable
     public event Action<string, JsonNode?>? EventReceived;
     public event Action<string>? Closed;
 
-    public async Task ConnectAsync(Uri uri, string? password, CancellationToken ct)
+    public async Task ConnectAsync(Uri uri, string? password, CancellationToken ct, int eventSubscriptions = EventSubscriptionsAll)
     {
         _socket.Options.AddSubProtocol("obswebsocket.json");
         using var connectTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -50,7 +52,7 @@ public sealed class ObsWebSocketClient : IAsyncDisposable
         var identify = new JsonObject
         {
             ["rpcVersion"] = 1,
-            ["eventSubscriptions"] = EventSubscriptionsAll,
+            ["eventSubscriptions"] = eventSubscriptions,
         };
 
         var auth = hello["d"]?["authentication"];
@@ -106,6 +108,11 @@ public sealed class ObsWebSocketClient : IAsyncDisposable
             _pending.TryRemove(requestId, out _);
         }
     }
+
+    /// <summary>Aendert die abonnierten Event-Gruppen zur Laufzeit (Op 3 "Reidentify") - z.B. um die
+    /// hochfrequenten Pegel-Events nur zuzuschalten, solange jemand sie anzeigt.</summary>
+    public Task ReidentifyAsync(int eventSubscriptions, CancellationToken ct = default) =>
+        SendAsync(new JsonObject { ["op"] = 3, ["d"] = new JsonObject { ["eventSubscriptions"] = eventSubscriptions } }, ct);
 
     private async Task SendAsync(JsonNode message, CancellationToken ct)
     {

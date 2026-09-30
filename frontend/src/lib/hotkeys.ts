@@ -59,10 +59,3 @@ function keyLabel(code: string): string {
   }
   return names[code] ?? code
 }
-
-/** Tippt der Nutzer gerade in ein Eingabefeld? Dann keine Kuerzel ausloesen. */
-export function isTypingTarget(target: EventTarget | null): boolean {
-  const el = target as HTMLElement | null
-  if (!el) return false
-  return el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)
-}

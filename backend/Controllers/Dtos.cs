@@ -58,6 +58,6 @@ public record PairInput([Required, StringLength(20)] string Code, [Required, Str
 
 public record ObsSettingsInput([Required, StringLength(253, MinimumLength = 1)] string Host, [Range(1, 65535)] int Port, [StringLength(200)] string? Password, bool ClearPassword);
 
-public record GeneralSettingsInput([StringLength(253)] string? PublicHost, [Range(1, 15)] int PreviewFps);
+public record GeneralSettingsInput([StringLength(253)] string? PublicHost);
 
 public record SystemVolumeInput([Range(0, 100)] int Percent);

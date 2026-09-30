@@ -52,6 +52,11 @@ public static class ActionCatalog
         new("restart", "Von vorn"), new("next", "Nächstes"), new("previous", "Vorheriges"),
     ];
 
+    private static readonly FieldOption[] ShutdownModes =
+    [
+        new("normal", "Normal (Programme dürfen nachfragen)"), new("force", "Erzwingen (alles sofort beenden)"),
+    ];
+
     private static readonly FieldOption[] SystemMonitorMetrics =
     [
         new(SystemMetric.CpuLoad, "CPU-Auslastung"),
@@ -155,6 +160,13 @@ public static class ActionCatalog
             [new("mode", "Modus", FieldKind.Select, Options: MuteModes, Default: "toggle")], "cyan"),
         new("system.browser.open", System, "Browser öffnen", "Öffnet eine fest hinterlegte Adresse im Standardbrowser.", "tabler:world",
             [new("url", "Adresse (http/https)", FieldKind.Url)], "cyan"),
+        new("system.program.open", System, "Programm öffnen", "Startet ein Programm (.exe, .bat, .cmd, .lnk) auf dem PC, optional mit Startparametern.", "tabler:app-window",
+            [new("path", "Programm (vollständiger Pfad)", FieldKind.Text),
+             new("arguments", "Startparameter (optional)", FieldKind.Text, Required: false)], "cyan"),
+        new("system.path.open", System, "Datei / Ordner öffnen", "Öffnet einen Ordner im Explorer oder eine Datei mit dem dafür eingestellten Standardprogramm (z.B. eine Excel-Tabelle).", "tabler:folder-open",
+            [new("path", "Datei oder Ordner (vollständiger Pfad)", FieldKind.Text)], "cyan"),
+        new("system.shutdown", System, "Herunterfahren", "Fährt den PC herunter. „Normal“ lässt Programme nachfragen, ob sie Ungespeichertes sichern wollen; „Erzwingen“ beendet sofort alles – nicht gespeicherte Daten gehen verloren.", "tabler:power",
+            [new("mode", "Art", FieldKind.Select, Options: ShutdownModes, Default: "normal")], "red"),
         new("system.monitor.display", System, "System-Wert anzeigen", "Zeigt einen Live-Systemwert auf der Kachel an (kein Auslöser).", "tabler:activity",
             [new("metric", "Kennwert", FieldKind.Select, Options: SystemMonitorMetrics, Default: SystemMetric.CpuLoad)], "cyan", DisplayOnly: true),
     ];

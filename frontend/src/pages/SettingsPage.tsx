@@ -24,7 +24,6 @@ interface FoundObs {
 
 interface GeneralSettings {
   publicHost: string
-  previewFps: number
   lanAddresses: string[]
 }
 
@@ -260,7 +259,7 @@ function GeneralCard() {
   const save = async () => {
     if (!form) return
     try {
-      await api('/api/settings/general', { method: 'PUT', body: { publicHost: form.publicHost, previewFps: form.previewFps } })
+      await api('/api/settings/general', { method: 'PUT', body: { publicHost: form.publicHost } })
       toast('Gespeichert.', 'success')
     } catch (e) {
       toast(`Einstellungen konnten nicht gespeichert werden: ${errorMessage(e)}`, 'error')
@@ -274,8 +273,8 @@ function GeneralCard() {
           <IconNetwork size={20} />
         </span>
         <div>
-          <h2 className="font-bold text-ink">Netzwerk & Vorschau</h2>
-          <p className="text-xs text-ink-faint">Adresse für QR-Codes und Bildrate der Live-Vorschau.</p>
+          <h2 className="font-bold text-ink">Netzwerk</h2>
+          <p className="text-xs text-ink-faint">Adresse für QR-Codes zum Koppeln neuer Geräte.</p>
         </div>
       </div>
       {form && (
@@ -298,19 +297,6 @@ function GeneralCard() {
             <p className="mt-1.5 text-xs text-ink-faint">
               Erkannt: {form.lanAddresses.length ? form.lanAddresses.join(', ') : 'keine Netzwerkadresse'}. Nur nötig, wenn der PC mehrere Netzwerke hat.
             </p>
-          </div>
-          <div>
-            <label className="label" htmlFor="preview-fps">Vorschau: {form.previewFps} Bilder/Sekunde</label>
-            <input
-              id="preview-fps"
-              type="range"
-              min={1}
-              max={15}
-              className="w-full accent-[var(--c-brand-solid)]"
-              value={form.previewFps}
-              onChange={(e) => setForm({ ...form, previewFps: Number(e.target.value) })}
-            />
-            <p className="mt-1 text-xs text-ink-faint">Höher = flüssiger, aber mehr Last für OBS. Die Vorschau läuft nur, solange ein Gerät sie geöffnet hat.</p>
           </div>
           <div className="flex justify-end">
             <button className="btn btn-confirm" onClick={() => void save()}>

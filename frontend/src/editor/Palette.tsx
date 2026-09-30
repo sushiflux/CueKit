@@ -220,6 +220,25 @@ export function buildPalette(obs: ObsSnapshot | null, catalog: Catalog | null): 
         title: 'Sonstiges',
         entries: [
           { id: 'system:browser', label: 'Browser öffnen', sublabel: 'URL danach eintragen', icon: 'tabler:world', color: 'cyan', actions: step('system.browser.open', def('system.browser.open')) },
+          { id: 'system:program', label: 'Programm öffnen', sublabel: 'Pfad zur .exe danach eintragen', icon: 'tabler:app-window', color: 'cyan', actions: step('system.program.open', def('system.program.open')) },
+          { id: 'system:path', label: 'Datei / Ordner öffnen', sublabel: 'Pfad danach eintragen', icon: 'tabler:folder-open', color: 'cyan', actions: step('system.path.open', def('system.path.open')) },
+        ],
+      },
+      {
+        id: 'power',
+        title: 'Energie',
+        entries: [
+          {
+            id: 'system:shutdown',
+            label: 'Herunterfahren',
+            sublabel: 'Programme dürfen nachfragen',
+            icon: 'tabler:power',
+            color: 'red',
+            actions: step('system.shutdown', { mode: 'normal' }),
+            variants: [
+              { id: 'system:shutdown-force', short: 'Erzwungen', label: 'Herunterfahren erzwingen', icon: 'tabler:power', color: 'red', actions: step('system.shutdown', { mode: 'force' }) },
+            ],
+          },
         ],
       },
       {
@@ -254,7 +273,8 @@ export function buildPalette(obs: ObsSnapshot | null, catalog: Catalog | null): 
     ],
   }))
 
-  return [obsGroup, deckGroup, systemGroup, ...pluginGroups]
+  // Reihenfolge: OBS, System, weitere Plugins - "Deck" (Navigation) bewusst zuletzt.
+  return [obsGroup, systemGroup, ...pluginGroups, deckGroup]
 }
 
 function DragHandle({ item, children, className, onAdd, title }: { item: PaletteItem; children: React.ReactNode; className: string; onAdd: (item: PaletteItem) => void; title?: string }) {

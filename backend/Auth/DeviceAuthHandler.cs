@@ -65,12 +65,6 @@ public class DeviceAuthHandler(
         // Browser-WebSockets (SignalR) koennen keine Header setzen -> Token per Query, nur fuer den Hub.
         else if (Request.Path.StartsWithSegments("/hub") && Request.Query.TryGetValue("access_token", out var q))
             token = q.ToString();
-        // Das Hintergrundbild wird als CSS "background-image"/<img src> geladen - der Browser setzt
-        // dort keinen Authorization-Header, daher hier ebenfalls Token per Query erlaubt (nur GET,
-        // nur dieser eine Endpunkt - Upload/Loeschen bleiben strikt Header-Bearer + Owner-Policy).
-        else if (Request.Path.StartsWithSegments("/api/settings/appearance/background-image") && Request.Method == HttpMethods.Get
-                 && Request.Query.TryGetValue("access_token", out var iq))
-            token = iq.ToString();
 
         if (string.IsNullOrEmpty(token)) return AuthenticateResult.NoResult();
 

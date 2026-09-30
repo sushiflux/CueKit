@@ -78,24 +78,12 @@ export interface ObsSnapshot {
 
 /** Globale Aussehen-Einstellungen - siehe backend AppearanceController. Jedes Geraet darf lesen,
  * nur der Besitzer darf aendern. */
-export interface AppearanceBackground {
-  kind: 'solid' | 'gradient' | 'preset' | 'image'
-  solid: string
-  gradientFrom: string
-  gradientTo: string
-  gradientAngle: number
-  /** Bei kind "preset": Schluessel eines CSS-Musters ("css:<key>") oder Foto-Presets ("photo:<dateiname>"). */
-  preset: string
-  imageUrl: string | null
-  imageX: number
-  imageY: number
-  imageZoom: number
-}
-
 export interface AppearanceSettings {
   pressBehavior: 'spring' | 'stay'
   volumeIndicator: 'led' | 'level'
-  background: AppearanceBackground
+  /** Gewaehlte Gehaeuse-Plate-Fassung um das Tastenraster ("house:<key>", siehe lib/housePlates.ts)
+   * oder "" fuer kein Gehaeuse (nur die normale App-Flaeche). */
+  plate: string
 }
 
 export type FieldKind =

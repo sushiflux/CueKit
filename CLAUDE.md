@@ -12,7 +12,8 @@ are deliberately neutral (`Deck.*` namespace, repo folder `Maestro`) – never h
 in code or UI strings; use `branding.productName` / `AppInfo.Brand`. Former working title "Baton"
 survives only in history and as the legacy backup format `baton-decks`. Brand *assets* (logo, etc.)
 live in `branding/` at the repo root – `branding/logo.svg` is the canonical source; `frontend/public/logo.svg`
-is a synced copy for Vite's static serving and must be updated together with it.
+is a synced copy for Vite's static serving and must be updated together with it. `branding/icon.ico` (multi-size,
+PNG-in-ICO) is generated from the logo and embedded by the desktop shell – regenerate it when the logo changes.
 
 ## Commands
 
@@ -26,6 +27,18 @@ Dev stack (Docker Desktop, Windows PowerShell 5.1 compatible):
 
 Ports are fixed from `C:\Users\Flux\.claude\ports.json` (key `cuekit`); the script fails loudly on
 conflicts instead of picking other ports.
+
+Desktop app (Windows shell, see Architecture): 
+
+```powershell
+.\scripts\desktop-build.ps1 [-SkipFrontend]   # frontend build + self-contained publish -> artifacts\desktop\<ProductName>.exe
+.\scripts\desktop-pack.ps1 [-SkipBuild] [-Version 2026.9.7-rc1]   # Velopack installer -> artifacts\installer (Setup.exe, update packages); -SignParams/-AzureSignFile once a certificate exists
+dotnet run --project desktop\Deck.Desktop -- --Deck:Port=5215 --Deck:DataDir=<scratch dir>   # dev run of the shell (needs frontend\dist, else --dev-url=http://localhost:5200 with Vite)
+```
+
+The installed app's default port is 5202 (the same as the Docker "live" stack) – running both needs `--Deck:Port`.
+A fresh data dir auto-adopts the local OBS connection (`ObsDiscovery`), so **never press OBS keys in tests** without
+first pointing `PUT /api/settings/obs` at an unreachable port.
 
 Checks (there is no unit-test suite yet):
 
@@ -54,9 +67,21 @@ target `http://host.docker.internal:<port>`); a fresh data dir allows the first-
 
 **Backend** (`backend/`, ASP.NET Core 10, SQLite via EF Core, single process):
 
-- `ServerHost.Build()` wires everything and is meant to be reused by a future Windows desktop shell
-  (tray + WebView2) hosting the same service in-process; `Program.cs` is only the headless entry point.
+- `ServerHost.Build()` wires everything; `Program.cs` is only the headless entry point (Docker), and the
+  Windows desktop shell hosts the same service in-process. Controllers are loaded via `AddApplicationPart`
+  because the entry assembly is not `Deck.Server` when embedded.
   Data dir: `Deck:DataDir` or `%LOCALAPPDATA%\SushiFluxDevelop\Deck` (DB, DataProtection keys, plugins).
+- **Desktop shell** (`desktop/Deck.Desktop`, WinForms + WebView2, `net10.0-windows`): tray icon, single instance
+  (named mutex; a second launch just brings the window forward), window close hides to tray, "Mit Windows
+  starten" (HKCU Run, `--tray`), window bounds persisted. The exe name/company/version come **only** from
+  `branding.json`/`version.txt` (MSBuild property functions in the csproj). Startup args: `--tray`,
+  `--dev-url=<url>`; everything else goes to the service (`--Deck:Port=`, `--Deck:DataDir=`). WebView2 runtime
+  missing → the service still runs and the tray offers "Im Browser öffnen". Distribution options: `docs/DISTRIBUTION.md`.
+  **Installer = Velopack** (per-user, no admin; no wizard, so the EULA in `LICENSE` is confirmed in-app by `EulaGate`
+  before the service starts – `--accept-eula` skips it for unattended installs/tests; the uninstall hook removes the
+  autostart entry). Auto-update via `UpdateService` (tray menu "Nach Updates suchen", background check every 6 h; only
+  in an installed build), feed from `Deck:UpdateFeedUrl` – default is a placeholder public *releases* repo because
+  the source repo is private (see `docs/DISTRIBUTION.md`). Unsigned builds trigger SmartScreen.
 - `Obs/ObsWebSocketClient` is a hand-written obs-websocket v5 client; `ObsService` keeps a reconnecting
   session and an immutable `ObsSnapshot` (scenes, items, audio incl. dB, media, transitions, profiles,
   outputs) updated from events. `ObsDiscovery` auto-configures from OBS's local `config.json`

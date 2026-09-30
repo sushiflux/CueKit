@@ -64,7 +64,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       <div className="mt-auto">
-        <div className="mx-5 border-t border-line" />
+        <div className="h-px bg-gradient-to-r from-transparent via-line to-transparent" />
         <div className="px-5 py-4">
           <div className="flex items-center justify-between gap-2">
             {me?.role === 'owner' ? (
@@ -83,8 +83,8 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             </button>
           </div>
         </div>
-        <div className="mx-5 border-t border-line" />
-        <div className="px-5 py-3">
+        <div className="h-px bg-gradient-to-r from-transparent via-line to-transparent" />
+        <div className="px-5 py-4">
           <AppInfoHint />
         </div>
       </div>

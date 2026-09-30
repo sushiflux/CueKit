@@ -13,12 +13,27 @@ public class ActionExecutionException(string message, Exception? inner = null) :
 /// <summary>Fuehrt Aktionsschritte nacheinander aus - von Buttons wie von Automationen.</summary>
 public class ActionExecutor(ObsService obs, PluginHost plugins, SystemVolume systemVolume, IServiceProvider services, ILogger<ActionExecutor> log)
 {
-    public async Task ExecuteAsync(IReadOnlyList<ActionStep> steps, string origin, CancellationToken ct = default)
+    /// <summary>
+    /// Schritte, die OBS steuern, werden bei fehlender OBS-Verbindung uebersprungen statt die ganze
+    /// Taste abzubrechen - alle anderen Schritte (Browser oeffnen, Systemlautstaerke, Warten ...)
+    /// laufen weiter. Besteht die Taste nur aus OBS-Schritten, hat sie solange keine Funktion und es
+    /// gibt eine Fehlermeldung. Rueckgabe: ein Hinweistext, wenn OBS-Schritte uebersprungen wurden,
+    /// waehrend uebrige Schritte gelaufen sind - sonst null.
+    /// </summary>
+    public async Task<string?> ExecuteAsync(IReadOnlyList<ActionStep> steps, string origin, CancellationToken ct = default)
     {
+        var skippedObsSteps = 0;
+        var ranSteps = 0;
         for (var i = 0; i < steps.Count; i++)
         {
             var step = steps[i];
             if (ActionCatalog.IsClientSide(step.Type) || ActionCatalog.IsDisplayOnly(step.Type)) continue;
+            if (RequiresObs(step.Type) && !obs.IsConnected)
+            {
+                skippedObsSteps++;
+                continue;
+            }
+            ranSteps++;
             try
             {
                 await ExecuteStepAsync(step, ct);
@@ -34,7 +49,14 @@ public class ActionExecutor(ObsService obs, PluginHost plugins, SystemVolume sys
                 throw new ActionExecutionException($"{prefix}: {ex.Message}", ex);
             }
         }
+
+        if (skippedObsSteps == 0) return null;
+        if (ranSteps == 0)
+            throw new ActionExecutionException($"{obs.NotConnectedMessage} Diese Taste steuert nur OBS und hat solange keine Funktion.");
+        return $"{obs.NotConnectedMessage} {skippedObsSteps} OBS-{(skippedObsSteps == 1 ? "Schritt wurde" : "Schritte wurden")} übersprungen, die übrigen Schritte sind gelaufen.";
     }
+
+    private static bool RequiresObs(string type) => type.StartsWith("obs.", StringComparison.Ordinal);
 
     private async Task ExecuteStepAsync(ActionStep step, CancellationToken ct)
     {
@@ -207,6 +229,18 @@ public class ActionExecutor(ObsService obs, PluginHost plugins, SystemVolume sys
                 OpenBrowser(Required(step, "url"));
                 break;
 
+            case "system.program.open":
+                OpenProgram(Required(step, "path"), step.Str("arguments"));
+                break;
+
+            case "system.path.open":
+                OpenPath(Required(step, "path"));
+                break;
+
+            case "system.shutdown":
+                Shutdown(force: step.Str("mode") == "force");
+                break;
+
             default:
                 if (PluginHost.TryParseActionType(step.Type, out var pluginId, out var actionId))
                 {
@@ -284,6 +318,71 @@ public class ActionExecutor(ObsService obs, PluginHost plugins, SystemVolume sys
             }
         }
         catch (InvalidOperationException ex) { throw new ActionExecutionException(ex.Message, ex); }
+    }
+
+    private static readonly HashSet<string> ProgramExtensions = [".exe", ".bat", ".cmd", ".com", ".lnk"];
+
+    private static void RequireWindows()
+    {
+        if (!OperatingSystem.IsWindows())
+            throw new ActionExecutionException("Nur auf dem nativ installierten Windows-Dienst verfügbar (nicht im Docker-Container).");
+    }
+
+    private static void StartProcess(System.Diagnostics.ProcessStartInfo info, string failure)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(info)?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            throw new ActionExecutionException($"{failure}: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>Startet ein fest hinterlegtes Programm. Der Pfad kommt aus der vom Besitzer angelegten Taste
+    /// (nie vom druckenden Geraet); trotzdem nur vollstaendige Pfade zu existierenden Programmdateien.</summary>
+    private static void OpenProgram(string path, string? arguments)
+    {
+        RequireWindows();
+        path = path.Trim().Trim('"');
+        if (!Path.IsPathFullyQualified(path))
+            throw new ActionExecutionException($"„{path}“ ist kein vollständiger Pfad (z.B. C:\\Programme\\App\\app.exe).");
+        if (!ProgramExtensions.Contains(Path.GetExtension(path).ToLowerInvariant()))
+            throw new ActionExecutionException($"„{Path.GetFileName(path)}“ ist kein Programm (erlaubt: .exe, .bat, .cmd, .com, .lnk).");
+        if (!System.IO.File.Exists(path))
+            throw new ActionExecutionException($"Programm nicht gefunden: {path}");
+        StartProcess(
+            new System.Diagnostics.ProcessStartInfo(path)
+            {
+                UseShellExecute = true,
+                Arguments = arguments?.Trim() ?? "",
+                WorkingDirectory = Path.GetDirectoryName(path) ?? "",
+            },
+            "Programm konnte nicht gestartet werden");
+    }
+
+    /// <summary>Oeffnet einen Ordner im Explorer bzw. eine Datei mit ihrem Standardprogramm.</summary>
+    private static void OpenPath(string path)
+    {
+        RequireWindows();
+        path = path.Trim().Trim('"');
+        if (!Path.IsPathFullyQualified(path))
+            throw new ActionExecutionException($"„{path}“ ist kein vollständiger Pfad (z.B. C:\\Dokumente\\Tabelle.xlsx).");
+        if (!System.IO.Directory.Exists(path) && !System.IO.File.Exists(path))
+            throw new ActionExecutionException($"Datei oder Ordner nicht gefunden: {path}");
+        StartProcess(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true }, "Konnte nicht geöffnet werden");
+    }
+
+    /// <summary>Faehrt den PC herunter. "/t 0" ohne "/f": Programme duerfen nachfragen (ungespeicherte Daten).
+    /// Mit "force" zusaetzlich "/f" - alles wird sofort beendet. (Ein "/t" groesser 0 wuerde Windows
+    /// automatisch als "/f" werten und waere deshalb kein "normales" Herunterfahren mehr.)</summary>
+    private static void Shutdown(bool force)
+    {
+        RequireWindows();
+        StartProcess(
+            new System.Diagnostics.ProcessStartInfo("shutdown.exe", force ? "/s /f /t 0" : "/s /t 0") { UseShellExecute = false, CreateNoWindow = true },
+            "Herunterfahren fehlgeschlagen");
     }
 
     /// <summary>Oeffnet eine Adresse im Standardbrowser. Nur http/https - kein UseShellExecute auf

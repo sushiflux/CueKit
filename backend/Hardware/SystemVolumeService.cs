@@ -18,6 +18,10 @@ public interface ISystemVolume
     void SetPercent(int percent);
     void SetMuted(bool muted);
     void ToggleMuted();
+
+    /// <summary>Aktueller Spitzenpegel des aktiven Standard-Ausgabegeraets in dB (-100 = Stille),
+    /// oder null, wenn nicht ermittelbar. Fuer die Live-Pegelanzeige, gedacht fuer haeufiges Abfragen.</summary>
+    double? ReadPeakDb();
 }
 
 public sealed class NoSystemVolume : ISystemVolume
@@ -30,6 +34,7 @@ public sealed class NoSystemVolume : ISystemVolume
     public void SetPercent(int percent) => throw new InvalidOperationException(Unavailable.Error);
     public void SetMuted(bool muted) => throw new InvalidOperationException(Unavailable.Error);
     public void ToggleMuted() => throw new InvalidOperationException(Unavailable.Error);
+    public double? ReadPeakDb() => null;
 }
 
 /// <summary>
@@ -90,6 +95,61 @@ public sealed class SystemVolumeService : ISystemVolume
         endpoint.SetMute(muted == 0 ? 1 : 0, Guid.Empty);
     }
 
+    // Die Pegelanzeige fragt bis zu ~20x pro Sekunde ab - die COM-Objekte deshalb kurz behalten statt
+    // pro Abfrage neu zu erzeugen. Nach ein paar Sekunden neu oeffnen, damit ein gewechseltes
+    // Standard-Ausgabegeraet uebernommen wird.
+    private static readonly TimeSpan MeterLifetime = TimeSpan.FromSeconds(3);
+    private readonly object _meterLock = new();
+    private IAudioMeterInformation? _meter;
+    private long _meterOpenedTicks;
+
+    public double? ReadPeakDb()
+    {
+        lock (_meterLock)
+        {
+            try
+            {
+                if (_meter is null || Environment.TickCount64 - _meterOpenedTicks > MeterLifetime.TotalMilliseconds)
+                {
+                    ReleaseMeter();
+                    _meter = OpenMeter();
+                    _meterOpenedTicks = Environment.TickCount64;
+                }
+                _meter.GetPeakValue(out var peak);
+                return peak <= 0.00001f ? -100 : Math.Round(20 * Math.Log10(peak), 1);
+            }
+            catch
+            {
+                ReleaseMeter();
+                return null;
+            }
+        }
+    }
+
+    private void ReleaseMeter()
+    {
+        if (_meter is not null) Marshal.ReleaseComObject(_meter);
+        _meter = null;
+    }
+
+    private static IAudioMeterInformation OpenMeter()
+    {
+        var enumeratorType = Type.GetTypeFromCLSID(ClsidMMDeviceEnumerator) ?? throw new InvalidOperationException("MMDeviceEnumerator nicht verfügbar.");
+        var enumerator = (IMMDeviceEnumerator)(Activator.CreateInstance(enumeratorType) ?? throw new InvalidOperationException("MMDeviceEnumerator konnte nicht erstellt werden."));
+        try
+        {
+            enumerator.GetDefaultAudioEndpoint(0 /* eRender */, 1 /* eMultimedia */, out var device);
+            try
+            {
+                var iid = typeof(IAudioMeterInformation).GUID;
+                device.Activate(ref iid, 0x1 /* CLSCTX_INPROC_SERVER */, IntPtr.Zero, out var meterObj);
+                return (IAudioMeterInformation)meterObj;
+            }
+            finally { Marshal.ReleaseComObject(device); }
+        }
+        finally { Marshal.ReleaseComObject(enumerator); }
+    }
+
     private static AudioEndpointVolumeHandle OpenEndpoint()
     {
         var enumeratorType = Type.GetTypeFromCLSID(ClsidMMDeviceEnumerator) ?? throw new InvalidOperationException("MMDeviceEnumerator nicht verfügbar.");
@@ -134,6 +194,16 @@ public sealed class SystemVolumeService : ISystemVolume
     private interface IMMDevice
     {
         void Activate(ref Guid iid, int clsCtx, IntPtr activationParams, [MarshalAs(UnmanagedType.IUnknown)] out object interfacePointer);
+    }
+
+    /// <summary>Spitzenpegel des Endpunkts (0..1 linear). Vtable-Reihenfolge wie im Windows-SDK.</summary>
+    [ComImport, Guid("C02216F6-8C67-4B5B-9D00-D008E73E0064"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IAudioMeterInformation
+    {
+        void GetPeakValue(out float peak);
+        void GetMeteringChannelCount(out int count);
+        void GetChannelsPeakValues(int channelCount, IntPtr peakValues);
+        void QueryHardwareSupport(out int hardwareSupportMask);
     }
 
     /// <summary>Nur die vier Methoden, die wir brauchen - IAudioEndpointVolume hat in Wirklichkeit deutlich mehr,

@@ -15,6 +15,14 @@ interface Props {
    * Bekommt die Ausrichtung, damit die Leiste ihre Knoepfe passend anordnet.
    */
   rail?: (orientation: 'vertical' | 'horizontal') => ReactNode
+  /**
+   * Umschliesst das Tastenraster mit einem Rahmen (Gehaeuse-Plate). `frameInset` ist der Platz pro
+   * Seite (px), den der Rahmen um die Tasten herum braucht - er wird von der verfuegbaren Flaeche
+   * abgezogen, damit die Tasten nicht ueber den Rahmen hinauswachsen. Die Bedienleiste (rail) bleibt
+   * ausserhalb des Rahmens.
+   */
+  frame?: (grid: ReactNode) => ReactNode
+  frameInset?: number
 }
 
 const RAIL_THICKNESS = 48
@@ -24,7 +32,7 @@ const RAIL_GAP = 16
  * Quadratische Tasten, die den verfuegbaren Platz optimal ausfuellen - egal ob Handy hochkant,
  * Tablet quer oder Desktop-Fenster. Das Raster bleibt dabei immer mittig (symmetrische Raender).
  */
-export function DeckGrid({ rows: logicalRows, columns: logicalColumns, renderSlot, maxKeySize = 180, className, rotatePortrait = false, rail }: Props) {
+export function DeckGrid({ rows: logicalRows, columns: logicalColumns, renderSlot, maxKeySize = 180, className, rotatePortrait = false, rail, frame, frameInset = 0 }: Props) {
   const ref = useRef<HTMLDivElement>(null)
   const [box, setBox] = useState({ w: 0, h: 0 })
 
@@ -42,37 +50,41 @@ export function DeckGrid({ rows: logicalRows, columns: logicalColumns, renderSlo
 
   // Leiste rechts, solange genug Breite da ist - sonst unter dem Raster.
   const railSide = rail ? (box.w >= 640 && !rotated ? 'right' : 'bottom') : null
-  const availW = box.w - (railSide === 'right' ? RAIL_THICKNESS + RAIL_GAP : 0)
-  const availH = box.h - (railSide === 'bottom' ? RAIL_THICKNESS + RAIL_GAP : 0)
+  const availW = box.w - (railSide === 'right' ? RAIL_THICKNESS + RAIL_GAP : 0) - (frame ? frameInset * 2 : 0)
+  const availH = box.h - (railSide === 'bottom' ? RAIL_THICKNESS + RAIL_GAP : 0) - (frame ? frameInset * 2 : 0)
 
   const base = Math.min(availW / columns, availH / rows)
   const gap = Math.round(Math.max(8, Math.min(18, base * 0.12)))
   const size = Math.max(0, Math.floor(Math.min((availW - gap * (columns - 1)) / columns, (availH - gap * (rows - 1)) / rows, maxKeySize)))
 
+  const grid = (
+    <div
+      className="grid"
+      style={{
+        gridTemplateColumns: `repeat(${columns}, ${size}px)`,
+        gridTemplateRows: `repeat(${rows}, ${size}px)`,
+        gap,
+        // Platz fuer den Tastenhub (Schatten nach unten)
+        paddingBottom: 4,
+      }}
+    >
+      {Array.from({ length: rows * columns }, (_, i) => {
+        const row = Math.floor(i / columns)
+        const column = i % columns
+        return (
+          <div key={`${row}-${column}`} style={{ width: size, height: size }}>
+            {rotated ? renderSlot(column, row, size) : renderSlot(row, column, size)}
+          </div>
+        )
+      })}
+    </div>
+  )
+
   return (
     <div ref={ref} className={`flex h-full w-full items-center justify-center ${className ?? ''}`}>
       {size > 0 && (
         <div className={railSide === 'bottom' ? 'flex flex-col items-center' : 'flex items-end'} style={{ gap: RAIL_GAP }}>
-          <div
-            className="grid"
-            style={{
-              gridTemplateColumns: `repeat(${columns}, ${size}px)`,
-              gridTemplateRows: `repeat(${rows}, ${size}px)`,
-              gap,
-              // Platz fuer den Tastenhub (Schatten nach unten)
-              paddingBottom: 4,
-            }}
-          >
-            {Array.from({ length: rows * columns }, (_, i) => {
-              const row = Math.floor(i / columns)
-              const column = i % columns
-              return (
-                <div key={`${row}-${column}`} style={{ width: size, height: size }}>
-                  {rotated ? renderSlot(column, row, size) : renderSlot(row, column, size)}
-                </div>
-              )
-            })}
-          </div>
+          {frame ? frame(grid) : grid}
           {rail && (
             <div className={railSide === 'bottom' ? 'flex items-center gap-2' : 'flex flex-col items-center gap-2 pb-1'} style={railSide === 'bottom' ? { height: RAIL_THICKNESS } : { width: RAIL_THICKNESS }}>
               {rail(railSide === 'bottom' ? 'horizontal' : 'vertical')}

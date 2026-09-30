@@ -7,6 +7,9 @@ namespace Deck.Server.Obs;
 /// Haelt die Verbindung zu OBS dauerhaft aufrecht (automatischer Reconnect, z.B. wenn OBS erst
 /// nach dem Dienst gestartet wird) und fuehrt einen aktuellen <see cref="ObsSnapshot"/>.
 /// </summary>
+/// <summary>Live-Pegel einer OBS-Quelle in dB: nach Fader/Stumm und davor (Eingangspegel).</summary>
+public readonly record struct ObsMeterLevel(double Peak, double InputPeak);
+
 public sealed class ObsService(SettingsService settings, ILogger<ObsService> log) : BackgroundService
 {
     private static readonly HashSet<string> StructuralEvents =
@@ -33,17 +36,68 @@ public sealed class ObsService(SettingsService settings, ILogger<ObsService> log
     /// <summary>Rohe OBS-Events (fuer die Automations-Engine): eventType, eventData.</summary>
     public event Action<string, JsonNode?>? ObsEvent;
 
+    /// <summary>Live-Pegel je Eingang in dB (Spitzenwert ueber alle Kanäle, -100 = Stille) - nur, solange
+    /// <see cref="SetMetersWanted"/> aktiv ist. Bewusst getrennt vom Zustands-Snapshot: kommt bis zu
+    /// ~50x pro Sekunde und darf weder den Snapshot-Broadcast noch die Automationen fluten.</summary>
+    public event Action<IReadOnlyDictionary<string, ObsMeterLevel>>? MetersChanged;
+
+    private volatile bool _metersWanted;
+
+    private static int Subscriptions(bool meters) =>
+        ObsWebSocketClient.EventSubscriptionsAll | (meters ? ObsWebSocketClient.EventSubscriptionInputVolumeMeters : 0);
+
+    /// <summary>Schaltet die hochfrequenten Pegel-Events von OBS zu bzw. ab (nur solange ein Geraet Pegel zeigt).</summary>
+    public void SetMetersWanted(bool wanted)
+    {
+        if (_metersWanted == wanted) return;
+        _metersWanted = wanted;
+        var client = _client;
+        if (client is not { IsOpen: true }) return; // beim naechsten Verbinden wird der Wunsch beruecksichtigt
+        _ = Task.Run(async () =>
+        {
+            try { await client.ReidentifyAsync(Subscriptions(wanted)); }
+            catch (Exception ex) { log.LogDebug("Pegel-Abo konnte nicht geaendert werden: {Message}", ex.Message); }
+        });
+    }
+
+    private static double ToDb(double mul) => mul <= 0.00001 ? -100 : Math.Round(20 * Math.Log10(mul), 1);
+
+    private void HandleMeters(JsonNode? data)
+    {
+        if (MetersChanged is null || data?["inputs"] is not JsonArray inputs) return;
+        var levels = new Dictionary<string, ObsMeterLevel>(inputs.Count);
+        foreach (var input in inputs)
+        {
+            if (input?["inputName"]?.GetValue<string>() is not { } name) continue;
+            // Je Kanal [Magnitude, Peak, Eingangs-Peak] als lineare Multiplikatoren, jeweils Maximum ueber alle Kanaele.
+            // Peak (Index 1) ist der Pegel NACH Fader/Stumm - bei stummer Quelle also Stille. Der Eingangs-Peak
+            // (Index 2) kommt VOR Fader/Stumm und zeigt weiter das echte Signal (Mikro laeuft, obwohl stumm).
+            double peak = 0, inputPeak = 0;
+            foreach (var channel in input["inputLevelsMul"]?.AsArray() ?? [])
+            {
+                if (channel is not JsonArray c) continue;
+                if (c.Count > 1 && c[1] is { } p) peak = Math.Max(peak, p.GetValue<double>());
+                if (c.Count > 2 && c[2] is { } ip) inputPeak = Math.Max(inputPeak, ip.GetValue<double>());
+            }
+            levels[name] = new ObsMeterLevel(ToDb(peak), ToDb(inputPeak));
+        }
+        MetersChanged?.Invoke(levels);
+    }
+
     /// <summary>Beendet die aktuelle Sitzung, damit der Verbindungsloop mit neuen Einstellungen neu verbindet.</summary>
     public void Reconnect() => _sessionCts?.Cancel();
+
+    public bool IsConnected => _client is { IsOpen: true };
+
+    /// <summary>Den konkreten Grund nennen (z.B. falsches Passwort), nicht nur "nicht verbunden".</summary>
+    public string NotConnectedMessage => State.Error is { Length: > 0 } reason
+        ? $"OBS ist nicht verbunden – {reason}"
+        : "OBS ist nicht verbunden. Läuft OBS und ist der WebSocket-Server unter Werkzeuge > WebSocket-Server-Einstellungen aktiviert?";
 
     public async Task<JsonNode?> RequestAsync(string requestType, object? data = null, CancellationToken ct = default)
     {
         var client = _client;
-        if (client is null || !client.IsOpen)
-            // Den konkreten Grund nennen (z.B. falsches Passwort), nicht nur "nicht verbunden".
-            throw new InvalidOperationException(State.Error is { Length: > 0 } reason
-                ? $"OBS ist nicht verbunden – {reason}"
-                : "OBS ist nicht verbunden. Läuft OBS und ist der WebSocket-Server unter Werkzeuge > WebSocket-Server-Einstellungen aktiviert?");
+        if (client is null || !client.IsOpen) throw new InvalidOperationException(NotConnectedMessage);
         return await client.RequestAsync(requestType, data, ct);
     }
 
@@ -79,7 +133,7 @@ public sealed class ObsService(SettingsService settings, ILogger<ObsService> log
             string? error = null;
             try
             {
-                await client.ConnectAsync(uri, settings.ObsPassword, session);
+                await client.ConnectAsync(uri, settings.ObsPassword, session, Subscriptions(_metersWanted));
                 _client = client;
                 await LoadFullStateAsync(session);
                 log.LogInformation("Mit OBS verbunden ({Uri}).", uri);
@@ -269,6 +323,11 @@ public sealed class ObsService(SettingsService settings, ILogger<ObsService> log
 
     private void OnEvent(string type, JsonNode? data)
     {
+        if (type == "InputVolumeMeters")
+        {
+            HandleMeters(data);
+            return;
+        }
         var now = DateTimeOffset.UtcNow;
         switch (type)
         {

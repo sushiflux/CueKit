@@ -18,6 +18,10 @@ Changelogs da). „Latest available“ wird zu Sessionbeginn live neu geprüft.
 | Iconify (react / Sets) | 6.0.2 / tabler 1.2.40, mdi 1.2.3, simple-icons 1.2.97 | gleich | https://github.com/iconify/iconify |
 | EF Core (SQLite) | 10.0.12 | 10.0.12 | https://github.com/dotnet/efcore/releases |
 | SQLite | über Microsoft.Data.Sqlite | – | https://www.sqlite.org/changes.html |
+| Microsoft.Web.WebView2 (SDK der Desktop-Hülle) | 1.0.4258.31 | 1.0.4258.31 | https://www.nuget.org/packages/Microsoft.Web.WebView2 |
+| WebView2-Laufzeit (Evergreen, beim Nutzer) | 154.0.4258.37 (auf dieser Maschine) | Evergreen, wird von Windows aktualisiert | https://developer.microsoft.com/microsoft-edge/webview2/ |
+| Velopack (Installer + Auto-Update; NuGet `Velopack` und Werkzeug `vpk`) | 1.2.161 | 1.2.161 | https://github.com/velopack/velopack/releases |
+| Windows Forms (Desktop-Hülle) | über .NET 10 | – | https://dotnet.microsoft.com/download/dotnet |
 | obs-websocket | Protokoll v5 (in OBS ≥ 28) | v5 | https://github.com/obsproject/obs-websocket/releases |
 
 **TypeScript 7** (nativer Compiler-Rewrite) bewusst noch nicht übernommen: Vite 8 /

@@ -190,7 +190,6 @@ public class SettingsController(SettingsService settings, ObsService obs, Plugin
     public object GetGeneral() => new
     {
         publicHost = settings.Get(SettingKeys.PublicHost) ?? "",
-        previewFps = settings.PreviewFps,
         lanAddresses = NetworkInfo.LanAddresses(),
     };
 
@@ -198,7 +197,6 @@ public class SettingsController(SettingsService settings, ObsService obs, Plugin
     public async Task<IActionResult> SaveGeneral(GeneralSettingsInput input)
     {
         await settings.SetAsync(SettingKeys.PublicHost, input.PublicHost?.Trim() ?? "");
-        await settings.SetAsync(SettingKeys.PreviewFps, input.PreviewFps.ToString());
         return NoContent();
     }
 

@@ -1,4 +1,4 @@
-import { IconArrowsMaximize, IconArrowsMinimize, IconChevronRight, IconEye, IconEyeOff, IconKeyboard, IconPencil, IconPlugConnectedX } from '@tabler/icons-react'
+import { IconArrowsMaximize, IconArrowsMinimize, IconChevronRight, IconKeyboard, IconPencil, IconPlugConnectedX } from '@tabler/icons-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
@@ -11,17 +11,16 @@ import { toast } from '../components/Toasts'
 import { DeckEditor } from '../deck/DeckEditor'
 import { deleteTile } from '../deck/tileOps'
 import { TileMenu, type MenuItem } from '../editor/TileMenu'
-import { buttonLevel, buttonNeedsSystemMonitor, displayMetric, formatDuration, isButtonActive } from '../lib/buttonState'
-import { hotkeyFromEvent, isTypingTarget } from '../lib/hotkeys'
-import { backgroundNeedsOverlay, resolveBackgroundStyle } from '../lib/appearanceBackground'
+import { buttonLevel, buttonMeter, buttonNeedsMeters, buttonNeedsSystemMonitor, displayMetric, formatDuration, isButtonActive, isButtonUnavailable } from '../lib/buttonState'
+import { HousePlate } from '../components/HousePlate'
+import { HOUSE_PLATE_INSET, hasHousePlate } from '../lib/housePlates'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { HotkeyCaps } from '../components/HotkeyRecorder'
 import { Modal } from '../components/Modal'
-import { pressButton, setPreviewEnabled, setSystemMonitorEnabled } from '../state/realtime'
+import { pressButton, setMetersEnabled, setSystemMonitorEnabled } from '../state/realtime'
 import { useStore } from '../state/store'
 
 const DECK_KEY = 'deck.selectedDeck'
-const PREVIEW_KEY = 'deck.preview'
 
 const LIVE_MENU: MenuItem[] = [
   { id: 'edit', label: 'Bearbeiten', hint: 'Öffnet diese Taste im Editor', icon: 'tabler:pencil' },
@@ -70,7 +69,6 @@ export function DeckPage() {
   const page: PageModel | undefined = deck?.pages.find((p) => p.id === pageId) ?? root
 
   const [focus, setFocus] = useState(false)
-  const [preview, setPreview] = useState(() => readLocal(PREVIEW_KEY) === '1')
   const [errorKey, setErrorKey] = useState<number | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number; button: ButtonModel } | null>(null)
 
@@ -78,12 +76,6 @@ export function DeckPage() {
   useEffect(() => {
     if (stack.length && !stack.every((id) => deck?.pages.some((p) => p.id === id))) setStack([])
   }, [deck, stack])
-
-  useEffect(() => {
-    void setPreviewEnabled(preview && !editing)
-    writeLocal(PREVIEW_KEY, preview ? '1' : '0')
-    return () => void setPreviewEnabled(false)
-  }, [preview, editing])
 
   // Live-Systemwerte nur abonnieren, waehrend mindestens eine Taste auf der aktuellen Seite sie
   // braucht - Anzeige-Kachel (Kennwert) oder eine Taste mit system.mute/system.volume (LED/Pegel) -
@@ -93,6 +85,13 @@ export function DeckPage() {
     void setSystemMonitorEnabled(hasVisibleMonitor)
     return () => void setSystemMonitorEnabled(false)
   }, [hasVisibleMonitor])
+
+  // Live-Pegel nur uebertragen, solange eine sichtbare Taste ihn zeigt (die Uebertragung ist hochfrequent).
+  const hasVisibleMeter = !editing && (page?.buttons.some((b) => buttonNeedsMeters(b)) ?? false)
+  useEffect(() => {
+    void setMetersEnabled(hasVisibleMeter)
+    return () => void setMetersEnabled(false)
+  }, [hasVisibleMeter])
 
   // Echter Browser-Vollbildmodus zusaetzlich zum "nur Tasten"-Modus.
   useEffect(() => {
@@ -132,6 +131,7 @@ export function DeckPage() {
           toast(result.error ?? 'Aktion fehlgeschlagen.', 'error')
           return
         }
+        if (result.notice) toast(result.notice, 'info')
       } else if (button.actions.length === 0) {
         toast(`„${button.label || 'Diese Taste'}“ hat noch keine Aktion.`, 'info')
         return
@@ -150,31 +150,13 @@ export function DeckPage() {
   )
 
   // ---------- Tastenkuerzel ----------
-  // Gilt fuer alle Tasten aller Decks - egal, welche Seite gerade offen ist.
-  const hotkeyMap = useMemo(() => {
-    const map = new Map<string, ButtonModel>()
-    decks.forEach((d) => d.pages.forEach((p) => p.buttons.forEach((b) => b.hotkey && map.set(b.hotkey, b))))
-    return map
-  }, [decks])
+  // Nur noch systemweit ueber die (kuenftige) Desktop-App (GlobalHotkeyService, siehe Backend) -
+  // ein lokaler Browser-keydown-Listener wurde entfernt, da er ohnehin nur wirkte, solange das
+  // Deck-Tab im Vordergrund war, was fuer Streaming-Hotkeys (waehrend OBS/Spiel im Fokus ist)
+  // nicht praxistauglich ist.
   const [flashKey, setFlashKey] = useState<number | null>(null)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const hasKeyboard = useMediaQuery('(pointer: fine)')
-
-  useEffect(() => {
-    if (editing) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.repeat || isTypingTarget(e.target)) return
-      const combo = hotkeyFromEvent(e)
-      const button = combo ? hotkeyMap.get(combo) : undefined
-      if (!button) return
-      e.preventDefault()
-      setFlashKey(button.id)
-      setTimeout(() => setFlashKey((k) => (k === button.id ? null : k)), 160)
-      void press(button)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [editing, hotkeyMap, press])
 
   // Systemweites Kuerzel am PC gedrueckt (Dienst hat ausgeloest) -> Taste kurz einsinken lassen / Fehler zeigen.
   useEffect(() => {
@@ -207,11 +189,12 @@ export function DeckPage() {
 
   const breadcrumb = [root, ...stack.map((id) => deck.pages.find((p) => p.id === id))].filter(Boolean) as PageModel[]
   const obsDown = obs?.status !== 'connected'
-  // Gewaehlter Deck-Hintergrund (siehe Seite "Aussehen") - nur fuer die Live-Ansicht, nicht im
-  // Editor (dort sorgen die Editor-Panels/-Flaechen ohnehin fuer genug Kontrast) und nicht auf
-  // anderen Seiten (AppShell behaelt dort seine normale --c-canvas-Flaeche).
-  const deckBackgroundStyle = !editing ? resolveBackgroundStyle(appearance?.background) : undefined
-  const deckBackgroundOverlay = !editing && backgroundNeedsOverlay(appearance?.background)
+  // Gewaehlte Gehaeuse-Plate (siehe Seite "Aussehen") - nur fuer die Live-Ansicht, nicht im Editor
+  // (dort sorgen die Editor-Panels/-Flaechen ohnehin fuer genug Kontrast) und nicht auf anderen
+  // Seiten (AppShell behaelt dort seine normale --c-canvas-Flaeche). Die Plate ist ein Rahmen UM
+  // das Tastenraster, kein Vollflaechen-Hintergrund - daher kein Overlay/inline-style mehr auf dem
+  // Aussen-Container noetig, siehe components/HousePlate.tsx.
+  const plateKey = !editing ? appearance?.plate : undefined
 
   const title = (
     <>
@@ -267,7 +250,7 @@ export function DeckPage() {
       <span className="text-ink">
         {link !== 'online'
           ? 'Keine Verbindung zum PC – wird automatisch wiederhergestellt …'
-          : (obs?.error ?? (obs?.status === 'connecting' ? 'Verbinde mit OBS …' : 'OBS ist nicht verbunden.'))}
+          : `${obs?.error ?? (obs?.status === 'connecting' ? 'Verbinde mit OBS …' : 'OBS ist nicht verbunden.')} Tasten, die nur OBS steuern, sind so lange ohne Funktion – alle anderen funktionieren weiter.`}
       </span>
       {isOwner && link === 'online' && (
         <Link to="/settings" className="ml-auto shrink-0 font-semibold text-danger hover:underline">
@@ -280,14 +263,6 @@ export function DeckPage() {
   /** Deck-Aktionen direkt am Raster (rechts neben der letzten Kachel) statt am Bildschirmrand. */
   const rail = (orientation: 'vertical' | 'horizontal') => (
     <>
-      <button
-        className="btn btn-ghost btn-icon h-10 w-10"
-        aria-pressed={preview}
-        onClick={() => setPreview((v) => !v)}
-        title={preview ? 'Vorschau ausblenden' : 'Live-Vorschau einblenden'}
-      >
-        {preview ? <IconEyeOff size={18} /> : <IconEye size={18} />}
-      </button>
       {hasKeyboard && (
         <button className="btn btn-ghost btn-icon h-10 w-10" onClick={() => setShortcutsOpen(true)} title="Tastenkürzel">
           <IconKeyboard size={18} />
@@ -310,8 +285,7 @@ export function DeckPage() {
   )
 
   const liveGrid = (
-    <main className={`flex min-h-0 flex-1 gap-4 p-4 ${preview && !focus ? 'flex-col landscape:flex-row' : ''}`}>
-      {preview && !focus && <PreviewPanel />}
+    <main className="flex min-h-0 flex-1 gap-4 p-4">
       <div className="min-h-0 min-w-0 flex-1">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
@@ -328,6 +302,8 @@ export function DeckPage() {
               maxKeySize={focus ? 260 : 190}
               rotatePortrait
               rail={focus ? undefined : rail}
+              frame={hasHousePlate(plateKey) ? (grid) => <HousePlate plateKey={plateKey}>{grid}</HousePlate> : undefined}
+              frameInset={HOUSE_PLATE_INSET}
               renderSlot={(row, column, size) => {
                 const b = buttonsBySlot.get(`${row}-${column}`)
                 if (!b) return <div className="deck-slot-empty opacity-40" />
@@ -353,6 +329,10 @@ export function DeckPage() {
                       monitorMetric={displayMetric(b, catalog)}
                       systemMonitor={systemMonitor}
                       pressBehavior={appearance?.pressBehavior}
+                      volumeIndicator={appearance?.volumeIndicator}
+                      unavailable={isButtonUnavailable(b, obs)}
+                      meterKey={buttonMeter(b, obs, systemMonitor)?.key}
+                      meterMuted={buttonMeter(b, obs, systemMonitor)?.muted}
                       onPress={() => void press(b)}
                     />
                   </div>
@@ -368,11 +348,7 @@ export function DeckPage() {
   // Vollbild: nur Tasten, ohne Seitenleiste.
   if (focus && !editing) {
     return (
-      <div
-        className="relative flex h-full flex-col bg-canvas"
-        style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)', ...deckBackgroundStyle }}
-      >
-        {deckBackgroundOverlay && <div className="pointer-events-none absolute inset-0 bg-black/15" aria-hidden="true" />}
+      <div className="relative flex h-full flex-col bg-canvas" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {liveGrid}
         <button
           className="fixed right-3 top-3 z-50 rounded-ctl bg-surface/60 p-2 text-ink-muted opacity-40 backdrop-blur transition-opacity hover:opacity-100 focus-visible:opacity-100"
@@ -388,8 +364,7 @@ export function DeckPage() {
 
   return (
     <AppShell title={title}>
-      <div className="relative flex h-full flex-col" style={deckBackgroundStyle}>
-        {deckBackgroundOverlay && <div className="pointer-events-none absolute inset-0 bg-black/15" aria-hidden="true" />}
+      <div className="relative flex h-full flex-col">
         <AnimatePresence>{obsBanner}</AnimatePresence>
         {editing ? (
           <div className="min-h-0 flex-1">
@@ -448,33 +423,6 @@ function OutputChips() {
   )
 }
 
-function PreviewPanel() {
-  const preview = useStore((s) => s.preview)
-  const obs = useStore((s) => s.obs)
-  return (
-    <motion.section
-      initial={{ opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="card relative mx-auto aspect-video w-full max-w-3xl shrink-0 overflow-hidden bg-black landscape:w-[42%] landscape:self-center"
-      aria-label="Live-Vorschau"
-    >
-      {preview ? (
-        <img src={preview} alt="Programmausgabe von OBS" className="h-full w-full object-contain" />
-      ) : (
-        <div className="flex h-full items-center justify-center text-sm text-white/60">
-          {obs?.status === 'connected' ? 'Vorschau wird geladen …' : 'Keine Vorschau – OBS nicht verbunden'}
-        </div>
-      )}
-      {obs?.programScene && (
-        <div className="absolute bottom-2 left-2 flex items-center gap-2">
-          <span className="rounded-badge bg-black/65 px-2 py-1 text-xs font-semibold text-white backdrop-blur">{obs.programScene}</span>
-          {obs.streaming && <span className="rounded-badge bg-live px-1.5 py-1 text-[10px] font-bold text-white">LIVE</span>}
-        </div>
-      )}
-    </motion.section>
-  )
-}
-
 /** Uebersicht aller Tastenkuerzel ueber alle Decks. */
 function ShortcutsModal({ open, onClose, isOwner, onEdit }: { open: boolean; onClose: () => void; isOwner: boolean; onEdit: (buttonId: number) => void }) {
   const decks = useStore((s) => s.decks)
@@ -506,7 +454,7 @@ function ShortcutsModal({ open, onClose, isOwner, onEdit }: { open: boolean; onC
           ))}
         </div>
       )}
-      <p className="mt-4 text-xs text-ink-faint">Die Kürzel wirken, solange das Deck in diesem Browser im Vordergrund ist.</p>
+      <p className="mt-4 text-xs text-ink-faint">Die Kürzel wirken systemweit auf dem PC, auf dem der Dienst läuft.</p>
     </Modal>
   )
 }

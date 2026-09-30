@@ -7,7 +7,14 @@ release lives in `CHANGELOG.md`.
 
 # English
 
-## v2026.9.8 - 2026-09-30 17:45
+## v2026.9.9 - 2026-09-30 17:48
+
+First Windows release candidate (tag `-rc1`); pass the target runtime to Velopack.
+
+- `scripts/desktop-pack.ps1`: `vpk pack --runtime win-x64` so the installer no longer falls back to the x86 default runtime check.
+- Hook-stamped version files (`version.txt`, `backend/version.txt`) for v2026.9.8 and the changelog heading time.
+
+## v2026.9.8 - 2026-09-30 17:46
 
 Add the Windows desktop shell with a Velopack installer and a release workflow, live audio level meters, house plates instead of the deck background, new System actions, and OBS-offline handling.
 
@@ -216,7 +223,14 @@ Initial scaffold of Baton - a free, community-extensible Stream Deck alternative
 
 # Deutsch
 
-## v2026.9.8 - 2026-09-30 17:45
+## v2026.9.9 - 2026-09-30 17:48
+
+Erster Windows-Release-Kandidat (Tag `-rc1`); Ziel-Runtime an Velopack uebergeben.
+
+- `scripts/desktop-pack.ps1`: `vpk pack --runtime win-x64`, damit der Installer nicht auf die x86-Voreinstellung zurueckfaellt.
+- Vom Hook geschriebene Versionsdateien (`version.txt`, `backend/version.txt`) fuer v2026.9.8 und die Uhrzeit der Changelog-Ueberschrift.
+
+## v2026.9.8 - 2026-09-30 17:46
 
 Windows-Desktop-Hülle mit Velopack-Installer und Release-Workflow, Live-Pegelanzeige, Gehäuse-Plates statt Deck-Hintergrund, neue System-Aktionen und OBS-offline-Verhalten.
 

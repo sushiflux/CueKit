@@ -66,6 +66,7 @@ try {
         '--icon', (Join-Path $root 'branding\icon.ico'),
         '--splashImage', (Join-Path $root 'branding\installer-splash.png'),
         '--splashProgressColor', '#5b4bf5',
+        '--runtime', 'win-x64',
         '--channel', $Channel,
         '--outputDir', $out
     )

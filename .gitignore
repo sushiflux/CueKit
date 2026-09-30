@@ -48,3 +48,11 @@ frontend/e2e/playwright-report/
 *.user
 .DS_Store
 Thumbs.db
+
+# Android
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/local.properties
+/android/*.keystore
+/android/*.jks

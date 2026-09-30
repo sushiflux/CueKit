@@ -35,12 +35,15 @@ public interface ISystemMonitor
 {
     SystemMonitorSnapshot Current { get; }
     void Refresh();
+    /// <summary>Aktualisiert nur Lautstaerke/Stumm (schnell, ohne Hardware-Sensoren neu einzulesen).</summary>
+    void RefreshVolume();
 }
 
 public sealed class NoSystemMonitor : ISystemMonitor
 {
     public SystemMonitorSnapshot Current => SystemMonitorSnapshot.Unavailable;
     public void Refresh() { }
+    public void RefreshVolume() { }
 }
 
 /// <summary>
@@ -133,6 +136,15 @@ public sealed class SystemMonitorService : ISystemMonitor, IDisposable
                 VolumePercent = volume.Available ? volume.Percent : null,
                 VolumeMuted = volume.Available ? volume.Muted : null,
             };
+        }
+    }
+
+    public void RefreshVolume()
+    {
+        var volume = _volume.Status;
+        lock (_gate)
+        {
+            _current = _current with { VolumePercent = volume.Available ? volume.Percent : null, VolumeMuted = volume.Available ? volume.Muted : null };
         }
     }
 

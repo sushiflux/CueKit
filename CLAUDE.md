@@ -64,6 +64,18 @@ Browser verification uses the Playwright Docker image on demand (`mcr.microsoft.
 target `http://host.docker.internal:<port>`); a fresh data dir allows the first-run "Einrichten"
 (bootstrap) flow. Never press live deck keys in automated tests against a real OBS.
 
+Android app (client only, see "Platforms and stack choice" below): `.\scripts\android-build.ps1` builds the APK in a Gradle container
+(no Android Studio/SDK on the PC; SDK cached in the Docker volume `cuekit-android-sdk`) -> `artifacts\android\<ProductName>-<Version>.apk`
+(debug-signed, for sideloading). `.\scripts\android-icons.ps1` regenerates the launcher icons from `branding/icon.ico`.
+
+## Platforms and stack choice
+
+Targets: Windows desktop (WinForms + WebView2 shell, Velopack installer, optional MSIX for the Store), Docker/Linux server (headless
+ASP.NET Core), browser/PWA on phones and tablets, Android app. Architecture: **one server with a stable API/SignalR protocol, thin
+clients per platform**. Stack per platform: server .NET; web UI React/Vite/TS; Windows shell .NET/WinForms; **Android = small native
+Kotlin WebView shell** (`android/`) - it only has to pair and then show the server UI, so Kotlin + a bundled HTML start page fits
+better than React Native/Capacitor (no cleartext/navigation workarounds, tiny APK, real ML Kit scanner).
+
 ## Architecture
 
 **Backend** (`backend/`, ASP.NET Core 10, SQLite via EF Core, single process):
@@ -111,6 +123,13 @@ target `http://host.docker.internal:<port>`); a fresh data dir allows the first-
 - **Realtime**: `HubNotifier` broadcasts `obsState`, `preview`, `decksChanged`, `catalogChanged`,
   `automationsChanged`, `pluginsChanged`, `hotkeysChanged`, `keyTriggered`; controllers call
   `notifier.DecksChangedAsync()` after deck mutations (this also re-registers global hotkeys).
+- **Android app** (`android/`, Kotlin, minSdk 26): `MainActivity` = one WebView. The bundled start page
+  `assets/connect/index.html` (plain HTML/CSS/JS, the no-build-step exception; the logo is copied from `branding/` by Gradle) offers three ways to
+  pair: scan the QR code (Google code scanner), read a QR code from an image (ML Kit), or type address + code. The QR content is the
+  existing pairing URL `http://<ip>:<port>/pair?code=XXXXXXXX`; the app stores the base address, loads the server UI (full screen, screen stays on)
+  and the server's `/pair` flow issues the device token (role Controller) into the WebView storage. The JS bridge `CueKitApp` only works on the
+  bundled page; the back button on the server UI opens a menu (connect to another PC / close). Name and version come from `branding.json`/`version.txt`
+  in `app/build.gradle.kts`. Release signing (Play Store) is still open.
 - Settings are DB-backed (`SettingsService`, OBS password encrypted with DataProtection).
   `BackupController` exports/imports decks (format `cuekit-decks` v1, always imports as new decks,
   remaps page/automation ids).

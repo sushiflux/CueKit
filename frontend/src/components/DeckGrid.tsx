@@ -54,7 +54,8 @@ export function DeckGrid({ rows: logicalRows, columns: logicalColumns, renderSlo
   const availH = box.h - (railSide === 'bottom' ? RAIL_THICKNESS + RAIL_GAP : 0) - (frame ? frameInset * 2 : 0)
 
   const base = Math.min(availW / columns, availH / rows)
-  const gap = Math.round(Math.max(8, Math.min(18, base * 0.12)))
+  // Mit Gehaeuse braucht jede Taste Platz fuer ihre Aussparung - das Metall soll dazwischen sichtbar bleiben.
+  const gap = frame ? Math.round(Math.max(20, Math.min(28, base * 0.15))) : Math.round(Math.max(8, Math.min(18, base * 0.12)))
   const size = Math.max(0, Math.floor(Math.min((availW - gap * (columns - 1)) / columns, (availH - gap * (rows - 1)) / rows, maxKeySize)))
 
   const grid = (
@@ -72,7 +73,7 @@ export function DeckGrid({ rows: logicalRows, columns: logicalColumns, renderSlo
         const row = Math.floor(i / columns)
         const column = i % columns
         return (
-          <div key={`${row}-${column}`} style={{ width: size, height: size }}>
+          <div key={`${row}-${column}`} className={frame ? 'house-plate-slot' : undefined} style={{ width: size, height: size }}>
             {rotated ? renderSlot(column, row, size) : renderSlot(row, column, size)}
           </div>
         )

@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import type { ButtonModel, SystemMonitorSnapshot } from '../api/types'
-import { activeIcon, buttonHasToggleState, isMonitorLoadMetric, isMuteAction, monitorDisplay } from '../lib/buttonState'
+import { activeIcon, buttonHasToggleState, buttonStateKind, isMonitorLoadMetric, isMuteAction, monitorDisplay } from '../lib/buttonState'
 import { hotkeyParts } from '../lib/hotkeys'
 import { INPUT_LEVEL_SUFFIX, useMeterDb } from '../state/meters'
 import { KeyIcon } from './KeyIcon'
@@ -21,6 +21,11 @@ interface Props {
    * Status-Strich (.key-status-bar) statt der LED - ebenfalls nur ein reiner rot/gruen-EIN/AUS-
    * Status, kein Pegelwert. Gilt fuer ALLE Toggle-Tasten, nicht nur Lautstaerke-Tasten. */
   volumeIndicator?: 'led' | 'level'
+  /**
+   * Zustandsdarstellung: "fill" (Standard) = Vollflaeche - an gruen, aus rot, weisses Symbol/Text;
+   * "icon" = Tastenkoerper bleibt neutral, nur Symbol, Beschriftung und Kante sind gruen/rot.
+   */
+  stateStyle?: 'fill' | 'icon'
   /** Live-Pegel unter dem Lautstaerke-Balken: Schluessel im Pegel-Store (siehe state/meters.ts) und ob die
    * Quelle stummgeschaltet ist (dann grau). Nur zusammen mit `level` sinnvoll. */
   meterKey?: string | null
@@ -117,6 +122,7 @@ export function DeckKey({
   selected = false,
   level = null,
   volumeIndicator = 'led',
+  stateStyle = 'fill',
   unavailable = false,
   meterKey = null,
   meterMuted = false,
@@ -145,6 +151,13 @@ export function DeckKey({
   // stumm" ist gruen, siehe .deck-key[data-mute='true']-Farblogik in index.css). Ohne diese
   // Unterscheidung blieben Mute-Tasten im gruenen (guten) Zustand faelschlich oben/entspannt.
   const visuallyOn = !unavailable && (mute ? !active : active)
+  // Zustandsfarbe: "gut" (gruen) = an bzw. bei Mute-Tasten nicht stumm; "aus" (rot) nur bei echten
+  // An/Aus-Tasten - eine nicht gewaehlte Szene o.ae. bleibt neutral.
+  const stateKind = buttonStateKind(button)
+  const stateOn = mute ? !active : active
+  const fillMode = stateStyle === 'fill'
+  const off = !unavailable && stateKind === 'onoff' && !stateOn
+  const tone: 'on' | 'off' | undefined = unavailable || stateKind == null ? undefined : stateOn ? 'on' : off ? 'off' : undefined
   // Oberer An/Aus-Status-Indikator: LED (rund, oben rechts) oder Status-Strich (oben mittig) - nie
   // beide gleichzeitig, gilt fuer JEDE Taste mit echtem Toggle-Zustand (nicht nur Lautstaerke-Tasten -
   // die Wahl LED/Strich ist eine generelle Aussehen-Einstellung, kein Lautstaerke-spezifisches Detail).
@@ -163,8 +176,10 @@ export function DeckKey({
       type="button"
       className="deck-key"
       data-color={button.color}
-      data-active={active}
-      data-mute={(mute && !unavailable) || undefined}
+      data-active={fillMode ? active : false}
+      data-mute={(fillMode && mute && !unavailable) || undefined}
+      data-off={(fillMode && off && !mute) || undefined}
+      data-tone={fillMode ? undefined : tone}
       data-unavailable={unavailable || undefined}
       data-meter={showMeter || undefined}
       data-pressed={!monitor && (stays ? visuallyOn : pressed || flash)}
@@ -215,8 +230,8 @@ export function DeckKey({
         </>
       ) : (
         <>
-          {showLed && <span className="key-led"><span className="key-led-emitter" /></span>}
-          {showStatusBar && <span className="key-status-bar" aria-hidden="true" />}
+          {showLed && <span className="key-led" data-led={stateOn ? 'on' : 'off'}><span className="key-led-emitter" /></span>}
+          {showStatusBar && <span className="key-status-bar" data-led={stateOn ? 'on' : 'off'} aria-hidden="true" />}
           {showHotkey && button.hotkey && size >= 72 && <span className="key-hotkey">{hotkeyParts(button.hotkey).join('+')}</span>}
           {icon && <KeyIcon name={icon} size={iconSize} className="key-icon" />}
           {hasLabel && (

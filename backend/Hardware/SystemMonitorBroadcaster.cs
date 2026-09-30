@@ -22,17 +22,23 @@ public sealed class SystemMonitorSubscribers
 public sealed class SystemMonitorBroadcaster(
     IHubContext<DeckHub> hub,
     ISystemMonitor monitor,
+    ISystemVolume volume,
     SystemMonitorSubscribers subscribers,
     ILogger<SystemMonitorBroadcaster> log) : BackgroundService
 {
     private static readonly TimeSpan ActiveInterval = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan IdleInterval = TimeSpan.FromSeconds(1);
+    // Lautstaerke/Stumm werden deutlich oefter geprueft als die Hardware-Sensoren: eine Stumm-Taste soll
+    // sofort umspringen, wenn in Windows stummgeschaltet wird (Lesen ist nur ein kleiner COM-Aufruf).
+    private static readonly TimeSpan VolumeInterval = TimeSpan.FromMilliseconds(150);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         // Auf Nicht-Windows (Docker-Dev) gibt es nichts zu tun - ISystemMonitor ist dann NoSystemMonitor
         // und Refresh() ein No-Op, aber die Schleife wuerde sonst grundlos weiterlaufen.
         if (monitor is NoSystemMonitor) return;
+
+        _ = WatchVolumeAsync(stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -52,6 +58,39 @@ public sealed class SystemMonitorBroadcaster(
 
             try { await Task.Delay(subscribers.Any ? ActiveInterval : IdleInterval, stoppingToken); }
             catch (OperationCanceledException) { break; }
+        }
+    }
+
+    /// <summary>Schneller Weg nur fuer die Windows-Lautstaerke: bei jeder Aenderung (Prozent oder Stumm) sofort
+    /// einen "systemState" senden, statt auf den 2-Sekunden-Takt der Sensoren zu warten.</summary>
+    private async Task WatchVolumeAsync(CancellationToken stoppingToken)
+    {
+        (bool Available, int Percent, bool Muted)? last = null;
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                if (subscribers.Any)
+                {
+                    var status = volume.Status;
+                    var now = (status.Available, status.Percent, status.Muted);
+                    if (last is { } previous && previous != now)
+                    {
+                        monitor.RefreshVolume();
+                        await hub.Clients.All.SendAsync("systemState", monitor.Current, stoppingToken);
+                    }
+                    last = now;
+                }
+                else last = null; // beim naechsten Zuschauer neu ansetzen, ohne alten Stand zu vergleichen
+
+                await Task.Delay(subscribers.Any ? VolumeInterval : IdleInterval, stoppingToken);
+            }
+            catch (OperationCanceledException) { break; }
+            catch (Exception ex)
+            {
+                log.LogDebug(ex, "Lautstärke konnte nicht geprüft werden.");
+                try { await Task.Delay(IdleInterval, stoppingToken); } catch (OperationCanceledException) { break; }
+            }
         }
     }
 }

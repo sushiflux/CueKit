@@ -38,12 +38,16 @@
   /* Vollflaechiger Tastenhintergrund fuer aktive Toggle-/Mute-Tasten - bewusst getrennt von
      --c-toggle-on/off (das bleibt die kraeftige, gesaettigte LED-Farbe). Im Light-Theme ist ein
      mit Weiss aufgehellter Ton bereits bestaetigt gut (siehe --key-solid-Nutzung unten). */
-  --c-toggle-on-bg: color-mix(in oklab, white 28%, var(--c-toggle-on));
-  --c-toggle-off-bg: color-mix(in oklab, white 28%, var(--c-toggle-off));
+  /* Nur 4 % Weiss: bei stark aufgehellten Toenen (frueher 28 %) fiel weisse Schrift unter 4,5:1 - jetzt gruen ~4,7:1, rot ~5,8:1. */
+  --c-toggle-on-bg: color-mix(in oklab, white 4%, var(--c-toggle-on));
+  --c-toggle-off-bg: color-mix(in oklab, white 4%, var(--c-toggle-off));
   /* Icon-Ton fuer stummgeschaltete Mute-Tasten - bewusst kein reines Weiss (Kernpunkt der
      Nutzer-Vorgabe: das Icon soll selbst zur Warnfarbe gehoeren), aber hell genug fuer 3:1
      UI-Kontrast gegen den roten Tastenhintergrund (--c-toggle-off): 4.47:1 hier. */
   --c-mute-icon: #fecaca;
+  /* Darstellung "Nur Symbol": Symbol/Text in Zustandsfarbe auf neutralem Tastenkoerper. Hell: auf #fff..#eceef5 >= 5.5:1 */
+  --c-state-on-text: #166534;
+  --c-state-off-text: #b91c1c;
   --c-focus: #5b4bf5;
   --c-shadow: 220 30% 20%;
 
@@ -92,6 +96,9 @@
      --c-toggle-off hier (knapper als im hellen Theme, da --c-toggle-off dort dunkler ist, aber
      weiterhin >= 3:1 fuer UI-Elemente/Icons). */
   --c-mute-icon: #fecaca;
+  /* Dunkel: auf #232835..#161a23 >= 6:1 (gruen ~10:1, rot ~6:1) */
+  --c-state-on-text: #4ade80;
+  --c-state-off-text: #f87171;
   --c-focus: #a597ff;
   --c-shadow: 230 40% 2%;
 
@@ -502,7 +509,8 @@
          waere ein rotes Icon auf rotem Grund nicht mehr lesbar - siehe Kontrastmessung.
      Muss NACH der allgemeinen [data-active='true']-Regel stehen, um deren Gruen-Default fuer den
      stummen Zustand gezielt zu ueberschreiben. */
-  .deck-key[data-mute='true'] {
+  .deck-key[data-mute='true'],
+  .deck-key[data-off='true'] {
     /* Theme-abhaengiger Ton, siehe Begruendung bei der allgemeinen [data-active='true']-Regel. */
     --key-solid: var(--c-toggle-on-bg);
     --key-icon: #fff;
@@ -520,7 +528,8 @@
       0 10px 14px hsl(var(--c-shadow) / 0.45),
       0 -2px 14px color-mix(in oklab, var(--key-solid) 45%, transparent);
   }
-  [data-theme='dark'] .deck-key[data-mute='true'] {
+  [data-theme='dark'] .deck-key[data-mute='true'],
+  [data-theme='dark'] .deck-key[data-off='true'] {
     /* Siehe Begruendung bei [data-theme='dark'] .deck-key[data-active='true'] - Kante/Glow tragen
        den Farbakzent, nicht mehr die (jetzt entsaettigte) Flaeche. */
     --key-accent: var(--c-toggle-on);
@@ -532,17 +541,20 @@
       0 10px 14px hsl(var(--c-shadow) / 0.45),
       0 0 16px 1px color-mix(in oklab, var(--key-accent) 40%, transparent);
   }
-  .deck-key[data-mute='true'][data-active='true'] {
+  .deck-key[data-mute='true'][data-active='true'],
+  .deck-key[data-off='true'] {
     /* Theme-abhaengiger Ton, siehe Begruendung bei der allgemeinen [data-active='true']-Regel. */
     --key-solid: var(--c-toggle-off-bg);
-    --key-icon: var(--c-mute-icon);
-    color: var(--c-mute-icon);
+    /* Reines Weiss: ein rosa Ton (frueher #fecaca) wirkt auf rotem Grund rötlich statt weiss. */
+    --key-icon: #fff;
+    color: #fff;
     /* --key-edge-active neu ableiten (nicht automatisch, da CSS Custom Properties bei Neuzuweisung
        einer referenzierten Variable nicht rueckwirkend neu berechnet werden) - sonst bliebe die Kante
        faelschlich gruen-basiert, obwohl --key-solid hier schon auf Rot steht. */
     --key-edge-active: color-mix(in oklab, white 35%, var(--key-solid));
   }
-  [data-theme='dark'] .deck-key[data-mute='true'][data-active='true'] {
+  [data-theme='dark'] .deck-key[data-mute='true'][data-active='true'],
+  [data-theme='dark'] .deck-key[data-off='true'] {
     /* --key-accent auf Rot umschalten (nicht automatisch, siehe Kommentar bei der Light-Theme-
        Basisregel darueber) - die box-shadow-Struktur der [data-mute='true']-Dark-Regel referenziert
        durchgehend --key-accent, uebernimmt den neuen Wert also automatisch. */
@@ -563,12 +575,45 @@
       0 1px 0 color-mix(in oklab, var(--key-solid) 18%, black),
       0 0 18px color-mix(in oklab, var(--key-solid) 45%, transparent);
   }
+  /* Darstellung "Nur Symbol" (Aussehen > Zustandsdarstellung): der Tastenkoerper bleibt neutral, nur Symbol,
+     Beschriftung und die Kante tragen die Zustandsfarbe (gruen = an, rot = aus). Die Fuell-Regeln oben
+     greifen hier nicht, weil DeckKey in diesem Modus weder data-active noch data-mute/data-off setzt. */
+  .deck-key[data-tone] {
+    --tone: var(--c-state-on-text);
+    /* Eigenfarbe der Taste tritt zurueck: nur ein Hauch der Zustandsfarbe im Koerper, sonst stoert z. B. ein rotes
+       Stream-Symbol-Design das gruene Symbol. */
+    --key-solid: var(--tone);
+    --key-tint-strength: 10%;
+    --key-icon: var(--tone);
+    color: var(--tone);
+    --key-edge-tinted: color-mix(in oklab, var(--tone) 45%, var(--key-edge));
+  }
+  .deck-key[data-tone='off'] {
+    --tone: var(--c-state-off-text);
+  }
+  [data-theme='dark'] .deck-key[data-tone] {
+    --key-edge-tinted: color-mix(in oklab, var(--tone) 50%, var(--key-edge));
+  }
+  .deck-key[data-tone] .key-icon {
+    filter: none;
+  }
+  /* Roter Fuell-Zustand: Text/Symbol reines Weiss, dezenter dunkler Saum statt Farbstich. */
+  .deck-key[data-off='true'] .key-label,
+  .deck-key[data-mute='true'][data-active='true'] .key-label {
+    color: #fff;
+    text-shadow: 0 1px 1px rgb(0 0 0 / 0.35);
+  }
+  .deck-key[data-off='true'] .key-icon,
+  .deck-key[data-mute='true'][data-active='true'] .key-icon {
+    color: #fff;
+    filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.4));
+  }
   /* Taste ohne Funktion (steuert nur OBS, OBS nicht verbunden): bleibt vollstaendig sichtbar und
      erkennbar (Icon, Beschriftung, Farbe), wirkt aber deutlich abgeblendet/entsaettigt. Bewusst
      kein opacity < 0.6, damit Beschriftung und Icon lesbar bleiben (WCAG). */
   .deck-key[data-unavailable='true'] {
-    filter: saturate(0.25) brightness(0.9);
-    opacity: 0.68;
+    filter: grayscale(1) brightness(0.92);
+    opacity: 0.75;
     cursor: not-allowed;
   }
   .deck-key[data-error='true'] {
@@ -689,7 +734,7 @@
       0 0 22px 9px color-mix(in oklab, var(--led-color) 17%, transparent);
     transition: box-shadow 180ms ease-out;
   }
-  .deck-key[data-active='true'] .key-led {
+  .deck-key .key-led[data-led='on'] {
     --led-color: var(--c-toggle-on);
     box-shadow:
       inset 0 1px 1px rgb(255 255 255 / 0.34),
@@ -705,13 +750,7 @@
      Zustand und deshalb GRUEN (umgekehrt zum Standard-Default, der bei anderen Toggle-Tasten rot
      ist), "stumm" (data-active='true') bleibt rot wie beim generischen Aktiv-Fall, hier nur explizit
      wiederholt, damit die Kaskade unabhaengig von der Deklarationsreihenfolge stimmt. */
-  .deck-key[data-mute='true'] .key-led {
-    --led-color: var(--c-toggle-on);
-  }
-  .deck-key[data-mute='true'][data-active='true'] .key-led {
-    --led-color: var(--c-toggle-off);
-  }
-  /* Getoente, gewoelbte Kunststofflinse. Der dunkle Rand bleibt trotz Leuchten sichtbar. */
+    /* Getoente, gewoelbte Kunststofflinse. Der dunkle Rand bleibt trotz Leuchten sichtbar. */
   .deck-key .key-led::before {
     content: '';
     position: absolute;
@@ -803,7 +842,7 @@
     background: linear-gradient(180deg, color-mix(in oklab, var(--led-color) 85%, white), var(--led-color) 60%, color-mix(in oklab, var(--led-color) 55%, black));
     box-shadow: inset 0 1px 1px rgb(255 255 255 / 0.25);
   }
-  .deck-key[data-active='true'] .key-status-bar {
+  .deck-key .key-status-bar[data-led='on'] {
     --led-color: var(--c-toggle-on);
     box-shadow:
       inset 0 1px 1px rgb(255 255 255 / 0.34),
@@ -813,13 +852,7 @@
       0 0 3px 1px color-mix(in oklab, var(--led-color) 75%, transparent),
       0 0 10px 3px color-mix(in oklab, var(--led-color) 44%, transparent);
   }
-  .deck-key[data-mute='true'] .key-status-bar {
-    --led-color: var(--c-toggle-on);
-  }
-  .deck-key[data-mute='true'][data-active='true'] .key-status-bar {
-    --led-color: var(--c-toggle-off);
-  }
-
+  
   /* Tastenkuerzel-Etikett oben links */
   .deck-key .key-hotkey {
     position: absolute;
@@ -907,43 +940,14 @@
     min-height: 0;
     border-radius: calc(var(--radius-plate) - 12px);
   }
-  .house-plate-screw {
-    position: absolute;
-    width: 15px;
-    height: 15px;
-    border-radius: 50%;
-    z-index: 1;
-  }
-  .house-plate-screw:nth-child(1) {
-    top: 9px;
-    left: 9px;
-  }
-  .house-plate-screw:nth-child(2) {
-    top: 9px;
-    right: 9px;
-  }
-  .house-plate-screw:nth-child(3) {
-    bottom: 9px;
-    left: 9px;
-  }
-  .house-plate-screw:nth-child(4) {
-    bottom: 9px;
-    right: 9px;
-  }
-  .house-plate-screw-slot {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 68%;
-    height: 1.5px;
-    background: rgba(0, 0, 0, 0.55);
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
-  }
-  .house-plate-screw-slot-a {
-    transform: translate(-50%, -50%) rotate(0deg);
-  }
-  .house-plate-screw-slot-b {
-    transform: translate(-50%, -50%) rotate(90deg);
+  /* Aussparung pro Taste im Gehaeuse: dunkler Rand + feiner heller Saum um den Tastenkoerper, das
+     Metall bleibt dazwischen sichtbar. Der Abstand zwischen den Tasten (DeckGrid) ist dafuer groesser. */
+  .house-plate-slot {
+    border-radius: calc(var(--radius-key) + 3px);
+    box-shadow:
+      0 0 0 5px rgb(6 8 12 / 0.78),
+      0 0 0 6px rgb(255 255 255 / 0.13),
+      0 3px 8px 6px rgb(0 0 0 / 0.28);
   }
 
   @keyframes key-shake {

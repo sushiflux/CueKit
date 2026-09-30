@@ -123,6 +123,13 @@ export function DeckPage() {
       const nav = button.actions.filter((a) => a.type.startsWith('deck.'))
       const serverSteps = button.actions.length - nav.length
 
+      // Taste braucht nur die Streaming-Software und die ist nicht verbunden: grau dargestellt, ein Druck loest
+      // nichts aus (und wackelt nicht) - nur ein Hinweis. Tasten mit anderen Schritten laufen normal weiter.
+      if (isButtonUnavailable(button, obs)) {
+        toast('Die Streaming-Software ist nicht verbunden – diese Taste braucht sie und hat gerade keine Funktion.', 'info')
+        return
+      }
+
       if (serverSteps > 0) {
         const result = await pressButton(button.id)
         if (!result.ok) {
@@ -146,7 +153,7 @@ export function DeckPage() {
         else if (step.type === 'deck.home') setStack([])
       }
     },
-    [deck, catalog],
+    [deck, catalog, obs],
   )
 
   // ---------- Tastenkuerzel ----------
@@ -330,6 +337,7 @@ export function DeckPage() {
                       systemMonitor={systemMonitor}
                       pressBehavior={appearance?.pressBehavior}
                       volumeIndicator={appearance?.volumeIndicator}
+                      stateStyle={appearance?.stateStyle}
                       unavailable={isButtonUnavailable(b, obs)}
                       meterKey={buttonMeter(b, obs, systemMonitor)?.key}
                       meterMuted={buttonMeter(b, obs, systemMonitor)?.muted}

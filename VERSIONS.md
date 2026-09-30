@@ -21,6 +21,11 @@ Changelogs da). „Latest available“ wird zu Sessionbeginn live neu geprüft.
 | Microsoft.Web.WebView2 (SDK der Desktop-Hülle) | 1.0.4258.31 | 1.0.4258.31 | https://www.nuget.org/packages/Microsoft.Web.WebView2 |
 | WebView2-Laufzeit (Evergreen, beim Nutzer) | 154.0.4258.37 (auf dieser Maschine) | Evergreen, wird von Windows aktualisiert | https://developer.microsoft.com/microsoft-edge/webview2/ |
 | Velopack (Installer + Auto-Update; NuGet `Velopack` und Werkzeug `vpk`) | 1.2.161 | 1.2.161 | https://github.com/velopack/velopack/releases |
+| Android Gradle Plugin (Android-App) | 8.7.3 | noch nicht geprüft | https://developer.android.com/build/releases/gradle-plugin |
+| Gradle (Android-Build im Container `gradle:8.10-jdk17`) | 8.10 | noch nicht geprüft | https://gradle.org/releases/ |
+| Kotlin (Android-App) | 2.0.21 | noch nicht geprüft | https://github.com/JetBrains/kotlin/releases |
+| Android SDK (compileSdk / minSdk) | 35 / 26 | noch nicht geprüft | https://developer.android.com/about/versions |
+| Google ML Kit (Code-Scanner 16.1.0 / Barcode-Scanning 17.3.0) | 16.1.0 / 17.3.0 | noch nicht geprüft | https://developers.google.com/ml-kit/release-notes |
 | Windows Forms (Desktop-Hülle) | über .NET 10 | – | https://dotnet.microsoft.com/download/dotnet |
 | obs-websocket | Protokoll v5 (in OBS ≥ 28) | v5 | https://github.com/obsproject/obs-websocket/releases |
 

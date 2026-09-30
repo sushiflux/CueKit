@@ -1,8 +1,9 @@
-import { IconDeviceGamepad2, IconGauge, IconPointer, IconSquareCheck } from '@tabler/icons-react'
+import { IconDeviceGamepad2, IconGauge, IconPointer, IconSquareCheck, IconToggleRight } from '@tabler/icons-react'
 import { useState } from 'react'
 import { api, errorMessage } from '../api/client'
-import type { AppearanceSettings } from '../api/types'
+import type { AppearanceSettings, ButtonModel } from '../api/types'
 import { AppShell } from '../components/AppShell'
+import { DeckKey } from '../components/DeckKey'
 import { HousePlate } from '../components/HousePlate'
 import { toast } from '../components/Toasts'
 import { HOUSE_PLATE_PRESETS } from '../lib/housePlates'
@@ -15,6 +16,7 @@ function toInput(a: AppearanceSettings, patch: Partial<AppearanceSettings> = {})
     pressBehavior: patch.pressBehavior ?? a.pressBehavior,
     volumeIndicator: patch.volumeIndicator ?? a.volumeIndicator,
     plate: patch.plate ?? a.plate,
+    stateStyle: patch.stateStyle ?? a.stateStyle,
   }
 }
 
@@ -124,6 +126,76 @@ function VolumeIndicatorSection({ appearance, onSaved }: { appearance: Appearanc
         >
           Strich
         </button>
+      </div>
+    </section>
+  )
+}
+
+/** Beispiel-Tasten fuer die Vorschau der Zustandsdarstellung (echte DeckKey-Komponente, damit Vorschau und Deck identisch aussehen). */
+const SAMPLE_STATE_KEYS: { button: ButtonModel; active: boolean }[] = [
+  { button: { id: -1, pageId: 0, row: 0, column: 0, label: 'Aufnahme', icon: 'tabler:player-record', color: 'slate', actions: [{ type: 'obs.record', params: { mode: 'toggle' } }], hotkey: null }, active: true },
+  { button: { id: -2, pageId: 0, row: 0, column: 1, label: 'Aufnahme', icon: 'tabler:player-record', color: 'slate', actions: [{ type: 'obs.record', params: { mode: 'toggle' } }], hotkey: null }, active: false },
+]
+
+/** Abschnitt: Zustandsdarstellung - An/Aus als Vollflaeche (gruen/rot, weisses Symbol) oder nur Symbol/Text in
+ * gruen/rot auf neutralem Tastenkoerper. Die Vorschau zeigt beide Zustaende im aktuellen Theme; die Farben sind
+ * je Theme auf Kontrast (>= 4.5:1) abgestimmt, siehe --c-state-on-text/--c-state-off-text in index.css. */
+function StateStyleSection({ appearance, onSaved }: { appearance: AppearanceSettings; onSaved: (a: AppearanceSettings) => void }) {
+  const [saving, setSaving] = useState(false)
+
+  const choose = async (stateStyle: 'fill' | 'icon') => {
+    if (stateStyle === appearance.stateStyle) return
+    setSaving(true)
+    try {
+      const result = await api<AppearanceSettings>('/api/settings/appearance', { method: 'PUT', body: toInput(appearance, { stateStyle }) })
+      onSaved(result)
+      toast('Zustandsdarstellung gespeichert.', 'success')
+    } catch (e) {
+      toast(`Zustandsdarstellung konnte nicht gespeichert werden: ${errorMessage(e)}`, 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const options: { value: 'fill' | 'icon'; title: string; text: string }[] = [
+    { value: 'fill', title: 'Vollfläche', text: 'Ganze Taste grün (an) oder rot (aus), Symbol und Text weiß.' },
+    { value: 'icon', title: 'Nur Symbol', text: 'Taste bleibt neutral, nur Symbol und Text sind grün oder rot.' },
+  ]
+
+  return (
+    <section className="card p-5">
+      <div className="mb-4 flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-card bg-brand-soft text-brand">
+          <IconToggleRight size={20} />
+        </span>
+        <div>
+          <h2 className="font-bold text-ink">Zustandsdarstellung</h2>
+          <p className="text-xs text-ink-faint">Wie An/Aus-Tasten (z. B. Stream, Aufnahme, Stumm) ihren Zustand zeigen. Gilt für helles und dunkles Design.</p>
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {options.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            disabled={saving}
+            aria-pressed={appearance.stateStyle === o.value}
+            onClick={() => void choose(o.value)}
+            className="flex flex-col items-center gap-3 rounded-card border border-line bg-surface-2 p-4 text-center transition-colors hover:border-select aria-pressed:border-select aria-pressed:bg-select-soft"
+          >
+            <div className="flex gap-4 pb-2">
+              {SAMPLE_STATE_KEYS.map((k) => (
+                <div key={k.button.id} className="h-[68px] w-[68px]">
+                  <DeckKey button={k.button} size={68} active={k.active} stateStyle={o.value} />
+                </div>
+              ))}
+            </div>
+            <div>
+              <div className="font-semibold text-ink">{o.title}</div>
+              <div className="text-xs text-ink-muted">{o.text}</div>
+            </div>
+          </button>
+        ))}
       </div>
     </section>
   )
@@ -245,6 +317,7 @@ export function AppearancePage() {
     <AppShell title="Aussehen">
       <div className="mx-auto max-w-3xl space-y-6 p-4 lg:p-8">
         <PressBehaviorSection appearance={appearance} onSaved={setLocal} />
+        <StateStyleSection appearance={appearance} onSaved={setLocal} />
         <VolumeIndicatorSection appearance={appearance} onSaved={setLocal} />
         <PlateSection appearance={appearance} onSaved={setLocal} />
       </div>

@@ -7,7 +7,20 @@ release lives in `CHANGELOG.md`.
 
 # English
 
-## v2026.9.10 - 2026-10-01 00:30
+## v2026.10.11 - 2026-10-01 01:48
+
+Android app (pairing by QR code, image or typed code), faster system-mute feedback, house plate without screws and with metal between the keys, selectable state style (fill / icon only) with theme-checked contrast, smooth gradient on load rings, grey keys when the streaming software is not connected.
+
+- **Android app** (`android/`, Kotlin WebView shell, minSdk 26): `MainActivity` + bundled start page `assets/connect/index.html` with three pairing paths - camera (`GmsBarcodeScanning`, no own camera permission), QR from an image (`BarcodeScanning` on `InputImage`, picked via `PickVisualMedia`) and address + code entry. Parses the existing pairing URL (`/pair?code=`), remembers the base address, loads the server UI full screen with the screen kept on, back-button menu to re-pair, connection errors with the concrete reason and retry. The `CueKitApp` JS bridge only acts on the bundled page. Cleartext HTTP allowed for the LAN (`network_security_config.xml`). Name/version from `branding.json`/`version.txt` in Gradle, logo copied from `branding/`. Built in Docker: `scripts/android-build.ps1` + `scripts/android-build-container.sh` (SDK cached in a volume), `scripts/android-icons.ps1`; `.gitignore` and `.gitattributes` (`*.sh` as LF) extended.
+- **Devices page**: pairing is now the first card ("Neues Gerät koppeln" with "QR-Code anzeigen") instead of a header button that was easy to overlook; the pairing dialog names the app, shows address + code for manual entry and points to Settings > Network if the phone cannot connect.
+- **Faster system mute/volume**: `SystemMonitorBroadcaster.WatchVolumeAsync` polls the Windows volume every 150 ms (only while someone watches) and pushes `systemState` immediately on a change; new `ISystemMonitor.RefreshVolume()` updates just the volume fields (before: only with the 2 s sensor tick).
+- **House plate**: screws removed (`HousePlate.tsx`, `screwTone` dropped from `lib/housePlates.ts`, CSS removed); the brushed metal now runs under and between the keys, each key sits in a cut-out (`.house-plate-slot`, `DeckGrid` uses a larger gap when framed).
+- **State style** (Appearance > "Zustandsdarstellung", setting `appearance.stateStyle` = `fill`|`icon`, `AppearanceController`/`SettingsService`, optional in the input for older clients): *fill* = on green, off red, white symbol/text; *icon only* = neutral key body, symbol/text/edge in state colour (tokens `--c-state-on-text`/`--c-state-off-text`, checked per theme: light >= 5.5:1, dark >= 6:1). `buttonStateKind()` separates on/off keys (off = red) from selections such as scenes (never red). `DeckKey` gets `stateStyle`, LED/status bar follow `data-led`. Light-theme fill tones are more saturated (4 % white instead of 28 %: white text >= 4.5:1); the red state uses pure white text/symbol (no pink tint) with a subtle shadow.
+- **Load rings** (`RingGauge.tsx`): smooth green -> orange -> red gradient along the ring (60 slices coloured with `color-mix` in oklab) instead of three hard zones.
+- **Keys without streaming software**: `isButtonUnavailable` (now via `STREAMING_SOFTWARE_PREFIXES`, ready for Streamlabs/XSplit) keys are fully greyscale (`grayscale(1)`) and a press in `DeckPage.press` only shows a hint - no server call, no shake. Keys with other steps (open browser, ...) keep working.
+- Docs: `CLAUDE.md` (Android, platform/stack decision), `VERSIONS.md` (Android rows, latest not yet checked), `QUELLEN.md` (Android section). Not yet covered: third-party notices for the APK, Android release signing, real-device test of camera/image pairing.
+
+## v2026.10.10 - 2026-10-01 00:30
 
 Microsoft Store packaging (MSIX) and the release-candidate changelog.
 
@@ -232,7 +245,20 @@ Initial scaffold of Baton - a free, community-extensible Stream Deck alternative
 
 # Deutsch
 
-## v2026.9.10 - 2026-10-01 00:30
+## v2026.10.11 - 2026-10-01 01:48
+
+Android-App (Kopplung per QR-Code, Bild oder Code), schnellere Stumm-Anzeige des Systems, Gehäuse ohne Schrauben und mit Metall zwischen den Tasten, wählbare Zustandsdarstellung (Vollfläche / nur Symbol) mit je Design geprüftem Kontrast, weicher Farbverlauf an den Auslastungsringen, graue Tasten ohne Verbindung zur Streaming-Software.
+
+- **Android-App** (`android/`, Kotlin-WebView-Hülle, minSdk 26): `MainActivity` + gebündelte Startseite `assets/connect/index.html` mit drei Kopplungswegen - Kamera (`GmsBarcodeScanning`, keine eigene Kamera-Berechtigung), QR-Code aus einem Bild (`BarcodeScanning` auf `InputImage`, Auswahl per `PickVisualMedia`) und Adresse + Code eintippen. Liest die vorhandene Kopplungs-URL (`/pair?code=`), merkt die Basisadresse, lädt die Server-Oberfläche im Vollbild mit aktivem Bildschirm, Zurück-Menü zum Neu-Koppeln, Verbindungsfehler mit konkretem Grund und "Erneut versuchen". Die JS-Brücke `CueKitApp` wirkt nur auf der gebündelten Seite. Klartext-HTTP im WLAN erlaubt (`network_security_config.xml`). Name/Version aus `branding.json`/`version.txt` in Gradle, Logo aus `branding/` kopiert. Build in Docker: `scripts/android-build.ps1` + `scripts/android-build-container.sh` (SDK im Volume), `scripts/android-icons.ps1`; `.gitignore` und `.gitattributes` (`*.sh` als LF) erweitert.
+- **Geräte-Seite**: Koppeln ist jetzt die erste Karte ("Neues Gerät koppeln" mit "QR-Code anzeigen") statt eines leicht zu übersehenden Knopfes in der Kopfzeile; das Kopplungsfenster nennt die App, zeigt Adresse + Code zum Eintippen und verweist auf Einstellungen > Netzwerk, falls das Handy nicht verbindet.
+- **Schnellere System-Stumm/Lautstärke**: `SystemMonitorBroadcaster.WatchVolumeAsync` prüft die Windows-Lautstärke alle 150 ms (nur solange jemand zuschaut) und sendet bei Änderung sofort `systemState`; neu `ISystemMonitor.RefreshVolume()` aktualisiert nur die Lautstärke-Felder (vorher nur im 2-Sekunden-Takt der Sensoren).
+- **Gehäuse**: Schrauben entfernt (`HousePlate.tsx`, `screwTone` aus `lib/housePlates.ts` entfernt, CSS gelöscht); das gebürstete Metall läuft unter und zwischen den Tasten durch, jede Taste sitzt in einer Aussparung (`.house-plate-slot`, `DeckGrid` nutzt mit Gehäuse einen größeren Abstand).
+- **Zustandsdarstellung** (Aussehen > "Zustandsdarstellung", Einstellung `appearance.stateStyle` = `fill`|`icon`, `AppearanceController`/`SettingsService`, im Input optional für ältere Clients): *Vollfläche* = an grün, aus rot, weißes Symbol/Text; *Nur Symbol* = neutraler Tastenkörper, Symbol/Text/Kante in Zustandsfarbe (Tokens `--c-state-on-text`/`--c-state-off-text`, je Design geprüft: hell >= 5,5:1, dunkel >= 6:1). `buttonStateKind()` trennt An/Aus-Tasten (aus = rot) von Auswahlen wie Szenen (nie rot). `DeckKey` bekommt `stateStyle`, LED/Statusstrich folgen `data-led`. Helles Design: Vollflächen-Töne kräftiger (4 % Weiß statt 28 %: weiße Schrift >= 4,5:1); der rote Zustand nutzt reines Weiß für Text/Symbol (kein Rosa-Stich) mit dezentem Schatten.
+- **Auslastungsringe** (`RingGauge.tsx`): weicher Verlauf grün -> orange -> rot entlang des Rings (60 Scheiben, per `color-mix` in oklab eingefärbt) statt dreier harter Zonen.
+- **Tasten ohne Streaming-Software**: `isButtonUnavailable` (jetzt über `STREAMING_SOFTWARE_PREFIXES`, vorbereitet für Streamlabs/XSplit) - solche Tasten sind vollständig grau (`grayscale(1)`), ein Druck in `DeckPage.press` zeigt nur einen Hinweis - kein Serveraufruf, kein Wackeln. Tasten mit anderen Schritten (Browser öffnen usw.) funktionieren weiter.
+- Doku: `CLAUDE.md` (Android, Plattform-/Stack-Entscheidung), `VERSIONS.md` (Android-Zeilen, "Latest" noch nicht geprüft), `QUELLEN.md` (Android-Abschnitt). Noch offen: Drittanbieter-Lizenzen für die APK, Android-Release-Signatur, Test von Kamera-/Bild-Kopplung auf einem echten Gerät.
+
+## v2026.10.10 - 2026-10-01 00:30
 
 Microsoft-Store-Paket (MSIX) und der Changelog für Release-Kandidaten.
 

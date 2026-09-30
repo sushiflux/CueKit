@@ -72,6 +72,7 @@ function EditKey({ button, size, selected, onSelect, onOpen }: { button: ButtonM
         level={buttonLevel(button, obs, systemMonitor)}
         monitorMetric={displayMetric(button, catalog)}
         pressBehavior={appearance?.pressBehavior}
+        stateStyle={appearance?.stateStyle}
         onPress={onSelect}
       />
     </div>

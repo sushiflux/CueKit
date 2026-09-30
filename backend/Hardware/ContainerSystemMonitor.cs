@@ -29,6 +29,9 @@ public sealed class ContainerSystemMonitor : ISystemMonitor
 
     public SystemMonitorSnapshot Current => _current;
 
+    /// <summary>Im Container gibt es keine Windows-Lautstaerke.</summary>
+    public void RefreshVolume() { }
+
     public void Refresh()
     {
         var volume = _volume.Status;

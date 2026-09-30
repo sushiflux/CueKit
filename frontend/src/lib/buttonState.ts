@@ -36,12 +36,30 @@ export function buttonHasToggleState(button: ButtonModel): boolean {
 export function isButtonUnavailable(button: ButtonModel, obs: ObsSnapshot | null): boolean {
   if (obs?.status === 'connected') return false
   const steps = button.actions.filter((a) => a.type !== 'flow.delay')
-  return steps.length > 0 && steps.every((a) => a.type.startsWith('obs.'))
+  return steps.length > 0 && steps.every((a) => needsStreamingSoftware(a.type))
+}
+
+/** Aktionen, die eine Verbindung zur Streaming-Software brauchen. Kommen Streamlabs/XSplit dazu, hier ihre
+ * Praefixe ergaenzen (z.B. 'streamlabs.', 'xsplit.') - dann werden auch ihre Tasten ohne Verbindung grau. */
+const STREAMING_SOFTWARE_PREFIXES = ['obs.']
+function needsStreamingSoftware(actionType: string): boolean {
+  return STREAMING_SOFTWARE_PREFIXES.some((p) => actionType.startsWith(p))
 }
 
 /** Aktionstypen, bei denen "aktiv" = stummgeschaltet bedeutet - Warnzustand, deshalb umgekehrte
  * Zustandsfarbe (rot statt gruen), siehe .deck-key[data-mute='true'] in index.css. */
 const MUTE_ACTION_TYPES = new Set(['obs.audio.mute', 'system.mute'])
+
+/** Aktionen, bei denen "aktiv" nur heisst "diese Auswahl ist gerade gewaehlt" (Szene, Uebergang, Profil ...) - ein
+ * nicht gewaehlter Eintrag ist kein "Aus"-Zustand und wird deshalb nie rot eingefaerbt. */
+const SELECTION_ACTION_TYPES = new Set(['obs.scene.switch', 'obs.scene.preview', 'obs.transition.set', 'obs.collection', 'obs.profile'])
+
+/** Art des Zustands einer Taste: "onoff" (An = gruen, Aus = rot), "select" (nur "gewaehlt" = gruen) oder null (kein Zustand). */
+export function buttonStateKind(button: ButtonModel): 'onoff' | 'select' | null {
+  const type = button.actions[0]?.type
+  if (type == null || !TOGGLE_ACTION_TYPES.has(type)) return null
+  return SELECTION_ACTION_TYPES.has(type) ? 'select' : 'onoff'
+}
 
 /** Ob diese Taste eine Mute-Taste ist (umgekehrte Zustandsfarbe: rot = stumm statt gruen = an). */
 export function isMuteAction(button: ButtonModel): boolean {

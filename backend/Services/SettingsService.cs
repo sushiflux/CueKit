@@ -16,6 +16,8 @@ public static class SettingKeys
     // Aussehen (app-weit, nicht pro Deck) - siehe AppearanceController.
     public const string AppearancePressBehavior = "appearance.pressBehavior";
     public const string AppearanceVolumeIndicator = "appearance.volumeIndicator";
+    /// <summary>Zustandsdarstellung der Tasten: "fill" (Vollflaeche gruen/rot) oder "icon" (nur Symbol/Text farbig).</summary>
+    public const string AppearanceStateStyle = "appearance.stateStyle";
     /// <summary>Gewaehlte Gehaeuse-Plate-Fassung um das Tastenraster ("house:&lt;key&gt;", siehe
     /// frontend lib/housePlates.ts) oder leer fuer kein Gehaeuse.</summary>
     public const string AppearancePlate = "appearance.plate";
@@ -58,12 +60,15 @@ public class SettingsService(IServiceScopeFactory scopes, IDataProtectionProvide
 
     private static readonly HashSet<string> ValidPressBehaviors = ["spring", "stay"];
     private static readonly HashSet<string> ValidVolumeIndicators = ["led", "level"];
+    private static readonly HashSet<string> ValidStateStyles = ["fill", "icon"];
 
     /// <summary>Tastendruckverhalten global fuers ganze Deck - kein Pro-Taste-Override.</summary>
     public string AppearancePressBehavior => Get(SettingKeys.AppearancePressBehavior) is { } v && ValidPressBehaviors.Contains(v) ? v : "spring";
 
     /// <summary>Ob Lautstaerke-Tasten (Volume/Mute) ihren Zustand ueber die LED oder den Pegelbalken
     /// anzeigen - betrifft nur Tasten mit einem Lautstaerke-Bezug, siehe buttonLevel() im Frontend.</summary>
+    public string AppearanceStateStyle => Get(SettingKeys.AppearanceStateStyle) is { } v && ValidStateStyles.Contains(v) ? v : "fill";
+
     public string AppearanceVolumeIndicator => Get(SettingKeys.AppearanceVolumeIndicator) is { } v && ValidVolumeIndicators.Contains(v) ? v : "led";
 
     /// <summary>Gewaehlte Gehaeuse-Plate ("house:&lt;key&gt;") oder "" fuer kein Gehaeuse - keine

@@ -31,6 +31,16 @@ Wo Informationen für dieses Projekt nachgeschlagen wurden.
 | Job Objects / JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | https://learn.microsoft.com/windows/win32/procthread/job-objects | Plugin-Prozesse enden mit dem Dienst – `backend/Plugins/ChildProcessJob.cs` |
 | Node.js „type stripping“ | https://nodejs.org/api/typescript.html | Plugins in TypeScript ohne Build-Schritt ausführen |
 
+## Android
+
+| Quelle | Wo | Wofür |
+|---|---|---|
+| ML Kit Code-Scanner (Google Play-Dienste) | https://developers.google.com/ml-kit/vision/barcode-scanning/code-scanner | QR-Code per Kamera scannen, ohne eigene Kamera-Berechtigung: `GmsBarcodeScanning` in `android/app/src/main/kotlin/com/sushiflux/deck/MainActivity.kt` |
+| ML Kit Barcode-Scanning (gebündeltes Modell) | https://developers.google.com/ml-kit/vision/barcode-scanning/android | QR-Code aus einer Bilddatei lesen (`InputImage.fromFilePath`), läuft offline |
+| Android-Kommandozeilenwerkzeuge | https://developer.android.com/studio#command-tools | SDK ohne Android Studio im Docker-Container einrichten: `scripts/android-build-container.sh` |
+| WebView-Brücke (`addJavascriptInterface`) | https://developer.android.com/reference/android/webkit/WebView | Startseite und App; die Methoden wirken nur auf der gebündelten Startseite (Sicherheit) |
+| Network Security Config | https://developer.android.com/privacy-and-security/security-config | Klartext-HTTP im eigenen WLAN erlauben (`res/xml/network_security_config.xml`) |
+
 ## Recht / Compliance
 
 | Quelle | Wo | Wofür |

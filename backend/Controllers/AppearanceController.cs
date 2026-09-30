@@ -6,9 +6,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Deck.Server.Controllers;
 
-public record AppearanceDto(string PressBehavior, string VolumeIndicator, string Plate);
+public record AppearanceDto(string PressBehavior, string VolumeIndicator, string Plate, string StateStyle);
 
-public record AppearanceInput(string PressBehavior, string VolumeIndicator, string? Plate);
+public record AppearanceInput(string PressBehavior, string VolumeIndicator, string? Plate, string? StateStyle = null);
 
 /// <summary>
 /// App-weite (nicht Pro-Deck) Aussehen-Einstellungen: Tastendruckverhalten, Lautstaerkeanzeige und
@@ -22,12 +22,13 @@ public class AppearanceController(SettingsService settings, HubNotifier notifier
 {
     private static readonly HashSet<string> ValidPressBehaviors = ["spring", "stay"];
     private static readonly HashSet<string> ValidVolumeIndicators = ["led", "level"];
+    private static readonly HashSet<string> ValidStateStyles = ["fill", "icon"];
 
     [HttpGet]
     public AppearanceDto Get() => ToDto();
 
     private AppearanceDto ToDto() =>
-        new(settings.AppearancePressBehavior, settings.AppearanceVolumeIndicator, settings.AppearancePlate);
+        new(settings.AppearancePressBehavior, settings.AppearanceVolumeIndicator, settings.AppearancePlate, settings.AppearanceStateStyle);
 
     [HttpPut]
     [Authorize(AuthenticationSchemes = DeviceAuth.Scheme, Policy = DeviceAuth.OwnerPolicy)]
@@ -37,6 +38,11 @@ public class AppearanceController(SettingsService settings, HubNotifier notifier
             return BadRequest(new { error = "Ungültiges Tastendruckverhalten – erlaubt sind „spring“ oder „stay“." });
         if (input.VolumeIndicator is null || !ValidVolumeIndicators.Contains(input.VolumeIndicator))
             return BadRequest(new { error = "Ungültige Lautstärkeanzeige – erlaubt sind „led“ oder „level“." });
+
+        // Fehlt die Zustandsdarstellung (aelterer Client), bleibt der bisherige Wert bestehen.
+        var stateStyle = input.StateStyle ?? settings.AppearanceStateStyle;
+        if (!ValidStateStyles.Contains(stateStyle))
+            return BadRequest(new { error = "Ungültige Zustandsdarstellung – erlaubt sind „fill“ (Vollfläche) oder „icon“ (nur Symbol)." });
 
         // Leerer Plate-Wert ist gueltig (= kein Gehaeuse, nur die normale App-Flaeche) - ein konkret
         // gewaehlter Wert muss aber dem "house:<key>"-Namensschema folgen, siehe frontend housePlates.ts.
@@ -49,6 +55,7 @@ public class AppearanceController(SettingsService settings, HubNotifier notifier
             [SettingKeys.AppearancePressBehavior] = input.PressBehavior,
             [SettingKeys.AppearanceVolumeIndicator] = input.VolumeIndicator,
             [SettingKeys.AppearancePlate] = plate,
+            [SettingKeys.AppearanceStateStyle] = stateStyle,
         }, ct);
 
         notifier.AppearanceChanged();

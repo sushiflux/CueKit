@@ -32,12 +32,11 @@ export interface HousePlatePreset {
   /** Grundfarbe hinter den Gradient-Ebenen. */
   base: string
   /** Randfarbe der Schrauben-Koepfe (Metallschein-Basis). */
-  screwTone: string
   /** Akzentfarbe fuer den feinen oberen Glanzrand. */
   sheen: string
 }
 
-function plate(key: string, name: string, description: string, base: string, screwTone: string, sheen: string, brushAngle = 90): HousePlatePreset {
+function plate(key: string, name: string, description: string, base: string, sheen: string, brushAngle = 90): HousePlatePreset {
   const light = `color-mix(in oklab, white 10%, ${base})`
   const dark = `color-mix(in oklab, black 12%, ${base})`
   return {
@@ -45,7 +44,6 @@ function plate(key: string, name: string, description: string, base: string, scr
     name,
     description,
     base,
-    screwTone,
     sheen,
     surface: [
       // Sanfte Wolbung von oben-links beleuchtet (Tiefenwirkung des Gehaeusekoerpers selbst)
@@ -73,7 +71,6 @@ export const HOUSE_PLATE_PRESETS: HousePlatePreset[] = [
     'Space-Grau Aluminium',
     'Gebürstetes Aluminium, wie das Original-Gehäuse',
     '#57616f',
-    '#e7ebf2',
     'rgba(255,255,255,0.35)',
   ),
   plate(
@@ -81,7 +78,6 @@ export const HOUSE_PLATE_PRESETS: HousePlatePreset[] = [
     'Mattes Carbon-Schwarz',
     'Tiefschwarzer Kunststoff mit feiner Struktur',
     '#1a1c20',
-    '#9aa1ad',
     'rgba(255,255,255,0.16)',
   ),
   plate(
@@ -89,7 +85,6 @@ export const HOUSE_PLATE_PRESETS: HousePlatePreset[] = [
     'Helles Silber',
     'Poliertes Silber, freundlich und hell',
     '#c9ced8',
-    '#ffffff',
     'rgba(255,255,255,0.55)',
   ),
   plate(
@@ -97,7 +92,6 @@ export const HOUSE_PLATE_PRESETS: HousePlatePreset[] = [
     'Akzent-Violett',
     'Farbiger Rahmen in der Marken-Akzentfarbe',
     '#3c2f8f',
-    '#e4defe',
     'rgba(196,181,253,0.4)',
   ),
   plate(
@@ -105,7 +99,6 @@ export const HOUSE_PLATE_PRESETS: HousePlatePreset[] = [
     'Gunmetal',
     'Kühles Anthrazit mit blauem Unterton',
     '#3a4250',
-    '#cfd8e6',
     'rgba(148,197,255,0.28)',
   ),
   plate(
@@ -113,7 +106,6 @@ export const HOUSE_PLATE_PRESETS: HousePlatePreset[] = [
     'Gebürstetes Kupfer',
     'Warmer Kupferton mit Metallglanz',
     '#8a4a2f',
-    '#ffd9b8',
     'rgba(255,200,150,0.35)',
   ),
 ]

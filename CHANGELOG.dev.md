@@ -7,6 +7,15 @@ release lives in `CHANGELOG.md`.
 
 # English
 
+## v2026.9.10 - 2026-10-01 00:30
+
+Microsoft Store packaging (MSIX) and the release-candidate changelog.
+
+- `scripts/desktop-msix.ps1`: stages `artifactsdesktop` plus a generated `AppxManifest.xml` (identity/publisher from the Partner Center via parameters, `runFullTrust`, `internetClient`, `privateNetworkClientServer`), logos from `branding/icon.ico`, packs with `makeappx`; `-TestSign` creates a self-signed cert for local sideload. Output stays unsigned for the Store upload.
+- `Native.IsPackaged` (`GetCurrentPackageFullName`): in a package the tray menu hides "Mit Windows starten" (HKCU Run does not work there) and the Velopack update entries (the Store updates). Autostart via a manifest `StartupTask` is still open.
+- `CHANGELOG.rc.md` (new): customer-readable changelog for release candidates, first section `v2026.9.9-rc1` covering everything since project start; the same text is the draft release notes.
+- Docs: `CLAUDE.md` (MSIX command, packaged behaviour), `QUELLEN.md` (Partner Center/MSIX row). Public `cuekit-releases` repo created separately (README, privacy policy via GitHub Pages) for the Store listing and later updates.
+
 ## v2026.9.9 - 2026-09-30 17:48
 
 First Windows release candidate (tag `-rc1`); pass the target runtime to Velopack.
@@ -222,6 +231,15 @@ Initial scaffold of Baton - a free, community-extensible Stream Deck alternative
   note + CLA in `CONTRIBUTING.md`.
 
 # Deutsch
+
+## v2026.9.10 - 2026-10-01 00:30
+
+Microsoft-Store-Paket (MSIX) und der Changelog für Release-Kandidaten.
+
+- `scripts/desktop-msix.ps1`: baut aus `artifactsdesktop` plus erzeugter `AppxManifest.xml` (Identität/Herausgeber als Parameter aus dem Partner Center, `runFullTrust`, `internetClient`, `privateNetworkClientServer`), Logos aus `branding/icon.ico`, Packen mit `makeappx`; `-TestSign` erzeugt ein selbst signiertes Zertifikat für lokales Sideload. Die Ausgabe bleibt für den Store-Upload unsigniert.
+- `Native.IsPackaged` (`GetCurrentPackageFullName`): im Paket blendet das Tray-Menü „Mit Windows starten“ (HKCU-Run funktioniert dort nicht) und die Velopack-Update-Einträge aus (der Store aktualisiert). Autostart über einen `StartupTask` im Manifest ist noch offen.
+- `CHANGELOG.rc.md` (neu): kundenverständlicher Changelog für Release-Kandidaten, erster Abschnitt `v2026.9.9-rc1` mit allem seit Projektstart; derselbe Text ist die Release-Notiz des Entwurfs.
+- Doku: `CLAUDE.md` (MSIX-Befehl, Verhalten im Paket), `QUELLEN.md` (Zeile Partner Center/MSIX). Das öffentliche Repo `cuekit-releases` (README, Datenschutzerklärung über GitHub Pages) wurde separat für den Store-Eintrag und spätere Updates angelegt.
 
 ## v2026.9.9 - 2026-09-30 17:48
 

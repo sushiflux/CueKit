@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 using Microsoft.Win32;
 
@@ -82,6 +83,23 @@ internal static class Native
 
     [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
     private static extern int SetWindowTheme(IntPtr hwnd, string? subAppName, string? subIdList);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetCurrentPackageFullName(ref int length, StringBuilder? name);
+
+    private const int AppModelErrorNoPackage = 15700;
+
+    /// <summary>
+    /// Läuft die App als MSIX-Paket (Microsoft Store)? Dort aktualisiert der Store, und die Registry-Autostart-Variante
+    /// (HKCU Run) greift nicht – beides wird dann nicht angeboten.
+    /// </summary>
+    public static bool IsPackaged { get; } = DetectPackaged();
+
+    private static bool DetectPackaged()
+    {
+        var length = 0;
+        return GetCurrentPackageFullName(ref length, null) != AppModelErrorNoPackage;
+    }
 
     /// <summary>Dunkle Bildlaufleisten (statt der hellen Standardleisten) in einem dunklen Steuerelement.</summary>
     public static void UseDarkScrollbars(IntPtr hwnd) => _ = SetWindowTheme(hwnd, "DarkMode_Explorer", null);

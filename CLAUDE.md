@@ -33,6 +33,7 @@ Desktop app (Windows shell, see Architecture):
 ```powershell
 .\scripts\desktop-build.ps1 [-SkipFrontend]   # frontend build + self-contained publish -> artifacts\desktop\<ProductName>.exe
 .\scripts\desktop-pack.ps1 [-SkipBuild] [-Version 2026.9.7-rc1]   # Velopack installer -> artifacts\installer (Setup.exe, update packages); -SignParams/-AzureSignFile once a certificate exists
+.\scripts\desktop-msix.ps1 [-SkipBuild] -IdentityName <Partner Center> -Publisher "CN=<Partner Center>"   # unsigned MSIX for the Microsoft Store -> artifacts\msix (the Store signs it; -TestSign for local sideload)
 dotnet run --project desktop\Deck.Desktop -- --Deck:Port=5215 --Deck:DataDir=<scratch dir>   # dev run of the shell (needs frontend\dist, else --dev-url=http://localhost:5200 with Vite)
 ```
 
@@ -81,7 +82,7 @@ target `http://host.docker.internal:<port>`); a fresh data dir allows the first-
   before the service starts – `--accept-eula` skips it for unattended installs/tests; the uninstall hook removes the
   autostart entry). Auto-update via `UpdateService` (tray menu "Nach Updates suchen", background check every 6 h; only
   in an installed build), feed from `Deck:UpdateFeedUrl` – default is a placeholder public *releases* repo because
-  the source repo is private (see `docs/DISTRIBUTION.md`). Unsigned builds trigger SmartScreen.
+  the source repo is private (see `docs/DISTRIBUTION.md`). Unsigned builds trigger SmartScreen. In the Store (MSIX) build `Native.IsPackaged` hides autostart and self-update in the tray menu (the Store updates; HKCU Run does not work in a package).
 - `Obs/ObsWebSocketClient` is a hand-written obs-websocket v5 client; `ObsService` keeps a reconnecting
   session and an immutable `ObsSnapshot` (scenes, items, audio incl. dB, media, transitions, profiles,
   outputs) updated from events. `ObsDiscovery` auto-configures from OBS's local `config.json`

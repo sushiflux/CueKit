@@ -38,12 +38,16 @@ internal sealed class TrayApplicationContext : ApplicationContext
         menu.Items.Add(open);
         menu.Items.Add("Im Browser öffnen", null, (_, _) => OpenInBrowser());
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(autoStart);
-        menu.Items.Add("Nach Updates suchen", null, (_, _) => _ = CheckForUpdatesAsync(userInitiated: true));
-        _applyUpdateItem = new ToolStripMenuItem("Update installieren", null, (_, _) => ApplyPendingUpdate()) { Visible = false };
-        _applyUpdateItem.Font = new Font(menu.Font, FontStyle.Bold);
-        menu.Items.Add(_applyUpdateItem);
-        menu.Items.Add(new ToolStripSeparator());
+        // Store-Version (MSIX): der Store aktualisiert, und der Run-Schlüssel-Autostart greift im Paket nicht.
+        if (!Native.IsPackaged)
+        {
+            menu.Items.Add(autoStart);
+            menu.Items.Add("Nach Updates suchen", null, (_, _) => _ = CheckForUpdatesAsync(userInitiated: true));
+            _applyUpdateItem = new ToolStripMenuItem("Update installieren", null, (_, _) => ApplyPendingUpdate()) { Visible = false };
+            _applyUpdateItem.Font = new Font(menu.Font, FontStyle.Bold);
+            menu.Items.Add(_applyUpdateItem);
+            menu.Items.Add(new ToolStripSeparator());
+        }
         menu.Items.Add("Beenden", null, (_, _) => ExitApplication());
 
         _tray = new NotifyIcon { Icon = AppIcon.Small(), Text = _product, ContextMenuStrip = menu, Visible = true };

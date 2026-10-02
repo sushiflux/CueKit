@@ -309,7 +309,15 @@ export function DeckPage() {
               maxKeySize={focus ? 260 : 190}
               rotatePortrait
               rail={focus ? undefined : rail}
-              frame={hasHousePlate(plateKey) ? (grid) => <HousePlate plateKey={plateKey}>{grid}</HousePlate> : undefined}
+              frame={hasHousePlate(plateKey) ? (grid) => (
+                <HousePlate
+                  plateKey={plateKey}
+                  deckName={deck?.name}
+                  keyCount={deck ? deck.rows * deck.columns : undefined}
+                >
+                  {grid}
+                </HousePlate>
+              ) : undefined}
               frameInset={HOUSE_PLATE_INSET}
               renderSlot={(row, column, size) => {
                 const b = buttonsBySlot.get(`${row}-${column}`)

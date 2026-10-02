@@ -59,7 +59,7 @@ public class SettingsService(IServiceScopeFactory scopes, IDataProtectionProvide
     public bool HasObsPassword => !string.IsNullOrEmpty(Get(SettingKeys.ObsPassword));
 
     private static readonly HashSet<string> ValidPressBehaviors = ["spring", "stay"];
-    private static readonly HashSet<string> ValidVolumeIndicators = ["led", "level"];
+    private static readonly HashSet<string> ValidVolumeIndicators = ["led", "level", "corner", "glow"];
     private static readonly HashSet<string> ValidStateStyles = ["fill", "icon"];
 
     /// <summary>Tastendruckverhalten global fuers ganze Deck - kein Pro-Taste-Override.</summary>

@@ -11,6 +11,7 @@ import { AppearancePage } from './pages/AppearancePage'
 import { DevicesPage } from './pages/DevicesPage'
 import { PluginsPage } from './pages/PluginsPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { MarketingVideo } from './pages/MarketingVideo'
 import { reloadAppearance, reloadAutomationStates, reloadCatalog, reloadDecks, reloadHotkeyStatus, startRealtime, stopRealtime } from './state/realtime'
 import { setState, useStore } from './state/store'
 import { loadIconSet } from './lib/icons'
@@ -25,6 +26,10 @@ function OwnerOnly({ children }: { children: ReactNode }) {
 }
 
 export default function App() {
+  if (window.location.pathname === '/showcase') {
+    return <MarketingVideo />
+  }
+
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' })
 
   const connect = useCallback(async () => {

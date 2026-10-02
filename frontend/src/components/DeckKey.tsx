@@ -20,7 +20,7 @@ interface Props {
    * oben). "led" (Standard) = oben rechts die runde LED-Fassung. "level" = oben mittig ein kurzer
    * Status-Strich (.key-status-bar) statt der LED - ebenfalls nur ein reiner rot/gruen-EIN/AUS-
    * Status, kein Pegelwert. Gilt fuer ALLE Toggle-Tasten, nicht nur Lautstaerke-Tasten. */
-  volumeIndicator?: 'led' | 'level'
+  volumeIndicator?: 'led' | 'level' | 'corner' | 'glow'
   /**
    * Zustandsdarstellung: "fill" (Standard) = Vollflaeche - an gruen, aus rot, weisses Symbol/Text;
    * "icon" = Tastenkoerper bleibt neutral, nur Symbol, Beschriftung und Kante sind gruen/rot.
@@ -163,6 +163,8 @@ export function DeckKey({
   // die Wahl LED/Strich ist eine generelle Aussehen-Einstellung, kein Lautstaerke-spezifisches Detail).
   const showLed = hasToggle && !unavailable && volumeIndicator === 'led'
   const showStatusBar = hasToggle && !unavailable && volumeIndicator === 'level'
+  const showCorner = hasToggle && !unavailable && volumeIndicator === 'corner'
+  const showGlow = hasToggle && !unavailable && volumeIndicator === 'glow'
   // Unterer Pegelbalken (tatsaechlicher Lautstaerke-Pegel): laeuft IMMER mit, wenn die Taste einen
   // Lautstaerke-Bezug hat - unabhaengig vom oberen Status-Indikator (LED oder Strich).
   const showLevel = level != null
@@ -232,6 +234,8 @@ export function DeckKey({
         <>
           {showLed && <span className="key-led" data-led={stateOn ? 'on' : 'off'}><span className="key-led-emitter" /></span>}
           {showStatusBar && <span className="key-status-bar" data-led={stateOn ? 'on' : 'off'} aria-hidden="true" />}
+          {showCorner && <span className="key-corner-indicator" data-led={stateOn ? 'on' : 'off'} aria-hidden="true" />}
+          {showGlow && <span className="key-backlight-indicator" data-led={stateOn ? 'on' : 'off'} aria-hidden="true" />}
           {showHotkey && button.hotkey && size >= 72 && <span className="key-hotkey">{hotkeyParts(button.hotkey).join('+')}</span>}
           {icon && <KeyIcon name={icon} size={iconSize} className="key-icon" />}
           {hasLabel && (

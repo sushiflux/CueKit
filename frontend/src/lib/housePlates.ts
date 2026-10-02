@@ -34,6 +34,14 @@ export interface HousePlatePreset {
   /** Randfarbe der Schrauben-Koepfe (Metallschein-Basis). */
   /** Akzentfarbe fuer den feinen oberen Glanzrand. */
   sheen: string
+  /** Optionales Hardware-Enclosure (wie im offiziellen Marketing-Video): Status-LED, Eckschrauben, RGB-Underglow. */
+  hardware?: {
+    screws?: boolean
+    header?: boolean
+    underglow?: boolean
+    chamferHighlight?: string
+    ledColor?: string
+  }
 }
 
 function plate(key: string, name: string, description: string, base: string, sheen: string, brushAngle = 90): HousePlatePreset {
@@ -59,13 +67,28 @@ function plate(key: string, name: string, description: string, base: string, she
  * Plate pro Seite um das Tastenraster herum braucht; DeckGrid rechnet ihn bei der Tastengroesse ein. */
 export const HOUSE_PLATE_FRAME_PAD = 34
 export const HOUSE_PLATE_WELL_PAD = 14
-export const HOUSE_PLATE_INSET = HOUSE_PLATE_FRAME_PAD + HOUSE_PLATE_WELL_PAD
+export const HOUSE_PLATE_INSET = 52
 
 export function hasHousePlate(key: string | undefined | null): boolean {
   return !!key && HOUSE_PLATE_PRESETS.some((p) => p.key === key)
 }
 
 export const HOUSE_PLATE_PRESETS: HousePlatePreset[] = [
+  {
+    key: 'house:studiopro',
+    name: 'CueDeck Studio Pro',
+    description: 'Hardware-Gehäuse aus dem Video: Status-LED, Eckschrauben & RGB-Underglow',
+    base: '#121422',
+    sheen: 'rgba(6, 182, 212, 0.45)',
+    surface: 'linear-gradient(to bottom, #1b1e30 0%, #121422 50%, #0a0c16 100%)',
+    hardware: {
+      screws: true,
+      header: true,
+      underglow: true,
+      chamferHighlight: 'rgba(6, 182, 212, 0.6)',
+      ledColor: '#34d399',
+    },
+  },
   plate(
     'spacegray',
     'Space-Grau Aluminium',

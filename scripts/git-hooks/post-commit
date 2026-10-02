@@ -25,12 +25,12 @@ cp "$repo_root/version.txt" "$repo_root/backend/version.txt" 2>/dev/null || true
 
 changelog="$repo_root/CHANGELOG.dev.md"
 if [ -f "$changelog" ]; then
-    stamp=$(date "+%Y-%m-%d %H:%M")
+    stamp=$(date "+%Y-%m-%d %H:%M:%S")
     tmp=$(mktemp)
     awk -v ver="$version" -v stamp="$stamp" '
         /^# / { in_section = 1; stamped = 0 }
         in_section && !stamped && /^## v/ {
-            print "## " ver " - " stamp
+            print "## " ver "-dev – " stamp
             stamped = 1
             next
         }

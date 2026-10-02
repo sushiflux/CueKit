@@ -7,7 +7,20 @@ release lives in `CHANGELOG.md`.
 
 # English
 
-## v2026.10.11 - 2026-10-01 01:48
+## v2026.10.12-dev – 2026-10-03 01:34:35
+
+Symmetrical corner LED and under-key diffusor backlight indicators, CueDeck Studio Pro physical chassis enclosure, and 4K 60fps marketing video pipeline with dedicated showcase scene.
+
+- **Toggle indicator styles** (`frontend/src/components/DeckKey.tsx`, `frontend/src/index.css`, `frontend/src/pages/AppearancePage.tsx`, `frontend/src/api/types.ts`, `backend/Controllers/AppearanceController.cs`, `backend/Services/SettingsService.cs`): Extended `volumeIndicator` (`'led' | 'level' | 'corner' | 'glow'`) to 4 selectable hardware-inspired options in Appearance > "Zustandsdarstellung":
+  - **Option 3: Eck-LED (`corner`)**: Rounded corner indicator positioned in the top-right corner of toggle keys. Designed with exact symmetrical radii (`border-top-right-radius: inherit; border-bottom-left-radius: var(--radius-key); border-top-left-radius: 0; border-bottom-right-radius: 0;`), multi-stop lens illumination, brushed chrome rim, glare specular highlight, and saturated LED diode core.
+  - **Option 4: Diffusor-LED (`glow`)**: Stream Deck style under-key backlight diffusion with an intense central diode hotspot beneath the keycap, smooth radial falloff/vignette toward the edges (`radial-gradient`), and keycap edge bloom.
+  - Backend validation in `SettingsService.ValidVolumeIndicators` and `AppearanceController.ValidVolumeIndicators` updated to accept `"corner"` and `"glow"`.
+- **CueDeck Studio Pro enclosure plate** (`HousePlate.tsx`, `housePlates.ts`, `index.css`, `DeckPage.tsx`): Added CNC-milled physical desk chassis enclosure selectable under Appearance > Gehäuse (`studio-pro`). Features chamfered edge highlights, 4 hex corner screws, recessed key-well bed with brushed metal texture, dynamic status display bar (pulsing green power LED, current profile name, active key count), and subtle ambient RGB desk underglow.
+- **4K marketing video pipeline** (`frontend/src/pages/MarketingVideo.tsx`, `frontend/src/App.tsx`, `marketing/video/`): Dedicated `/showcase` route and Node.js/FFmpeg automation pipeline (`render.mjs`, `render.ps1`, `soundtrack.mjs`) for deterministic 4K UHD (3840×2160) 60fps video capture via Chrome DevTools Protocol and hardware-accelerated NVIDIA NVENC encoding.
+- **Post-commit hook & gitignore** (`scripts/git-hooks/post-commit`, `.gitignore`): Updated post-commit hook to maintain `-dev` suffix and seconds in changelog stamps; gitignore extended for marketing build artifacts and render outputs.
+- **DOM nesting fix** (`AppearancePage.tsx`): Replaced nested `<p>` inside the indicator description with `<span>` to eliminate browser DOM nesting warnings.
+
+## v2026.10.11 - 2026-10-01 01:49
 
 Android app (pairing by QR code, image or typed code), faster system-mute feedback, house plate without screws and with metal between the keys, selectable state style (fill / icon only) with theme-checked contrast, smooth gradient on load rings, grey keys when the streaming software is not connected.
 
@@ -245,7 +258,20 @@ Initial scaffold of Baton - a free, community-extensible Stream Deck alternative
 
 # Deutsch
 
-## v2026.10.11 - 2026-10-01 01:48
+## v2026.10.12-dev – 2026-10-03 01:34:35
+
+Symmetrische Eck-LED und Diffusor-Tastenhintergrundbeleuchtung, physisches CueDeck Studio Pro Chassis-Gehäuse sowie 4K-60fps-Marketing-Videopipeline mit dedizierter Showcase-Szene.
+
+- **Umschalt-Zustandsindikatoren** (`frontend/src/components/DeckKey.tsx`, `frontend/src/index.css`, `frontend/src/pages/AppearancePage.tsx`, `frontend/src/api/types.ts`, `backend/Controllers/AppearanceController.cs`, `backend/Services/SettingsService.cs`): Einstellung `volumeIndicator` (`'led' | 'level' | 'corner' | 'glow'`) unter Aussehen > „Zustandsdarstellung“ auf 4 hardware-inspirierte Optionen erweitert:
+  - **Option 3: Eck-LED (`corner`)**: Abgerundeter Ecken-Indikator in der oberen rechten Ecke von Umschalt-Tasten. Besitzt exakt symmetrische Radien (`border-top-right-radius: inherit; border-bottom-left-radius: var(--radius-key); border-top-left-radius: 0; border-bottom-right-radius: 0;`), mehrstufige Linsen-Ausleuchtung, gebürstete Chrom-Einfassung, Glanzlicht-Reflexion und eine gesättigte LED-Kerndiode.
+  - **Option 4: Diffusor-LED (`glow`)**: Tasten-Hintergrundbeleuchtung im Stream-Deck-Stil mit intensivem zentralem Dioden-Hotspot unter der Tastenkappe, weichem radialem Helligkeitsabfall zu den Rändern (`radial-gradient`) und Kappen-Innenbloom.
+  - Backend-Validierung in `SettingsService.ValidVolumeIndicators` und `AppearanceController.ValidVolumeIndicators` um `"corner"` und `"glow"` erweitert.
+- **CueDeck Studio Pro Gehäuse** (`HousePlate.tsx`, `housePlates.ts`, `index.css`, `DeckPage.tsx`): Neues physisches Desk-Chassis unter Aussehen > Gehäuse (`studio-pro`) wählbar. Mit CNC-Aluminium-Fasen, 4 Sechskantschrauben in den Ecken, versenkter Tastenwanne in gebürstetem Metall, dynamischer Statusleiste (pulsierende grüne Betriebs-LED, Profilname, Tastenanzahl) und dezentem RGB-Unterbodenlicht.
+- **4K-Marketing-Videopipeline** (`frontend/src/pages/MarketingVideo.tsx`, `frontend/src/App.tsx`, `marketing/video/`): Eigene `/showcase`-Route und Node.js/FFmpeg-Automationspipeline (`render.mjs`, `render.ps1`, `soundtrack.mjs`) für bildgenaue 4K-UHD-Aufzeichnung (3840×2160 bei 60 fps) über Chrome DevTools Protocol und hardwarebeschleunigtes NVIDIA NVENC Encoding.
+- **Post-Commit-Hook & Gitignore** (`scripts/git-hooks/post-commit`, `.gitignore`): Post-Commit-Hook aktualisiert, um das `-dev`-Suffix und sekundengenaue Zeitstempel im Dev-Changelog zu sichern; Gitignore um Marketing-Build-Artefakte und Render-Ausgaben erweitert.
+- **DOM-Verschachtelungs-Korrektur** (`AppearancePage.tsx`): Verschachteltes `<p>` innerhalb des Beschreibungs-`<p>` durch `<span>` ersetzt, um Browser-Warnungen zu beheben.
+
+## v2026.10.11 - 2026-10-01 01:49
 
 Android-App (Kopplung per QR-Code, Bild oder Code), schnellere Stumm-Anzeige des Systems, Gehäuse ohne Schrauben und mit Metall zwischen den Tasten, wählbare Zustandsdarstellung (Vollfläche / nur Symbol) mit je Design geprüftem Kontrast, weicher Farbverlauf an den Auslastungsringen, graue Tasten ohne Verbindung zur Streaming-Software.
 

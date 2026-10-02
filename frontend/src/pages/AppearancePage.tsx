@@ -80,19 +80,26 @@ function PressBehaviorSection({ appearance, onSaved }: { appearance: AppearanceS
 function VolumeIndicatorSection({ appearance, onSaved }: { appearance: AppearanceSettings; onSaved: (a: AppearanceSettings) => void }) {
   const [saving, setSaving] = useState(false)
 
-  const choose = async (volumeIndicator: 'led' | 'level') => {
-    if (volumeIndicator === appearance.volumeIndicator) return
+  const choose = async (volumeIndicator: 'led' | 'level' | 'corner' | 'glow') => {
+    if (saving || volumeIndicator === appearance.volumeIndicator) return
     setSaving(true)
     try {
       const result = await api<AppearanceSettings>('/api/settings/appearance', { method: 'PUT', body: toInput(appearance, { volumeIndicator }) })
       onSaved(result)
-      toast('Zustandsanzeige gespeichert.', 'success')
+      toast('LED-Statusanzeige gespeichert.', 'success')
     } catch (e) {
-      toast(`Zustandsanzeige konnte nicht gespeichert werden: ${errorMessage(e)}`, 'error')
+      toast(`LED-Statusanzeige konnte nicht gespeichert werden: ${errorMessage(e)}`, 'error')
     } finally {
       setSaving(false)
     }
   }
+
+  const options: { value: 'led' | 'level' | 'corner' | 'glow'; label: string; desc: string }[] = [
+    { value: 'led', label: 'Runde LED', desc: 'Hardware-Linse oben rechts' },
+    { value: 'level', label: 'Status-Strich', desc: 'Balken oben zentriert' },
+    { value: 'corner', label: 'Eck-LED', desc: 'Symmetrisch abgerundet' },
+    { value: 'glow', label: 'Diffusor-LED', desc: 'Unter der Taste (Backlight)' },
+  ]
 
   return (
     <section className="card p-5">
@@ -101,31 +108,26 @@ function VolumeIndicatorSection({ appearance, onSaved }: { appearance: Appearanc
           <IconGauge size={20} />
         </span>
         <div>
-          <h2 className="font-bold text-ink">Lautstärke-Anzeige</h2>
+          <h2 className="font-bold text-ink">LED-Statusanzeige</h2>
           <p className="text-xs text-ink-faint">
-            Oberer An/Aus-Status für Tasten mit Lautstärke-Bezug (Volume/Mute) – der Pegelbalken unten läuft davon unabhängig immer mit. Andere Tasten mit An/Aus-Zustand behalten immer die LED.
+            Optischer An/Aus-Status für Tasten mit Toggle-Zustand (Mute, Stream, Aufnahme etc.). Der eigentliche Lautstärke-Pegelbalken bleibt davon unberührt.
           </p>
         </div>
       </div>
-      <div className="flex gap-1.5">
-        <button
-          type="button"
-          disabled={saving}
-          aria-pressed={appearance.volumeIndicator === 'led'}
-          onClick={() => void choose('led')}
-          className="btn btn-ghost flex-1 aria-pressed:border-select aria-pressed:bg-select-soft aria-pressed:text-select"
-        >
-          LED
-        </button>
-        <button
-          type="button"
-          disabled={saving}
-          aria-pressed={appearance.volumeIndicator === 'level'}
-          onClick={() => void choose('level')}
-          className="btn btn-ghost flex-1 aria-pressed:border-select aria-pressed:bg-select-soft aria-pressed:text-select"
-        >
-          Strich
-        </button>
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+        {options.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            disabled={saving}
+            aria-pressed={appearance.volumeIndicator === o.value}
+            onClick={() => void choose(o.value)}
+            className="btn btn-ghost flex flex-col items-center justify-center py-3 px-2 text-center transition-all aria-pressed:border-select aria-pressed:bg-select-soft aria-pressed:text-select"
+          >
+            <span className="font-semibold text-xs text-ink">{o.label}</span>
+            <span className="mt-0.5 text-[10px] text-ink-muted leading-tight">{o.desc}</span>
+          </button>
+        ))}
       </div>
     </section>
   )
@@ -144,7 +146,7 @@ function StateStyleSection({ appearance, onSaved }: { appearance: AppearanceSett
   const [saving, setSaving] = useState(false)
 
   const choose = async (stateStyle: 'fill' | 'icon') => {
-    if (stateStyle === appearance.stateStyle) return
+    if (saving || stateStyle === appearance.stateStyle) return
     setSaving(true)
     try {
       const result = await api<AppearanceSettings>('/api/settings/appearance', { method: 'PUT', body: toInput(appearance, { stateStyle }) })
@@ -175,15 +177,22 @@ function StateStyleSection({ appearance, onSaved }: { appearance: AppearanceSett
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {options.map((o) => (
-          <button
+          <div
             key={o.value}
-            type="button"
-            disabled={saving}
+            role="button"
+            tabIndex={0}
+            aria-busy={saving}
             aria-pressed={appearance.stateStyle === o.value}
             onClick={() => void choose(o.value)}
-            className="flex flex-col items-center gap-3 rounded-card border border-line bg-surface-2 p-4 text-center transition-colors hover:border-select aria-pressed:border-select aria-pressed:bg-select-soft"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                void choose(o.value)
+              }
+            }}
+            className="flex cursor-pointer flex-col items-center gap-3 rounded-card border border-line bg-surface-2 p-4 text-center transition-colors hover:border-select aria-pressed:border-select aria-pressed:bg-select-soft"
           >
-            <div className="flex gap-4 pb-2">
+            <div className="flex gap-4 pb-2 pointer-events-none">
               {SAMPLE_STATE_KEYS.map((k) => (
                 <div key={k.button.id} className="h-[68px] w-[68px]">
                   <DeckKey button={k.button} size={68} active={k.active} stateStyle={o.value} />
@@ -194,7 +203,7 @@ function StateStyleSection({ appearance, onSaved }: { appearance: AppearanceSett
               <div className="font-semibold text-ink">{o.title}</div>
               <div className="text-xs text-ink-muted">{o.text}</div>
             </div>
-          </button>
+          </div>
         ))}
       </div>
     </section>
@@ -250,7 +259,7 @@ function PlateSection({ appearance, onSaved }: { appearance: AppearanceSettings;
 
       {/* Live-Vorschau der aktuellen Auswahl */}
       <div className="mb-4 flex aspect-video w-full items-center justify-center overflow-hidden rounded-card bg-canvas p-3">
-        <HousePlate plateKey={selected} className="w-[52%]">
+        <HousePlate plateKey={selected} className="w-[58%] max-w-[340px]" preview deckName="Streaming" keyCount={6}>
           <PreviewKeys />
         </HousePlate>
       </div>
@@ -281,12 +290,25 @@ function PlateSection({ appearance, onSaved }: { appearance: AppearanceSettings;
             aria-pressed={selected === p.key}
             disabled={saving}
             onClick={() => void choose(p.key)}
-            className="group relative aspect-video overflow-hidden rounded-ctl ring-offset-2 ring-offset-surface transition-transform hover:scale-[1.03] aria-pressed:ring-2 aria-pressed:ring-select"
+            className="group relative aspect-video overflow-hidden rounded-ctl ring-offset-2 ring-offset-surface transition-transform hover:scale-[1.03] aria-pressed:ring-2 aria-pressed:ring-select border border-white/10"
             style={{ background: p.surface }}
           >
-            <span className="absolute inset-x-0 bottom-0 bg-black/55 px-2 py-1.5 text-left text-xs font-semibold text-white backdrop-blur-sm">{p.name}</span>
+            {p.hardware?.chamferHighlight && (
+              <div className="absolute inset-x-2 top-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
+            )}
+            {p.hardware?.underglow && (
+              <div className="absolute inset-x-3 bottom-7 h-[2px] rounded-full bg-gradient-to-r from-cyan-500 via-violet-500 to-fuchsia-500 shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
+            )}
+            <span className="absolute inset-x-0 bottom-0 bg-black/65 px-2 py-1.5 text-left text-xs font-semibold text-white backdrop-blur-sm flex items-center justify-between">
+              <span className="truncate pr-1">{p.name}</span>
+              {p.hardware && (
+                <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-cyan-400 px-1 py-0.5 rounded bg-cyan-500/20 border border-cyan-400/30">
+                  Video-Deck
+                </span>
+              )}
+            </span>
             {selected === p.key && (
-              <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-select text-white">
+              <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-select text-white z-10">
                 <IconSquareCheck size={13} />
               </span>
             )}

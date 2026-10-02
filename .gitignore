@@ -56,3 +56,13 @@ Thumbs.db
 /android/local.properties
 /android/*.keystore
 /android/*.jks
+
+# Marketing video render outputs & scratch
+marketing/video/*.mp4
+marketing/video/build/
+marketing/video/test*
+marketing/video/verify*
+marketing/video/showcase*
+marketing/video/*.png
+
+

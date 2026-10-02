@@ -21,7 +21,7 @@ public record AppearanceInput(string PressBehavior, string VolumeIndicator, stri
 public class AppearanceController(SettingsService settings, HubNotifier notifier) : ControllerBase
 {
     private static readonly HashSet<string> ValidPressBehaviors = ["spring", "stay"];
-    private static readonly HashSet<string> ValidVolumeIndicators = ["led", "level"];
+    private static readonly HashSet<string> ValidVolumeIndicators = ["led", "level", "corner", "glow"];
     private static readonly HashSet<string> ValidStateStyles = ["fill", "icon"];
 
     [HttpGet]

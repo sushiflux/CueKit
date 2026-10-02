@@ -80,7 +80,7 @@ export interface ObsSnapshot {
  * nur der Besitzer darf aendern. */
 export interface AppearanceSettings {
   pressBehavior: 'spring' | 'stay'
-  volumeIndicator: 'led' | 'level'
+  volumeIndicator: 'led' | 'level' | 'corner' | 'glow'
   /** Zustandsdarstellung der Tasten: "fill" = Vollflaeche (an gruen, aus rot), "icon" = nur Symbol/Text farbig. */
   stateStyle: 'fill' | 'icon'
   /** Gewaehlte Gehaeuse-Plate-Fassung um das Tastenraster ("house:<key>", siehe lib/housePlates.ts)

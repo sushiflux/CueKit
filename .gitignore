@@ -62,6 +62,7 @@ marketing/video/*.mp4
 marketing/video/build/
 marketing/video/test*
 marketing/video/verify*
+marketing/video/compare*
 marketing/video/showcase*
 marketing/video/*.png
 

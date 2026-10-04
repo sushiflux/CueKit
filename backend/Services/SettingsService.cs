@@ -19,8 +19,11 @@ public static class SettingKeys
     /// <summary>Zustandsdarstellung der Tasten: "fill" (Vollflaeche gruen/rot) oder "icon" (nur Symbol/Text farbig).</summary>
     public const string AppearanceStateStyle = "appearance.stateStyle";
     /// <summary>Gewaehlte Gehaeuse-Plate-Fassung um das Tastenraster ("house:&lt;key&gt;", siehe
-    /// frontend lib/housePlates.ts) oder leer fuer kein Gehaeuse.</summary>
+    /// frontend lib/housePlates.ts) - es bleibt immer ein Gehaeuse aktiv.</summary>
     public const string AppearancePlate = "appearance.plate";
+    /// <summary>Optisches Subpixel-Mesh ueber alle Tasten (LCD Stream-Deck Matrix).</summary>
+    public const string AppearanceDisplayMesh = "appearance.displayMesh";
+    public const string AppearanceSushiFluxColors = "appearance.sushiFluxColors";
 }
 
 /// <summary>
@@ -59,8 +62,8 @@ public class SettingsService(IServiceScopeFactory scopes, IDataProtectionProvide
     public bool HasObsPassword => !string.IsNullOrEmpty(Get(SettingKeys.ObsPassword));
 
     private static readonly HashSet<string> ValidPressBehaviors = ["spring", "stay"];
-    private static readonly HashSet<string> ValidVolumeIndicators = ["led", "level", "corner", "glow"];
-    private static readonly HashSet<string> ValidStateStyles = ["fill", "icon"];
+    private static readonly HashSet<string> ValidVolumeIndicators = ["led", "level", "corner", "glow", "none"];
+    private static readonly HashSet<string> ValidStateStyles = ["fill", "glow", "corner", "led", "level", "icon"];
 
     /// <summary>Tastendruckverhalten global fuers ganze Deck - kein Pro-Taste-Override.</summary>
     public string AppearancePressBehavior => Get(SettingKeys.AppearancePressBehavior) is { } v && ValidPressBehaviors.Contains(v) ? v : "spring";
@@ -71,10 +74,13 @@ public class SettingsService(IServiceScopeFactory scopes, IDataProtectionProvide
 
     public string AppearanceVolumeIndicator => Get(SettingKeys.AppearanceVolumeIndicator) is { } v && ValidVolumeIndicators.Contains(v) ? v : "led";
 
-    /// <summary>Gewaehlte Gehaeuse-Plate ("house:&lt;key&gt;") oder "" fuer kein Gehaeuse - keine
-    /// serverseitige Preset-Liste noetig, das Frontend validiert nur das Namensschema (siehe
-    /// AppearanceController.Save).</summary>
-    public string AppearancePlate => Get(SettingKeys.AppearancePlate) ?? "";
+    /// <summary>Gewaehlte Gehaeuse-Plate ("house:&lt;key&gt;") - es bleibt immer ein Gehaeuse gewaehlt.</summary>
+    public string AppearancePlate => Get(SettingKeys.AppearancePlate) is { Length: > 0 } p ? p : "house:studiopro";
+
+    /// <summary>Optisches Subpixel-Mesh ueber alle Tasten (LCD Stream-Deck Look).</summary>
+    public bool AppearanceDisplayMesh => Get(SettingKeys.AppearanceDisplayMesh) == "true";
+
+    public string AppearanceSushiFluxColors => Get(SettingKeys.AppearanceSushiFluxColors) ?? "#fb923c,#f43f5e,#06b6d4";
 
     public string? ObsPassword
     {

@@ -346,6 +346,7 @@ export function DeckPage() {
                       pressBehavior={appearance?.pressBehavior}
                       volumeIndicator={appearance?.volumeIndicator}
                       stateStyle={appearance?.stateStyle}
+                      displayMesh={appearance?.displayMesh}
                       unavailable={isButtonUnavailable(b, obs)}
                       meterKey={buttonMeter(b, obs, systemMonitor)?.key}
                       meterMuted={buttonMeter(b, obs, systemMonitor)?.muted}

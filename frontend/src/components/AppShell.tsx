@@ -1,16 +1,15 @@
 import {
   IconAdjustments,
   IconDeviceMobile,
-  IconMenu2,
+  IconInfoCircle,
   IconMoon,
   IconPalette,
   IconPlayerPlay,
   IconPuzzle,
   IconSun,
-  IconX,
 } from '@tabler/icons-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router'
 import { branding } from '../config/branding'
 import { AppInfoHint } from './AppInfoHint'
@@ -25,128 +24,150 @@ const NAV = [
   { to: '/settings', label: 'Einstellungen', icon: IconAdjustments },
 ]
 
-function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+/** Stylische Topbar-Navigation fuer die gesamte App: Volle Bildschirmbreite fuer das Deck,
+ * kein Platzverlust durch eine feste Seitenleiste mehr. */
+export function AppShell({ title, actions, children }: { title: ReactNode; actions?: ReactNode; children: ReactNode }) {
   const me = useStore((s) => s.me)
   const { theme, toggle } = useTheme()
+  const location = useLocation()
+  const [infoOpen, setInfoOpen] = useState(false)
+  const infoRef = useRef<HTMLDivElement>(null)
+
+  // Schließt das Info-Popup bei Klick ausserhalb
+  useEffect(() => {
+    if (!infoOpen) return
+    const handleClick = (e: MouseEvent) => {
+      if (infoRef.current && !infoRef.current.contains(e.target as Node)) {
+        setInfoOpen(false)
+      }
+    }
+    window.addEventListener('pointerdown', handleClick)
+    return () => window.removeEventListener('pointerdown', handleClick)
+  }, [infoOpen])
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center gap-3 px-5 pb-6 pt-6">
-        <img src="/logo.svg" alt="" className="h-9 w-9" />
-        <div className="min-w-0">
-          <div className="text-lg font-extrabold leading-none tracking-tight text-ink">{branding.productName}</div>
-          <div className="mt-1 truncate text-xs text-ink-faint">{branding.tagline}</div>
-        </div>
-      </div>
+    <div className="flex h-full flex-col bg-canvas text-ink">
+      {/* Haupt-Topbar */}
+      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-line bg-surface/85 px-4 backdrop-blur-md lg:px-6">
+        {/* Links: Logo & Markenname */}
+        <NavLink to="/" className="flex items-center gap-2.5 rounded-ctl py-1 pr-2 transition-opacity hover:opacity-90">
+          <img src="/logo.svg" alt="" className="h-7 w-7" />
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-base font-extrabold tracking-tight text-ink">{branding.productName}</span>
+            <span className="hidden text-[10px] font-semibold uppercase tracking-wider text-ink-faint xl:inline">
+              {branding.tagline}
+            </span>
+          </div>
+        </NavLink>
 
-      <nav className="flex flex-col gap-0.5 px-3" aria-label="Hauptnavigation">
-        {NAV.map(({ to, label, icon: Icon, end }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={end}
-            onClick={onNavigate}
-            className={({ isActive }) =>
-              `group relative flex items-center gap-3 rounded-ctl px-3 py-2 text-sm font-semibold transition-colors ${
-                isActive ? 'bg-brand-soft text-brand' : 'text-ink-muted hover:bg-surface-2 hover:text-ink'
-              }`
-            }
+        {/* Mitte: Stylische Navigations-Pills mit animiertem Aktiv-Hintergrund */}
+        <nav className="flex items-center gap-1 sm:gap-1.5" aria-label="Hauptnavigation">
+          {NAV.map(({ to, label, icon: Icon, end }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              className={({ isActive }) =>
+                `group relative flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all ${
+                  isActive
+                    ? 'text-white'
+                    : 'text-ink-muted hover:bg-surface-2 hover:text-ink'
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  {isActive && (
+                    <motion.span
+                      layoutId="topbar-nav-pill"
+                      className="absolute inset-0 -z-10 rounded-full bg-brand shadow-sm shadow-brand/30"
+                      transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                    />
+                  )}
+                  <Icon size={18} stroke={isActive ? 2.2 : 1.8} className={isActive ? 'text-white' : 'text-ink-muted group-hover:text-ink'} />
+                  <span className="hidden sm:inline">{label}</span>
+                </>
+              )}
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* Rechts: Geraetestatus, Theme-Umschalter & Info-Popup */}
+        <div className="flex items-center gap-2">
+          {me && (
+            <NavLink
+              to="/devices"
+              className="hidden items-center gap-1.5 rounded-full border border-line bg-surface-2 px-2.5 py-1 text-sm font-medium text-ink transition-colors hover:border-brand/40 sm:flex"
+              title={me.role === 'owner' ? 'Besitzer-Gerät verwalten' : 'Steuergerät'}
+            >
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  me.role === 'owner' ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]' : 'bg-sky-400'
+                }`}
+              />
+              <span className="max-w-[110px] truncate text-xs font-semibold">{me.name}</span>
+            </NavLink>
+          )}
+
+          <button
+            className="btn btn-ghost btn-icon h-8 w-8 rounded-full"
+            onClick={toggle}
+            title={theme === 'dark' ? 'Helles Design' : 'Dunkles Design'}
+            aria-label="Design umschalten"
           >
-            {({ isActive }) => (
-              <>
-                {isActive && <motion.span layoutId="nav-indicator" className="absolute inset-y-1.5 left-0 w-[3px] rounded-full bg-brand" />}
-                <Icon size={18} stroke={1.8} />
-                {label}
-              </>
-            )}
-          </NavLink>
-        ))}
-      </nav>
+            {theme === 'dark' ? <IconSun size={16} /> : <IconMoon size={16} />}
+          </button>
 
-      <div className="mt-auto">
-        <div className="h-px bg-gradient-to-r from-transparent via-line to-transparent" />
-        <div className="px-5 py-4">
-          <div className="flex items-center justify-between gap-2">
-            {me?.role === 'owner' ? (
-              <NavLink to="/devices" onClick={onNavigate} className="group min-w-0 rounded-ctl" title="Gerät umbenennen oder verwalten">
-                <div className="truncate text-sm font-semibold text-ink group-hover:text-brand">{me.name}</div>
-                <div className="text-xs text-ink-faint">Besitzer-Gerät</div>
-              </NavLink>
-            ) : (
-              <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-ink">{me?.name}</div>
-                <div className="text-xs text-ink-faint">Steuergerät</div>
-              </div>
-            )}
-            <button className="btn btn-ghost btn-icon shrink-0" onClick={toggle} title={theme === 'dark' ? 'Helles Design' : 'Dunkles Design'}>
-              {theme === 'dark' ? <IconSun size={17} /> : <IconMoon size={17} />}
+          {/* Info & Version Popup */}
+          <div className="relative" ref={infoRef}>
+            <button
+              className={`btn btn-ghost btn-icon h-8 w-8 rounded-full ${infoOpen ? 'bg-surface-2 text-ink' : ''}`}
+              onClick={() => setInfoOpen(!infoOpen)}
+              title="Über Maestro / CueKit"
+              aria-label="App-Informationen anzeigen"
+            >
+              <IconInfoCircle size={16} />
             </button>
+
+            <AnimatePresence>
+              {infoOpen && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                  transition={{ duration: 0.15, ease: 'easeOut' }}
+                  className="absolute right-0 top-10 z-50 w-64 rounded-card border border-line bg-surface p-4 shadow-xl backdrop-blur-md"
+                >
+                  <AppInfoHint />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
-        <div className="h-px bg-gradient-to-r from-transparent via-line to-transparent" />
-        <div className="px-5 py-4">
-          <AppInfoHint />
+      </header>
+
+      {/* Sub-Header: Titel & Aktionen (Breadcrumbs beim Deck, Seitentitel bei Einstellungen etc.) */}
+      {(actions || (title && typeof title !== 'string')) && (
+        <div className="flex min-h-[46px] shrink-0 items-center justify-between border-b border-line/60 bg-surface/40 px-4 backdrop-blur-sm lg:px-8">
+          {typeof title !== 'string' && title ? (
+            <div className="flex min-w-0 flex-1 items-center gap-3">{title}</div>
+          ) : (
+            <div className="flex min-w-0 flex-1" />
+          )}
+          {actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
         </div>
-      </div>
-    </div>
-  )
-}
+      )}
 
-/** Layout fuer alle Verwaltungsseiten: feste Sidebar am Desktop, Schublade auf kleinen Bildschirmen. */
-export function AppShell({ title, actions, children }: { title: ReactNode; actions?: ReactNode; children: ReactNode }) {
-  const [open, setOpen] = useState(false)
-  const location = useLocation()
-
-  return (
-    <div className="flex h-full bg-canvas">
-      <aside className="hidden w-64 shrink-0 border-r border-line bg-surface lg:block">
-        <Sidebar />
-      </aside>
-
-      <AnimatePresence>
-        {open && (
-          <>
-            <motion.div
-              className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setOpen(false)}
-            />
-            <motion.aside
-              className="fixed inset-y-0 left-0 z-50 w-72 border-r border-line bg-surface lg:hidden"
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', stiffness: 380, damping: 36 }}
-            >
-              <button className="btn btn-ghost btn-icon absolute right-3 top-5" onClick={() => setOpen(false)} aria-label="Menü schließen">
-                <IconX size={18} />
-              </button>
-              <Sidebar onNavigate={() => setOpen(false)} />
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 shrink-0 items-center gap-3 border-b border-line bg-surface/70 px-4 backdrop-blur lg:px-8">
-          <button className="btn btn-ghost btn-icon lg:hidden" onClick={() => setOpen(true)} aria-label="Menü öffnen">
-            <IconMenu2 size={18} />
-          </button>
-          {typeof title === 'string' ? <h1 className="truncate text-lg font-bold tracking-tight text-ink">{title}</h1> : <div className="flex min-w-0 flex-1 items-center gap-3">{title}</div>}
-          <div className="ml-auto flex items-center gap-2">{actions}</div>
-        </header>
-        <motion.main
-          key={location.pathname}
-          className="min-h-0 flex-1 overflow-auto"
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
-        >
-          {children}
-        </motion.main>
-      </div>
+      {/* Hauptinhalt in voller Breite */}
+      <motion.main
+        key={location.pathname}
+        className="min-h-0 flex-1 overflow-y-scroll overflow-x-hidden"
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18, ease: 'easeOut' }}
+      >
+        {children}
+      </motion.main>
     </div>
   )
 }

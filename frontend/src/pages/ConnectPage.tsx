@@ -90,11 +90,12 @@ interface Props {
   initialCode?: string
   /** Vorschlag fuer den Geraetenamen - bei der Ersteinrichtung der Name des PCs. */
   defaultName?: string | null
+  isRecovery?: boolean
   onConnected: () => void
 }
 
 /** Ersteinrichtung (am PC) bzw. Kopplung eines neuen Geraets - 1/3 Formular, 2/3 Markenflaeche. */
-export function ConnectPage({ mode, initialCode = '', defaultName = null, onConnected }: Props) {
+export function ConnectPage({ mode, initialCode = '', defaultName = null, isRecovery = false, onConnected }: Props) {
   const [name, setName] = useState(() => defaultName?.trim() || (mode === 'bootstrap' ? 'Dieser PC' : guessDeviceName()))
   const [code, setCode] = useState(initialCode)
   const [busy, setBusy] = useState(false)
@@ -140,10 +141,12 @@ export function ConnectPage({ mode, initialCode = '', defaultName = null, onConn
             <span className="flex h-11 w-11 items-center justify-center rounded-card bg-brand-soft text-brand">
               {mode === 'bootstrap' ? <IconAdjustmentsBolt size={22} /> : <IconDeviceMobile size={22} />}
             </span>
-            <h2 className="mt-4 text-2xl font-bold tracking-tight text-ink">{mode === 'bootstrap' ? 'Willkommen!' : 'Gerät koppeln'}</h2>
+            <h2 className="mt-4 text-2xl font-bold tracking-tight text-ink">
+              {mode === 'bootstrap' ? (isRecovery ? 'Zugang wiederherstellen' : 'Willkommen!') : 'Gerät koppeln'}
+            </h2>
             <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">
               {mode === 'bootstrap'
-                ? 'Richte diesen PC als Besitzer ein. Von hier aus gestaltest du deine Decks und koppelst danach Handy oder Tablet per QR-Code.'
+                ? isRecovery ? 'Richte diesen PC als (weiteres) Besitzer-Gerät ein. Dies ist möglich, da du dich am Host-PC befindest.' : 'Richte diesen PC als Besitzer ein. Von hier aus gestaltest du deine Decks und koppelst danach Handy oder Tablet per QR-Code.'
                 : initialCode
                   ? 'Fast geschafft – gib diesem Gerät noch einen Namen.'
                   : 'Öffne auf dem PC die App → Geräte → „Gerät koppeln“ und scanne den QR-Code. Oder gib den angezeigten Code hier ein.'}

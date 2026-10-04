@@ -6,9 +6,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Deck.Server.Controllers;
 
-public record AppearanceDto(string PressBehavior, string VolumeIndicator, string Plate, string StateStyle);
+public record AppearanceDto(string PressBehavior, string VolumeIndicator, string Plate, string StateStyle, bool DisplayMesh, string[] SushiFluxColors);
 
-public record AppearanceInput(string PressBehavior, string VolumeIndicator, string? Plate, string? StateStyle = null);
+public record AppearanceInput(string PressBehavior, string VolumeIndicator, string? Plate, string? StateStyle = null, bool? DisplayMesh = null, string[]? SushiFluxColors = null);
 
 /// <summary>
 /// App-weite (nicht Pro-Deck) Aussehen-Einstellungen: Tastendruckverhalten, Lautstaerkeanzeige und
@@ -21,14 +21,14 @@ public record AppearanceInput(string PressBehavior, string VolumeIndicator, stri
 public class AppearanceController(SettingsService settings, HubNotifier notifier) : ControllerBase
 {
     private static readonly HashSet<string> ValidPressBehaviors = ["spring", "stay"];
-    private static readonly HashSet<string> ValidVolumeIndicators = ["led", "level", "corner", "glow"];
-    private static readonly HashSet<string> ValidStateStyles = ["fill", "icon"];
+    private static readonly HashSet<string> ValidVolumeIndicators = ["led", "level", "corner", "glow", "none"];
+    private static readonly HashSet<string> ValidStateStyles = ["fill", "glow", "corner", "led", "level", "icon"];
 
     [HttpGet]
     public AppearanceDto Get() => ToDto();
 
     private AppearanceDto ToDto() =>
-        new(settings.AppearancePressBehavior, settings.AppearanceVolumeIndicator, settings.AppearancePlate, settings.AppearanceStateStyle);
+        new(settings.AppearancePressBehavior, settings.AppearanceVolumeIndicator, settings.AppearancePlate, settings.AppearanceStateStyle, settings.AppearanceDisplayMesh);
 
     [HttpPut]
     [Authorize(AuthenticationSchemes = DeviceAuth.Scheme, Policy = DeviceAuth.OwnerPolicy)]
@@ -36,26 +36,28 @@ public class AppearanceController(SettingsService settings, HubNotifier notifier
     {
         if (input.PressBehavior is null || !ValidPressBehaviors.Contains(input.PressBehavior))
             return BadRequest(new { error = "Ungültiges Tastendruckverhalten – erlaubt sind „spring“ oder „stay“." });
-        if (input.VolumeIndicator is null || !ValidVolumeIndicators.Contains(input.VolumeIndicator))
-            return BadRequest(new { error = "Ungültige Lautstärkeanzeige – erlaubt sind „led“ oder „level“." });
+        if (input.VolumeIndicator is not null && !ValidVolumeIndicators.Contains(input.VolumeIndicator))
+            return BadRequest(new { error = "Ungültige Lautstärkeanzeige." });
 
-        // Fehlt die Zustandsdarstellung (aelterer Client), bleibt der bisherige Wert bestehen.
+        // Zustandsdarstellung
         var stateStyle = input.StateStyle ?? settings.AppearanceStateStyle;
         if (!ValidStateStyles.Contains(stateStyle))
-            return BadRequest(new { error = "Ungültige Zustandsdarstellung – erlaubt sind „fill“ (Vollfläche) oder „icon“ (nur Symbol)." });
+            return BadRequest(new { error = "Ungültige Zustandsdarstellung." });
 
-        // Leerer Plate-Wert ist gueltig (= kein Gehaeuse, nur die normale App-Flaeche) - ein konkret
-        // gewaehlter Wert muss aber dem "house:<key>"-Namensschema folgen, siehe frontend housePlates.ts.
-        var plate = input.Plate?.Trim() ?? "";
-        if (plate.Length > 0 && !plate.StartsWith("house:", StringComparison.Ordinal))
+        // Es bleibt immer ein Gehaeuse gewaehlt (Fallback: house:studiopro).
+        var plate = string.IsNullOrWhiteSpace(input.Plate) ? "house:studiopro" : input.Plate.Trim();
+        if (!plate.StartsWith("house:", StringComparison.Ordinal))
             return BadRequest(new { error = "Ungültige Gehäuse-Plate." });
+
+        var displayMesh = input.DisplayMesh ?? settings.AppearanceDisplayMesh;
 
         await settings.SetManyAsync(new Dictionary<string, string>
         {
             [SettingKeys.AppearancePressBehavior] = input.PressBehavior,
-            [SettingKeys.AppearanceVolumeIndicator] = input.VolumeIndicator,
+            [SettingKeys.AppearanceVolumeIndicator] = input.VolumeIndicator ?? settings.AppearanceVolumeIndicator,
             [SettingKeys.AppearancePlate] = plate,
             [SettingKeys.AppearanceStateStyle] = stateStyle,
+            [SettingKeys.AppearanceDisplayMesh] = displayMesh ? "true" : "false",
         }, ct);
 
         notifier.AppearanceChanged();

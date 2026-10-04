@@ -854,57 +854,64 @@
       0 0 10px 3px color-mix(in oklab, var(--led-color) 44%, transparent);
   }
 
-  /* Symmetrische Eck-LED oben rechts (volumeIndicator: 'corner') - 1:1 nach Nutzer-Zeichnung:
-     Symmetrische Rundung: oben-rechts folgt dem Tasteneck-Radius, unten-links besitzt exakt denselben Radius!
-     Mehrstufige Linse mit geschliffener Chromkante zur Taste hin, Linsen-Reflex und zentrierter LED-Diode. */
+  /* Eck-LED oben rechts (volumeIndicator: 'corner') - Milchglas-Diffusor-Ecke:
+     Symmetrische Rundung (oben-rechts Tastenradius, unten-links exakt identisch) mit weicher,
+     diffuser Lichtstreuung unter mattiertem Acrylglas (keine sichtbare Diode / kein greller Punkt). */
   .deck-key .key-corner-indicator {
-    --led-color: var(--c-toggle-off);
+    --corner-color: var(--c-toggle-off);
     position: absolute;
     top: 0;
     right: 0;
-    width: 2.2em;
-    height: 2.2em;
+    width: 2.1em;
+    height: 2.1em;
     border-top-right-radius: inherit;
     border-bottom-left-radius: var(--radius-key);
     border-top-left-radius: 0;
     border-bottom-right-radius: 0;
     z-index: 2;
     pointer-events: none;
-    background:
-      radial-gradient(circle at 65% 35%, rgb(255 255 255 / 0.92) 0% 12%, rgb(255 255 255 / 0.22) 24%, transparent 48%),
-      radial-gradient(circle at 50% 50%, color-mix(in oklab, var(--led-color) 68%, white) 0%, var(--led-color) 45%, color-mix(in oklab, var(--led-color) 58%, black) 82%, #08080c 100%);
+    background: linear-gradient(135deg,
+      color-mix(in oklab, var(--corner-color) 88%, white) 0%,
+      var(--corner-color) 45%,
+      color-mix(in oklab, var(--corner-color) 85%, black) 100%
+    );
+    border-left: 1.5px solid rgb(255 255 255 / 0.28);
+    border-bottom: 1.5px solid rgb(255 255 255 / 0.28);
     box-shadow:
-      inset 0 1px 1px rgb(255 255 255 / 0.5),
-      inset 1px -1px 2px rgb(0 0 0 / 0.8),
-      -1px 1px 0 rgb(203 209 216 / 0.85),
-      0 0 14px 2px color-mix(in oklab, var(--led-color) 65%, transparent);
-    transition: box-shadow 180ms ease-out;
+      inset 0 1px 2px rgb(255 255 255 / 0.4),
+      inset -1px -1px 3px rgb(0 0 0 / 0.4),
+      -1px 1px 2px rgb(0 0 0 / 0.4);
+    transition: all 180ms ease-out;
   }
-  .deck-key .key-corner-indicator[data-led='on'] {
-    --led-color: var(--c-toggle-on);
-    box-shadow:
-      inset 0 1px 1px rgb(255 255 255 / 0.55),
-      inset 1px -1px 2px rgb(0 0 0 / 0.8),
-      -1px 1px 0 rgb(203 209 216 / 0.95),
-      0 0 20px 5px color-mix(in oklab, var(--led-color) 75%, transparent);
-  }
+  /* Satiniertes Milchglas-Finish ohne kreisförmigen Hotspot */
   .deck-key .key-corner-indicator::after {
     content: '';
     position: absolute;
-    top: 38%;
-    right: 38%;
-    width: 0.22em;
-    height: 0.22em;
-    border-radius: 40%;
-    background: color-mix(in oklab, var(--led-color) 75%, white);
+    inset: 0;
+    border-top-right-radius: inherit;
+    border-bottom-left-radius: inherit;
+    background: linear-gradient(135deg, rgb(255 255 255 / 0.18) 0%, rgb(255 255 255 / 0.03) 50%, transparent 100%);
+    pointer-events: none;
+  }
+  .deck-key .key-corner-indicator[data-led='on'] {
+    --corner-color: var(--c-toggle-on);
     box-shadow:
-      0 0 2px #ffffff,
-      0 0 5px 2px var(--led-color),
-      0 0 10px 4px color-mix(in oklab, var(--led-color) 45%, transparent);
+      inset 0 1px 2px rgb(255 255 255 / 0.4),
+      inset 0 0 12px 1px color-mix(in oklab, var(--corner-color) 60%, transparent),
+      0 0 16px 3px color-mix(in oklab, var(--corner-color) 50%, transparent),
+      -2px 2px 8px color-mix(in oklab, var(--corner-color) 40%, transparent);
+  }
+  .deck-key .key-corner-indicator[data-led='off'] {
+    --corner-color: var(--c-toggle-off);
+    box-shadow:
+      inset 0 1px 2px rgb(255 255 255 / 0.4),
+      inset 0 0 10px 1px color-mix(in oklab, var(--corner-color) 60%, transparent),
+      0 0 14px 2px color-mix(in oklab, var(--corner-color) 40%, transparent),
+      -1.5px 1.5px 6px color-mix(in oklab, var(--corner-color) 35%, transparent);
   }
 
-  /* Diffusor-LED unter der Taste (volumeIndicator: 'glow') - Stream-Deck-Optik:
-     Eine LED direkt unter der Tastenkappe im Zentrum, mit starkem Kern und weichem Auslauf nach aussen. */
+  /* Diffusor-LED unter der Taste (volumeIndicator: 'glow'):
+     Transluzenter Kristallglas-Körper mit weichem Diodenkern und Lichtstreuung im Acrylkörper. */
   .deck-key .key-backlight-indicator {
     --led-color: var(--c-toggle-off);
     position: absolute;
@@ -913,48 +920,65 @@
     pointer-events: none;
     z-index: 1;
     background:
-      radial-gradient(circle at 50% 48%,
-        color-mix(in oklab, var(--led-color) 92%, white) 0%,
-        color-mix(in oklab, var(--led-color) 75%, white) 18%,
-        var(--led-color) 42%,
+      /* Weicher, leuchtstarker Dioden-Kern im Zentrum */
+      radial-gradient(circle at 50% 46%,
+        color-mix(in oklab, var(--led-color) 30%, white) 0%,
+        color-mix(in oklab, var(--led-color) 75%, white) 15%,
+        var(--led-color) 44%,
         color-mix(in oklab, var(--led-color) 40%, transparent) 68%,
-        transparent 88%
-      );
-    opacity: 0.42;
+        transparent 92%
+      ),
+      /* Innere Lichtstreuung im Acrylkörper */
+      radial-gradient(circle at 50% 50%, color-mix(in oklab, var(--led-color) 35%, transparent) 0%, color-mix(in oklab, var(--led-color) 15%, transparent) 100%);
     box-shadow:
-      inset 0 0 18px 2px color-mix(in oklab, var(--led-color) 50%, transparent),
-      0 0 24px 6px color-mix(in oklab, var(--led-color) 35%, transparent);
-    transition: all 200ms ease-out;
+      inset 0 0 24px 2px color-mix(in oklab, var(--led-color) 60%, transparent),
+      0 0 32px 8px color-mix(in oklab, var(--led-color) 40%, transparent);
+    transition: all 220ms ease-out;
   }
   .deck-key .key-backlight-indicator[data-led='on'] {
     --led-color: var(--c-toggle-on);
-    opacity: 0.65;
-    background:
-      radial-gradient(circle at 50% 48%,
-        #ffffff 0%,
-        color-mix(in oklab, var(--led-color) 92%, white) 16%,
-        var(--led-color) 42%,
-        color-mix(in oklab, var(--led-color) 50%, transparent) 72%,
-        transparent 90%
-      );
-    box-shadow:
-      inset 0 0 22px 4px color-mix(in oklab, var(--led-color) 65%, transparent),
-      0 0 32px 10px color-mix(in oklab, var(--led-color) 50%, transparent);
   }
+
+  /* Globales Subpixel-Mesh Overlay (displayMesh: true):
+     Authentische Mikro-Matrix (LCD Subpixel-Gitter) auf allen Tasten für Stream-Deck Hardware-Look */
+  .deck-key .key-mesh-overlay {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 3;
+    background-image:
+      radial-gradient(circle at 1.5px 1.5px, rgb(255 255 255 / 0.18) 1px, transparent 1px),
+      linear-gradient(to right, rgb(255 255 255 / 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(255 255 255 / 0.05) 1px, transparent 1px);
+    background-size: 3px 3px;
+    mix-blend-mode: overlay;
+    opacity: 0.85;
+  }
+
+  /* Kristallglas-Körper: Refraktive Glaskante, Lichtkanten-Schliff & diagonale Glasreflexion */
   .deck-key .key-backlight-indicator::after {
     content: '';
     position: absolute;
-    top: 48%;
-    left: 50%;
-    translate: -50% -50%;
-    width: 0.45em;
-    height: 0.45em;
-    border-radius: 50%;
-    background: #ffffff;
-    filter: blur(1.5px);
+    inset: 0;
+    border-radius: inherit;
+    border: 1px solid rgb(255 255 255 / 0.22);
+    background:
+      linear-gradient(135deg, rgb(255 255 255 / 0.32) 0%, rgb(255 255 255 / 0.06) 28%, transparent 48%),
+      linear-gradient(180deg, rgb(255 255 255 / 0.12) 0%, transparent 40%);
     box-shadow:
-      0 0 10px 4px var(--led-color),
-      0 0 24px 10px color-mix(in oklab, var(--led-color) 70%, transparent);
+      inset 0 1.5px 2px rgb(255 255 255 / 0.65),
+      inset 0 -2px 4px rgb(0 0 0 / 0.75);
+  }
+
+  /* Icons & Text auf Glas-Tasten mit Diffusor-LED: weißer Kontrast über Glas und Mesh */
+  .deck-key:has(.key-backlight-indicator) .key-icon,
+  .deck-key:has(.key-backlight-indicator) .key-label {
+    position: relative;
+    z-index: 5;
+    color: #ffffff !important;
+    filter: drop-shadow(0 2px 4px rgb(0 0 0 / 0.85));
+    text-shadow: 0 1px 3px rgb(0 0 0 / 0.85);
   }
   
   /* Tastenkuerzel-Etikett oben links */
@@ -975,41 +999,53 @@
     background: color-mix(in oklab, var(--key-label) 12%, transparent);
     border: 1px solid color-mix(in oklab, var(--key-label) 18%, transparent);
   }
-  /* Fader-Balken fuer Lautstaerke-Tasten */
+  /* Fader-Balken fuer Lautstaerke-Tasten:
+     Tiefschwarzer Einlasskanal (Wanne) mit Doppel-Konturrahmen (schwarzer Schattenring + feine weiße Acrylkante).
+     Garantiert 100%ige Lesbarkeit bei allen Beleuchtungsmodi (Diffusor-LED, Vollfläche Grün/Rot, Neutral dunkel). */
   .deck-key .key-level {
     position: absolute;
-    left: 12%;
-    right: 12%;
+    left: 10%;
+    right: 10%;
     bottom: 9%;
-    height: 0.28em;
+    height: clamp(4px, 0.32em, 5.5px);
     border-radius: 999px;
-    background: color-mix(in oklab, var(--key-label) 16%, transparent);
+    background: #000000;
+    border: 1px solid rgb(255 255 255 / 0.28);
+    box-shadow:
+      0 0 0 1px rgb(0 0 0 / 0.8),
+      0 2px 5px rgb(0 0 0 / 0.85);
     overflow: hidden;
+    z-index: 6;
   }
   .deck-key .key-level > span {
     display: block;
     height: 100%;
     border-radius: inherit;
-    background: var(--key-icon);
+    background: linear-gradient(90deg, #e2e8f0, #ffffff);
+    box-shadow: 0 0 4px #ffffff;
     transition: width 120ms ease-out;
   }
   /* Live-Pegel unter dem Lautstaerke-Balken (Farbzonen wie in OBS: bis -20 dB gruen, bis -9 dB orange,
-     darueber rot; -60..0 dB ueber die volle Breite). Dunkle "Wanne" als Hintergrund, damit die Farben
-     auch auf der vollflaechig gruenen/roten Mute-Taste und im hellen Theme klar erkennbar bleiben.
+     darueber rot; -60..0 dB ueber die volle Breite). Massiver Einlass mit Kontur-Rahmen, damit der Pegel
+     selbst bei greller Diffusor-LED und Vollflächen-Mute gestochen scharf ablesbar bleibt.
      Stumm: grau statt farbig. */
   .deck-key[data-meter='true'] .key-level {
-    bottom: 15%;
+    bottom: 16%;
   }
   .deck-key .key-meter {
     position: absolute;
-    left: 12%;
-    right: 12%;
-    bottom: 7%;
-    height: 0.3em;
+    left: 10%;
+    right: 10%;
+    bottom: 7.5%;
+    height: clamp(5px, 0.38em, 6.5px);
     border-radius: 999px;
-    background: rgb(12 14 20 / 0.6);
-    box-shadow: inset 0 1px 1px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.14);
+    background: #000000;
+    border: 1px solid rgb(255 255 255 / 0.28);
+    box-shadow:
+      0 0 0 1px rgb(0 0 0 / 0.8),
+      0 2px 5px rgb(0 0 0 / 0.85);
     overflow: hidden;
+    z-index: 6;
   }
   .deck-key .key-meter > span {
     position: absolute;
@@ -1039,6 +1075,7 @@
   }
   .house-plate-well {
     display: flex;
+    flex-direction: column;
     flex: 1;
     min-width: 0;
     min-height: 0;
@@ -1091,6 +1128,23 @@
     .deck-key[data-error='true'] {
       animation: none;
     }
+  }
+
+  @keyframes sf-gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  .animate-sf-gradient {
+    background-size: 200% auto;
+    animation: sf-gradient 4s linear infinite;
+  }
+  @keyframes sf-pulse {
+    0%, 100% { opacity: 0.8; filter: drop-shadow(0 0 8px rgba(251,146,60,0.8)); }
+    50% { opacity: 0.3; filter: drop-shadow(0 0 2px rgba(251,146,60,0.3)); }
+  }
+  .animate-sf-pulse {
+    animation: sf-pulse 3s ease-in-out infinite;
   }
 }
 

@@ -18,7 +18,8 @@ public class AuthController(AppDbContext db, PairingService pairing, BootstrapPo
     public async Task<object> Status()
     {
         var needsSetup = !await db.Devices.AnyAsync(d => d.Role == DeviceRole.Owner);
-        var canBootstrap = needsSetup && bootstrap.IsAllowed(HttpContext.Connection.RemoteIpAddress);
+        // Loopback darf immer Besitzer-Geräte einrichten (als Fallback/Recovery, falls das Token gelöscht wurde).
+        var canBootstrap = bootstrap.IsAllowed(HttpContext.Connection.RemoteIpAddress);
         // PC-Name als Vorschlag fuer den Geraetenamen - nur fuer den PC selbst, nicht fuers ganze Netz.
         // Im Docker-Container liefert MachineName die Container-ID, daher der Windows-Name per Konfiguration.
         var hostName = canBootstrap ? (config["Deck:HostName"] is { Length: > 0 } h ? h : Environment.MachineName) : null;
@@ -26,8 +27,9 @@ public class AuthController(AppDbContext db, PairingService pairing, BootstrapPo
     }
 
     /// <summary>
-    /// Richtet das allererste Geraet als Besitzer ein - nur direkt am PC (Loopback), solange es
-    /// noch keinen Besitzer gibt. Danach laufen alle weiteren Geraete ueber Kopplungscodes.
+    /// Richtet ein Besitzer-Geraet ein - nur direkt am PC (Loopback). 
+    /// Das ist auch möglich, wenn bereits ein Besitzer existiert (z.B. Recovery, wenn das Desktop-App-Token fehlt).
+    /// Danach laufen alle weiteren Geraete ueber Kopplungscodes.
     /// </summary>
     [HttpPost("bootstrap")]
     [EnableRateLimiting("auth")]
@@ -35,9 +37,7 @@ public class AuthController(AppDbContext db, PairingService pairing, BootstrapPo
     {
         if (!bootstrap.IsAllowed(HttpContext.Connection.RemoteIpAddress))
             return StatusCode(403, new { error = "Die Ersteinrichtung ist nur direkt am PC möglich, auf dem der Dienst läuft (z.B. über die Desktop-App oder http://localhost)." });
-        if (await db.Devices.AnyAsync(d => d.Role == DeviceRole.Owner))
-            return Conflict(new { error = "Es gibt bereits ein Besitzer-Gerät. Neue Geräte bitte über einen Kopplungscode hinzufügen." });
-
+        
         return Ok(await IssueDeviceAsync(input.DeviceName, DeviceRole.Owner));
     }
 

@@ -80,12 +80,13 @@ export interface ObsSnapshot {
  * nur der Besitzer darf aendern. */
 export interface AppearanceSettings {
   pressBehavior: 'spring' | 'stay'
-  volumeIndicator: 'led' | 'level' | 'corner' | 'glow'
-  /** Zustandsdarstellung der Tasten: "fill" = Vollflaeche (an gruen, aus rot), "icon" = nur Symbol/Text farbig. */
-  stateStyle: 'fill' | 'icon'
-  /** Gewaehlte Gehaeuse-Plate-Fassung um das Tastenraster ("house:<key>", siehe lib/housePlates.ts)
-   * oder "" fuer kein Gehaeuse (nur die normale App-Flaeche). */
+  volumeIndicator?: 'led' | 'level' | 'corner' | 'glow' | 'none'
+  /** Zustandsanzeige: "fill" (Vollfläche), "glow" (Diffusor-LED), "corner" (Eck-Diffusor), "led" (Runde LED), "level" (Status-Strich), "icon" (Nur Symbol/Text). */
+  stateStyle: 'fill' | 'glow' | 'corner' | 'led' | 'level' | 'icon'
+  /** Gewaehlte Gehaeuse-Plate-Fassung um das Tastenraster ("house:<key>", siehe lib/housePlates.ts). */
   plate: string
+  /** Optisches Subpixel-Mesh ueber alle Tasten (LCD Stream-Deck Matrix). */
+  displayMesh: boolean
 }
 
 export type FieldKind =

@@ -20,12 +20,10 @@ interface Props {
    * oben). "led" (Standard) = oben rechts die runde LED-Fassung. "level" = oben mittig ein kurzer
    * Status-Strich (.key-status-bar) statt der LED - ebenfalls nur ein reiner rot/gruen-EIN/AUS-
    * Status, kein Pegelwert. Gilt fuer ALLE Toggle-Tasten, nicht nur Lautstaerke-Tasten. */
-  volumeIndicator?: 'led' | 'level' | 'corner' | 'glow'
-  /**
-   * Zustandsdarstellung: "fill" (Standard) = Vollflaeche - an gruen, aus rot, weisses Symbol/Text;
-   * "icon" = Tastenkoerper bleibt neutral, nur Symbol, Beschriftung und Kante sind gruen/rot.
-   */
-  stateStyle?: 'fill' | 'icon'
+  volumeIndicator?: 'led' | 'level' | 'corner' | 'glow' | 'none'
+  stateStyle?: 'fill' | 'glow' | 'corner' | 'led' | 'level' | 'icon'
+  /** Optisches Subpixel-Mesh ueber alle Tasten (LCD Stream-Deck Look). */
+  displayMesh?: boolean
   /** Live-Pegel unter dem Lautstaerke-Balken: Schluessel im Pegel-Store (siehe state/meters.ts) und ob die
    * Quelle stummgeschaltet ist (dann grau). Nur zusammen mit `level` sinnvoll. */
   meterKey?: string | null
@@ -123,6 +121,7 @@ export function DeckKey({
   level = null,
   volumeIndicator = 'led',
   stateStyle = 'fill',
+  displayMesh = false,
   unavailable = false,
   meterKey = null,
   meterMuted = false,
@@ -158,13 +157,23 @@ export function DeckKey({
   const fillMode = stateStyle === 'fill'
   const off = !unavailable && stateKind === 'onoff' && !stateOn
   const tone: 'on' | 'off' | undefined = unavailable || stateKind == null ? undefined : stateOn ? 'on' : off ? 'off' : undefined
-  // Oberer An/Aus-Status-Indikator: LED (rund, oben rechts) oder Status-Strich (oben mittig) - nie
-  // beide gleichzeitig, gilt fuer JEDE Taste mit echtem Toggle-Zustand (nicht nur Lautstaerke-Tasten -
-  // die Wahl LED/Strich ist eine generelle Aussehen-Einstellung, kein Lautstaerke-spezifisches Detail).
-  const showLed = hasToggle && !unavailable && volumeIndicator === 'led'
-  const showStatusBar = hasToggle && !unavailable && volumeIndicator === 'level'
-  const showCorner = hasToggle && !unavailable && volumeIndicator === 'corner'
-  const showGlow = hasToggle && !unavailable && volumeIndicator === 'glow'
+
+  // Harmonische Zustandsanzeige ohne Kollision:
+  // Wenn stateStyle ein Indikator ist ('glow' | 'corner' | 'led' | 'level'), bleibt der Tastenkörper neutral
+  // und nur der gewählte Indikator leuchtet farbig.
+  // Bei 'fill' leuchtet die ganze Taste (ohne extra LED). Bei 'icon' nur Symbol & Text (ohne extra LED).
+  const effectiveIndicator =
+    stateStyle === 'glow' ? 'glow' :
+    stateStyle === 'corner' ? 'corner' :
+    stateStyle === 'led' ? 'led' :
+    stateStyle === 'level' ? 'level' :
+    stateStyle === 'fill' || stateStyle === 'icon' ? undefined :
+    volumeIndicator
+
+  const showLed = hasToggle && !unavailable && effectiveIndicator === 'led'
+  const showStatusBar = hasToggle && !unavailable && effectiveIndicator === 'level'
+  const showCorner = hasToggle && !unavailable && effectiveIndicator === 'corner'
+  const showGlow = hasToggle && !unavailable && effectiveIndicator === 'glow'
   // Unterer Pegelbalken (tatsaechlicher Lautstaerke-Pegel): laeuft IMMER mit, wenn die Taste einen
   // Lautstaerke-Bezug hat - unabhaengig vom oberen Status-Indikator (LED oder Strich).
   const showLevel = level != null
@@ -216,6 +225,7 @@ export function DeckKey({
         }
       }}
     >
+      {displayMesh && <span className="key-mesh-overlay" aria-hidden="true" />}
       {monitor && isRing ? (
         <span className="key-ring" style={{ width: Math.round(size * 0.82), height: Math.round(size * 0.82) }}>
           <RingGauge percent={monitor.raw} size={Math.round(size * 0.82)} />

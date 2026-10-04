@@ -7,7 +7,19 @@ release lives in `CHANGELOG.md`.
 
 # English
 
-## v2026.10.12-dev – 2026-10-03 01:34:35
+## v2026.10.13-dev – 2026-10-04 10:07:00
+
+SushiFlux Limited Edition (Dark & Snow), animated desk reflections, and curved LED strips without blinking.
+
+- **SushiFlux Limited Edition Enclosures** (`HousePlate.tsx`, `housePlates.ts`, `index.css`): Added exclusive "SushiFlux Limited Edition" (`sushiflux`) and "SushiFlux Limited Edition Snow" (`sushiflux_snow`) as selectable physical chassis variants in the Appearance > Chassis settings.
+  - **Dark Edition**: Obsidian-black chassis (`#020617`) with a `bg-black/80` keybed and orange (`#fb923c`) sheen.
+  - **Snow Edition**: Bright white chassis (`#f1f5f9`) with a heavily contrasting dark keybed (`bg-slate-900/90`) and crisp shadows.
+  - **Dynamic Underglow (Desk Reflection)**: Both variants cast a massive, soft `-inset-3` glow (`blur-2xl`) onto the desk behind the Stream Deck. Direct side LED strips were completely removed, leaving only the indirect shining effect ("Underglow").
+  - **Curved Bottom LED Strip**: The hardware light bar at the bottom edge was rebuilt so the glow perfectly follows the rounded bottom corners of the deck (via `WebkitMask` with `linear-gradient` border clipping on `rounded-b-3xl`).
+- **Non-blinking Gradient Animations** (`index.css`, `HousePlate.tsx`): All SushiFlux-specific lighting effects (header text, desk underglow, bottom LED curve) now use the newly added, fluid `animate-sf-gradient` CSS animation (background gradient shift from orange to rose to cyan via `background-position`), while the disruptive blinking (`animate-sf-pulse`) has been entirely removed.
+- **Backend Prep for SushiFlux Custom Colors** (`SettingsService.cs`, `AppearanceController.cs`, `api/types.ts`): Extended `AppearanceSettings` / `AppearanceDto` with a new `SushiFluxColors` string array field to prepare for the upcoming UI color customizer.
+
+## v2026.10.12-dev – 2026-10-03 01:35:58
 
 Symmetrical corner LED and under-key diffusor backlight indicators, CueDeck Studio Pro physical chassis enclosure, and 4K 60fps marketing video pipeline with dedicated showcase scene.
 
@@ -258,7 +270,19 @@ Initial scaffold of Baton - a free, community-extensible Stream Deck alternative
 
 # Deutsch
 
-## v2026.10.12-dev – 2026-10-03 01:34:35
+## v2026.10.13-dev – 2026-10-04 10:07:00
+
+SushiFlux Limited Edition (Dark & Snow), animierte Tisch-Reflektionen und geschwungene LED-Streifen ohne Blinken.
+
+- **SushiFlux Limited Edition Gehäuse** (`HousePlate.tsx`, `housePlates.ts`, `index.css`): Zusätzliche exklusive "SushiFlux Limited Edition" (Modell `sushiflux`) und "SushiFlux Limited Edition Snow" (Modell `sushiflux_snow`) als wählbare physische Gehäuse unter Aussehen > Gehäuse integriert.
+  - **Dark Edition**: Tiefschwarzes Gehäuse (`#020617`) mit `bg-black/80` Tastenwanne und orangenem (`#fb923c`) Glanzlicht.
+  - **Snow Edition**: Helles, weißes Gehäuse (`#f1f5f9`) mit stark kontrastierendem dunklen Tastenbett (`bg-slate-900/90`) und eisigen, dezenten Schatten.
+  - **Dynamisches Underglow (Tisch-Reflektion)**: Beide Varianten werfen einen massiven, weichen `-inset-3` Glow (`blur-2xl`) auf den Tisch hinter dem Stream Deck. Seitliche direkte LED-Leisten wurden komplett entfernt, sodass nur noch der indirekte Shining-Effekt ("Unterbodenbeleuchtung") sichtbar bleibt.
+  - **Geschwungener unterer LED-Streifen**: Die Hardware-Leiste am unteren Rand des Decks wurde so umgebaut, dass der Leuchtstreifen exakt der Abrundung der unteren Ecken des Decks folgt (`WebkitMask` mit `linear-gradient` border clipping auf `rounded-b-3xl`).
+- **Nicht-blinkende Verlauf-Animationen** (`index.css`, `HousePlate.tsx`): Alle SushiFlux-spezifischen Lichteffekte (Header-Text, Tisch-Underglow, untere LED-Leiste) nutzen jetzt die neu hinzugefügte, flüssige `animate-sf-gradient` CSS-Animation (Hintergrund-Farbverlauf von Orange über Rosa zu Cyan, animiert über `background-position`), das als störend empfundene Blinken (`animate-sf-pulse`) wurde restlos entfernt.
+- **Backend Vorbereitung für SushiFlux Custom Colors** (`SettingsService.cs`, `AppearanceController.cs`, `api/types.ts`): Die Datenstruktur `AppearanceSettings` / `AppearanceDto` wurde um ein neues Feld `SushiFluxColors` (String-Array) erweitert, um den Nutzern später im UI die Farbgestaltung des SushiFlux-Farbverlaufs zu ermöglichen.
+
+## v2026.10.12-dev – 2026-10-03 01:35:58
 
 Symmetrische Eck-LED und Diffusor-Tastenhintergrundbeleuchtung, physisches CueDeck Studio Pro Chassis-Gehäuse sowie 4K-60fps-Marketing-Videopipeline mit dedizierter Showcase-Szene.
 

@@ -16,7 +16,7 @@ import { reloadAppearance, reloadAutomationStates, reloadCatalog, reloadDecks, r
 import { setState, useStore } from './state/store'
 import { loadIconSet } from './lib/icons'
 
-type Phase = { kind: 'loading' } | { kind: 'bootstrap'; hostName: string | null } | { kind: 'pair'; code: string } | { kind: 'ready' } | { kind: 'error'; message: string }
+type Phase = { kind: 'loading' } | { kind: 'bootstrap'; hostName: string | null; isRecovery: boolean } | { kind: 'pair'; code: string } | { kind: 'ready' } | { kind: 'error'; message: string }
 
 function OwnerOnly({ children }: { children: ReactNode }) {
   const me = useStore((s) => s.me)
@@ -58,7 +58,7 @@ export default function App() {
         }
       }
       const status = await api<{ needsSetup: boolean; canBootstrap: boolean; hostName: string | null }>('/api/auth/status')
-      setPhase(status.canBootstrap && !code ? { kind: 'bootstrap', hostName: status.hostName } : { kind: 'pair', code })
+      setPhase(status.canBootstrap && !code ? { kind: 'bootstrap', hostName: status.hostName, isRecovery: !status.needsSetup } : { kind: 'pair', code })
     } catch (e) {
       setPhase({ kind: 'error', message: errorMessage(e) })
     }
@@ -100,7 +100,7 @@ export default function App() {
       )
       break
     case 'bootstrap':
-      content = <ConnectPage mode="bootstrap" defaultName={phase.hostName} onConnected={() => void connect()} />
+      content = <ConnectPage mode="bootstrap" defaultName={phase.hostName} isRecovery={phase.isRecovery} onConnected={() => void connect()} />
       break
     case 'pair':
       content = <ConnectPage mode="pair" initialCode={phase.code} onConnected={() => void connect()} />

@@ -36,11 +36,14 @@ export interface HousePlatePreset {
   sheen: string
   /** Optionales Hardware-Enclosure (wie im offiziellen Marketing-Video): Status-LED, Eckschrauben, RGB-Underglow. */
   hardware?: {
+    model?: 'studio' | 'cyber' | 'stealth' | 'executive' | 'sushiflux'
     screws?: boolean
     header?: boolean
-    underglow?: boolean
+    underglow?: boolean | string
     chamferHighlight?: string
     ledColor?: string
+    textColor?: string
+    accentColor?: string
   }
 }
 
@@ -87,6 +90,71 @@ export const HOUSE_PLATE_PRESETS: HousePlatePreset[] = [
       underglow: true,
       chamferHighlight: 'rgba(6, 182, 212, 0.6)',
       ledColor: '#34d399',
+    },
+  },
+  {
+    key: 'house:studiopro_snow',
+    name: 'CueDeck Studio Pro Snow',
+    description: 'Strahlend weißes Pro-Gehäuse mit eisblauen Akzenten',
+    base: '#e2e8f0',
+    sheen: 'rgba(255, 255, 255, 0.9)',
+    surface: 'linear-gradient(to bottom, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%)',
+    hardware: {
+      screws: true,
+      header: true,
+      underglow: 'bg-gradient-to-r from-sky-300 via-blue-400 to-indigo-500 shadow-[0_0_15px_rgba(56,189,248,0.85)]',
+      chamferHighlight: 'rgba(56, 189, 248, 0.5)',
+      ledColor: '#38bdf8',
+      textColor: 'text-slate-600',
+      accentColor: 'text-sky-500',
+    },
+  },
+  {
+    key: 'house:studiopro_cyber',
+    name: 'CueDeck Studio Pro Cyber',
+    description: 'Neon-Cyberpunk-Look mit magentafarbenem Underglow',
+    base: '#0f172a',
+    sheen: 'rgba(236, 72, 153, 0.5)',
+    surface: 'linear-gradient(to bottom, #1e293b 0%, #0f172a 50%, #020617 100%)',
+    hardware: {
+      model: 'cyber',
+      screws: true,
+      header: true,
+      underglow: 'bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 shadow-[0_0_15px_rgba(236,72,153,0.85)]',
+      chamferHighlight: 'rgba(236, 72, 153, 0.7)',
+      ledColor: '#ec4899',
+    },
+  },
+  {
+    key: 'house:sushiflux',
+    name: 'SushiFlux Limited Edition',
+    description: 'Ultra-Premium High Class Edition – Exklusives SushiFlux Design',
+    base: '#020617',
+    sheen: 'rgba(251, 146, 60, 0.6)',
+    surface: 'linear-gradient(to bottom, #0f172a 0%, #020617 50%, #000000 100%)',
+    hardware: {
+      model: 'sushiflux',
+      screws: false,
+      header: true,
+      underglow: 'bg-gradient-to-r from-orange-500 via-rose-500 to-cyan-500 shadow-[0_0_20px_rgba(244,63,94,0.9)]',
+      chamferHighlight: 'rgba(251, 146, 60, 0.8)',
+      ledColor: '#fb923c',
+    },
+  },
+  {
+    key: 'house:sushiflux_snow',
+    name: 'SushiFlux Limited Edition Snow',
+    description: 'Ultra-Premium High Class Edition – Strahlend weißes SushiFlux Design',
+    base: '#f1f5f9',
+    sheen: 'rgba(251, 146, 60, 0.4)',
+    surface: 'linear-gradient(to bottom, #ffffff 0%, #f1f5f9 50%, #e2e8f0 100%)',
+    hardware: {
+      model: 'sushiflux',
+      screws: false,
+      header: true,
+      underglow: 'bg-gradient-to-r from-orange-500 via-rose-500 to-cyan-500 shadow-[0_0_20px_rgba(244,63,94,0.9)]',
+      chamferHighlight: 'rgba(251, 146, 60, 0.4)',
+      ledColor: '#fb923c',
     },
   },
   plate(

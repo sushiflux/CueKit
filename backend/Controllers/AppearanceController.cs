@@ -6,9 +6,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Deck.Server.Controllers;
 
-public record AppearanceDto(string PressBehavior, string VolumeIndicator, string Plate, string StateStyle, bool DisplayMesh, string[] SushiFluxColors);
+public record AppearanceDto(string PressBehavior, string VolumeIndicator, string Plate, string StateStyle, bool DisplayMesh, string[] LedColors, string LedEffect, int LedSpeed);
 
-public record AppearanceInput(string PressBehavior, string VolumeIndicator, string? Plate, string? StateStyle = null, bool? DisplayMesh = null, string[]? SushiFluxColors = null);
+public record AppearanceInput(string PressBehavior, string VolumeIndicator, string? Plate, string? StateStyle = null, bool? DisplayMesh = null, string[]? LedColors = null, string? LedEffect = null, int? LedSpeed = null);
 
 /// <summary>
 /// App-weite (nicht Pro-Deck) Aussehen-Einstellungen: Tastendruckverhalten, Lautstaerkeanzeige und
@@ -28,7 +28,7 @@ public class AppearanceController(SettingsService settings, HubNotifier notifier
     public AppearanceDto Get() => ToDto();
 
     private AppearanceDto ToDto() =>
-        new(settings.AppearancePressBehavior, settings.AppearanceVolumeIndicator, settings.AppearancePlate, settings.AppearanceStateStyle, settings.AppearanceDisplayMesh, settings.AppearanceSushiFluxColors.Split(','));
+        new(settings.AppearancePressBehavior, settings.AppearanceVolumeIndicator, settings.AppearancePlate, settings.AppearanceStateStyle, settings.AppearanceDisplayMesh, settings.AppearanceLedColors.Split(','), settings.AppearanceLedEffect, settings.AppearanceLedSpeed);
 
     [HttpPut]
     [Authorize(AuthenticationSchemes = DeviceAuth.Scheme, Policy = DeviceAuth.OwnerPolicy)]
@@ -58,7 +58,9 @@ public class AppearanceController(SettingsService settings, HubNotifier notifier
             [SettingKeys.AppearancePlate] = plate,
             [SettingKeys.AppearanceStateStyle] = stateStyle,
             [SettingKeys.AppearanceDisplayMesh] = displayMesh ? "true" : "false",
-            [SettingKeys.AppearanceSushiFluxColors] = input.SushiFluxColors is not null ? string.Join(",", input.SushiFluxColors) : settings.AppearanceSushiFluxColors,
+            [SettingKeys.AppearanceLedColors] = input.LedColors is not null ? string.Join(",", input.LedColors.Take(4)) : settings.AppearanceLedColors, // Max 4 colors
+            [SettingKeys.AppearanceLedEffect] = input.LedEffect ?? settings.AppearanceLedEffect,
+            [SettingKeys.AppearanceLedSpeed] = (input.LedSpeed ?? settings.AppearanceLedSpeed).ToString(),
         }, ct);
 
         notifier.AppearanceChanged();

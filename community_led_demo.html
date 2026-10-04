@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>CueKit Community LED Demo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; }
+    .neon-text {
+      color: #a78bfa;
+      text-shadow: 0 0 10px #a78bfa, 0 0 20px #a78bfa;
+    }
+    .neon-box {
+      box-shadow: 0 0 15px #ec4899, inset 0 0 15px #ec4899;
+      background: rgba(236, 72, 153, 0.2);
+    }
+    
+    /* Animation für das Licht (Sweep-Simulation) */
+    @keyframes sweep {
+      0% { filter: hue-rotate(0deg); }
+      100% { filter: hue-rotate(360deg); }
+    }
+    .anim-sweep {
+      animation: sweep 4s linear infinite;
+    }
+  </style>
+</head>
+<body class="p-8 pb-32">
+
+  <div class="max-w-4xl mx-auto space-y-16">
+    
+    <header class="border-b border-slate-700 pb-8">
+      <h1 class="text-3xl font-bold text-cyan-400">Wie funktioniert das CueKit Community-System?</h1>
+      <p class="text-slate-400 mt-2">
+        Dieses Dokument zeigt dir Schritt für Schritt, wie aus einer simplen Text-Datei (JSON) 
+        ein fertiges Gehäuse mit "Notch" (Aussparung), leuchtendem Text und einem Button mit LED wird.
+      </p>
+    </header>
+
+    <!-- TEIL 1: DIE PLATE -->
+    <section>
+      <h2 class="text-2xl font-bold text-white mb-6">Teil 1: Die Plate (Gehäuse) mit Notch & Text</h2>
+      
+      <!-- Schritt 1 -->
+      <div class="mb-12">
+        <h3 class="text-xl font-semibold text-pink-400">Schritt 1: Das JSON (Der Bauplan des Nutzers)</h3>
+        <p class="text-slate-400 mb-4">Der Community-Bastler lädt keine HTML-Datei hoch, sondern nur diesen Bauplan. Er sagt dem Programm, dass es eine "Notch" und einen "Text" gibt:</p>
+        <pre class="bg-slate-900 p-4 rounded-lg text-sm text-green-400 border border-slate-700 overflow-x-auto">
+{
+  "id": "my-notch-plate",
+  "style": { "background": "#1e293b", "width": "500px", "height": "300px" },
+  "ledZones": [
+    {
+      "id": "notch-led",
+      "type": "box",
+      "position": { "top": "0px", "left": "150px", "width": "200px", "height": "20px" },
+      "shape": "notch"
+    },
+    {
+      "id": "logo-text",
+      "type": "text",
+      "text": "STUDIO PRO",
+      "position": { "bottom": "20px", "left": "150px", "width": "200px", "height": "30px" }
+    }
+  ]
+}
+        </pre>
+      </div>
+
+      <!-- Schritt 2 -->
+      <div class="mb-12">
+        <h3 class="text-xl font-semibold text-pink-400">Schritt 2: Das leere Gehäuse</h3>
+        <p class="text-slate-400 mb-4">React liest "width: 500px, height: 300px, background: #1e293b". Es zeichnet eine simple leere Box.</p>
+        <div class="relative bg-slate-800 rounded-3xl border border-slate-600 shadow-2xl" style="width: 500px; height: 300px;">
+          <!-- Leer -->
+        </div>
+        <pre class="bg-slate-900 p-4 rounded-lg text-sm text-slate-300 mt-4 border border-slate-700">
+&lt;div style="width: 500px; height: 300px; background: #1e293b;"&gt;&lt;/div&gt;</pre>
+      </div>
+
+      <!-- Schritt 3 -->
+      <div class="mb-12">
+        <h3 class="text-xl font-semibold text-pink-400">Schritt 3: Die Notch (Aussparung) wird platziert</h3>
+        <p class="text-slate-400 mb-4">React liest jetzt das Array <code>ledZones</code>. Es findet das Objekt "notch-led". Es erstellt an den Koordinaten (top: 0, left: 150px) einen Container. Wir geben dem Container einen leuchtenden Rahmen (CSS Box-Shadow), der die Endnutzer-Farbe (z.B. Pink) annimmt.</p>
+        <div class="relative bg-slate-800 rounded-3xl border border-slate-600 shadow-2xl" style="width: 500px; height: 300px;">
+          
+          <!-- Die generierte Notch LED -->
+          <div class="absolute bg-black rounded-b-xl border border-pink-500/50 neon-box anim-sweep" 
+               style="top: 0px; left: 150px; width: 200px; height: 20px;">
+          </div>
+
+        </div>
+        <pre class="bg-slate-900 p-4 rounded-lg text-sm text-slate-300 mt-4 border border-slate-700">
+&lt;!-- React generiert diesen Code basierend auf dem JSON! --&gt;
+&lt;div style="position: absolute; top: 0px; left: 150px; width: 200px; height: 20px;" 
+     class="neon-box"&gt;
+&lt;/div&gt;</pre>
+      </div>
+
+      <!-- Schritt 4 -->
+      <div class="mb-12">
+        <h3 class="text-xl font-semibold text-pink-400">Schritt 4: Der LED Text kommt dazu</h3>
+        <p class="text-slate-400 mb-4">Als nächstes findet React die zweite LED-Zone: "logo-text". Anstatt einer Box rendert es ein Textfeld an (bottom: 20px, left: 150px). Der Text erhält ebenfalls die Farbe des Nutzers (hier: Violett) und leuchtet.</p>
+        <div class="relative bg-slate-800 rounded-3xl border border-slate-600 shadow-2xl" style="width: 500px; height: 300px;">
+          
+          <!-- Notch -->
+          <div class="absolute bg-black rounded-b-xl border border-pink-500/50 neon-box anim-sweep" 
+               style="top: 0px; left: 150px; width: 200px; height: 20px;">
+          </div>
+
+          <!-- Text LED -->
+          <div class="absolute flex items-center justify-center font-black tracking-[0.3em] text-lg neon-text anim-sweep" 
+               style="bottom: 20px; left: 150px; width: 200px; height: 30px;">
+            STUDIO PRO
+          </div>
+
+        </div>
+      </div>
+
+    </section>
+
+    <!-- TEIL 2: DER BUTTON -->
+    <section class="border-t border-slate-700 pt-16">
+      <h2 class="text-2xl font-bold text-white mb-6">Teil 2: Ein Custom Button mit LED</h2>
+      
+      <!-- Schritt 5 -->
+      <div class="mb-12">
+        <h3 class="text-xl font-semibold text-pink-400">Schritt 5: Das JSON des Buttons</h3>
+        <p class="text-slate-400 mb-4">Gleiches Spiel für Tasten-Designs! Der Bastler definiert eine "ledZone" für den Button, z. B. einen Leuchtstreifen am oberen Rand.</p>
+        <pre class="bg-slate-900 p-4 rounded-lg text-sm text-green-400 border border-slate-700 overflow-x-auto">
+{
+  "id": "cyber-button",
+  "style": { "background": "#0f172a", "borderRadius": "16px" },
+  "ledZones": [
+    {
+      "id": "top-indicator",
+      "type": "strip",
+      "position": { "top": "4px", "left": "20%", "width": "60%", "height": "4px" }
+    }
+  ]
+}
+        </pre>
+      </div>
+
+      <!-- Schritt 6 -->
+      <div class="mb-12">
+        <h3 class="text-xl font-semibold text-pink-400">Schritt 6: Der Button wird gerendert</h3>
+        <p class="text-slate-400 mb-4">React baut zuerst die leere Taste (110x110 Pixel) und legt dann das Icon in die Mitte.</p>
+        <div class="relative bg-slate-900 rounded-2xl border-2 border-slate-700 flex items-center justify-center shadow-lg" style="width: 110px; height: 110px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-300"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+      </div>
+
+      <!-- Schritt 7 -->
+      <div class="mb-12">
+        <h3 class="text-xl font-semibold text-pink-400">Schritt 7: Die Taste bekommt ihre LED</h3>
+        <p class="text-slate-400 mb-4">React liest die <code>ledZones</code> und packt das Licht-Div genau dorthin, wo das JSON es vorschreibt (top: 4px, left: 20%). Die Farbe ändert sich dynamisch je nach Tasten-Zustand (z.B. Grün für aktiv).</p>
+        <div class="relative bg-slate-900 rounded-2xl border-2 border-slate-700 flex items-center justify-center shadow-lg" style="width: 110px; height: 110px;">
+          
+          <!-- Die LED Zone aus dem JSON -->
+          <div class="absolute rounded-full" 
+               style="top: 4px; left: 20%; width: 60%; height: 4px; background-color: #34d399; box-shadow: 0 0 10px #34d399;">
+          </div>
+
+          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-400"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Fazit -->
+    <div class="bg-cyan-900/30 border border-cyan-500/50 p-6 rounded-xl mt-12">
+      <h3 class="text-lg font-bold text-cyan-400 mb-2">Die goldene Regel:</h3>
+      <p class="text-cyan-100">
+        Das Programm versteht den JSON-Code, weil <strong>wir Programmierer</strong> vorher in React eine Komponente geschrieben haben, die als Übersetzer fungiert. <br><br>
+        React iteriert einfach über die Liste <code>ledZones</code> und baut für jeden Eintrag einen <code>&lt;div&gt;</code>-Container. Dabei weist React dem CSS-Attribut <code>style</code> exakt die Koordinaten zu, die im JSON stehen.
+      </p>
+    </div>
+
+  </div>
+
+</body>
+</html>

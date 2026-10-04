@@ -87,6 +87,9 @@ export interface AppearanceSettings {
   plate: string
   /** Optisches Subpixel-Mesh ueber alle Tasten (LCD Stream-Deck Matrix). */
   displayMesh: boolean
+  ledColors?: string[]
+  ledEffect?: string
+  ledSpeed?: number
 }
 
 export type FieldKind =

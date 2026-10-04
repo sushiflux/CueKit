@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CueKit Community Creator Guide</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background-color: #0f172a; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.7; }
+    h1 { color: #fff; }
+    h2 { color: #22d3ee; border-bottom: 1px solid #334155; padding-bottom: 0.75rem; margin-top: 3.5rem; margin-bottom: 1.5rem; font-size: 1.8rem; font-weight: 700; }
+    h3 { color: #f472b6; margin-top: 2rem; margin-bottom: 1rem; font-size: 1.3rem; font-weight: 600; }
+    p { margin-bottom: 1.25rem; color: #cbd5e1; font-size: 1.05rem; }
+    ul, ol { margin-bottom: 1.5rem; padding-left: 1.5rem; color: #cbd5e1; font-size: 1.05rem; }
+    li { margin-bottom: 0.5rem; }
+    strong { color: #f8fafc; font-weight: 600; }
+    em { color: #94a3b8; font-style: italic; }
+    code { background-color: #1e293b; padding: 0.2rem 0.4rem; border-radius: 0.375rem; font-family: ui-monospace, monospace; color: #a78bfa; font-size: 0.95em; }
+    .card { background-color: #1e293b; padding: 2rem; border-radius: 1rem; border: 1px solid #334155; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5); margin-bottom: 2rem; }
+    .highlight-box { background-color: rgba(34, 211, 238, 0.1); border-left: 4px solid #22d3ee; padding: 1rem 1.5rem; border-radius: 0 0.5rem 0.5rem 0; margin: 1.5rem 0; }
+  </style>
+</head>
+<body class="p-4 sm:p-8 lg:p-12 pb-32">
+  <div class="max-w-3xl mx-auto">
+    
+    <header class="text-center mb-16 mt-8">
+      <div class="inline-block p-4 rounded-full bg-slate-800 border border-slate-700 mb-6 shadow-xl">
+        <span class="text-5xl">🎨</span>
+      </div>
+      <h1 class="text-4xl md:text-5xl font-black mb-4 tracking-tight drop-shadow-lg">CueKit Creator Guide</h1>
+      <p class="text-xl text-slate-400 font-medium">Das offizielle Community-Wiki für Gehäuse & Tasten</p>
+    </header>
+
+    <div class="card mb-12">
+      <p class="mb-0 text-lg">
+        Willkommen im offiziellen Handbuch für CueKit-Designer! Dieser Leitfaden erklärt dir haargenau, wie du eigene Gehäuse (Plates) und Tasten (Buttons) erstellst, wie unser intelligentes LED-System funktioniert und wie du deine Kreationen im Community-Store veröffentlichst.
+      </p>
+    </div>
+
+    <section>
+      <h2>1. Das Grundprinzip: Kein Code notwendig!</h2>
+      <p>Eines vorweg: <strong>Du musst nicht programmieren können.</strong></p>
+      <p>Alle Community-Designs in CueKit werden völlig ohne HTML, CSS oder JavaScript erstellt. Du nutzt stattdessen unseren visuellen <strong>CueKit Plate Builder</strong> im Browser.</p>
+      <p>Dort lädst du deine Hintergrundbilder hoch, ziehst Leuchtstreifen an die gewünschte Position und klickst auf "Speichern". Das System generiert im Hintergrund automatisch einen sicheren, standardisierten JSON-Bauplan.</p>
+    </section>
+
+    <section>
+      <h2>2. Die Anatomie einer Taste (Das Schichten-Modell)</h2>
+      <p>Um CueKit-Designs zu verstehen, musst du wissen, wie unsere Engine Grafiken aufbaut. CueKit rendert Tasten immer in <strong>drei Schichten (Z-Index)</strong>, wie bei einem Hamburger:</p>
+      
+      <ol class="list-decimal marker:text-cyan-500 marker:font-bold">
+        <li><strong>Die untere Schicht (Hintergrund-Licht):</strong> Hier rendert CueKit z.B. einen weichen Leucht-Glow (Diffusor-Effekt), der von <em>unter</em> der Taste hervorstrahlt.</li>
+        <li><strong>Die mittlere Schicht (Deine Grafik):</strong> Das ist deine hochgeladene Textur (z.B. eine Holz-Taste, ein Cyberpunk-Schalter).</li>
+        <li><strong>Die obere Schicht (Overlay-LEDs):</strong> Hier liegen kleine Status-LEDs (z. B. ein leuchtender Punkt oben rechts oder ein leuchtender Text), die <em>auf</em> der Taste liegen.</li>
+      </ol>
+
+      <h3>🔄 Mix & Match (Der große Vorteil)</h3>
+      <p>Weil diese drei Schichten völlig unabhängig voneinander sind, kann der Endnutzer dein Design <strong>jederzeit mit CueKit-Standard-Funktionen mischen</strong>!</p>
+      
+      <div class="highlight-box">
+        <p class="mb-0 text-sm text-cyan-50">
+          <strong>Beispiel:</strong> Du baust einen "Retro-Button" mit einem eigenen kleinen roten Leuchtstreifen in der Mitte. Der Endnutzer lädt dein Design herunter, möchte aber lieber unsere Standard-"Runde LED oben rechts" nutzen. Er kann in den CueKit-Einstellungen einfach auswählen: <em>"Nutze CueKit Standard-LED"</em>.<br><br>
+          CueKit deaktiviert dann deinen Leuchtstreifen und legt unsere runde LED als <em>obere Schicht (Layer 3)</em> über deine Retro-Taste. Alles bleibt 100% kompatibel!
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <h2>3. LED-Zonen (Licht ins Dunkel bringen)</h2>
+      <p>Du kannst in deinen Gehäusen und Tasten beliebige Lichter verbauen. Jedes Licht wird intern als "LED Zone" bezeichnet.</p>
+
+      <h3>Welche Arten von Lichtern gibt es?</h3>
+      <p>Im Visual Builder kannst du folgende Typen von Lichtern in dein Design ziehen:</p>
+      <ul class="list-disc marker:text-pink-500">
+        <li><strong><code>strip</code> (Neon-Röhre / Streifen):</strong> Ein eckiger oder abgerundeter Leuchtstreifen. Unterstützt mehrfarbige "Sweep"-Animationen.</li>
+        <li><strong><code>dot</code> (Punkt-LED):</strong> Eine kleine, runde Hardware-Diode (ideal für Aufnahme- oder Mute-Status).</li>
+        <li><strong><code>text</code> (Leuchtschrift):</strong> Lass ganze Wörter (z.B. "STUDIO PRO") in der Farbe des Nutzers leuchten.</li>
+        <li><strong><code>svg-path</code> (Freiform / Um-die-Ecke):</strong> Wenn du ein L-förmiges Licht oder eine organische Kurve brauchst. Du zeichnest den Pfad im Builder, CueKit bringt die Form zum Leuchten.</li>
+      </ul>
+
+      <h3>Woher weiß das Licht, in welcher Farbe es leuchten soll?</h3>
+      <p>Das ist das Geniale: <strong>Gar nicht!</strong> Du legst im Builder nur die <em>Position</em> und die <em>Form</em> der LED Zone fest.</p>
+      <p>Wenn der Endnutzer dein Design herunterlädt und in seinen Einstellungen die Farbe "Pink" mit dem Effekt "Breathe" (Atmen) auswählt, füllt die CueKit-Engine deine definierten Zonen automatisch mit pulsierendem pinkem Licht.</p>
+    </section>
+
+    <section>
+      <h2>4. Gehäuse (Plates) vs. Tastenraster</h2>
+      <p>Wichtig beim Entwerfen von Gehäusen: <strong>Du legst nicht fest, wie viele Tasten das Gehäuse hat!</strong></p>
+      <p>Ein gutes Community-Gehäuse ist wie ein Bilderrahmen, der sich dynamisch anpasst, egal ob der Nutzer ein 3x2 oder ein 8x4 Raster verwendet.</p>
+
+      <p>Im Builder definierst du nur drei Dinge für dein Gehäuse:</p>
+      <ol class="list-decimal marker:text-cyan-500 marker:font-bold">
+        <li><strong>Das Padding (Gehäuserand):</strong> Wie dick ist der Rand des Gehäuses außen herum? (z.B. 40 Pixel).</li>
+        <li><strong>Den Gap (Tastenabstand):</strong> Wie viel Platz ist zwischen den einzelnen Tasten? (z.B. 12 Pixel). Durch diesen "Spalt" scheint das Hintergrundbild deines Gehäuses durch!</li>
+        <li><strong>Die Button Size (Tastengröße):</strong> Tasten sind in CueKit immer exakt quadratisch (z.B. 110x110 Pixel).</li>
+      </ol>
+      <p>CueKit nimmt diese drei Werte und skaliert dein Gehäuse-Hintergrundbild automatisch perfekt um das individuelle Raster des Nutzers herum.</p>
+    </section>
+
+    <section>
+      <h2>5. Veröffentlichen & Tags</h2>
+      <p>Wenn dein Design fertig ist, lädst du es in den CueKit Community Store hoch. Damit andere Nutzer dein Kunstwerk finden, ist ein gutes Tagging-System (Schlagwörter) Pflicht.</p>
+
+      <p>Du kannst deinem Design im Portal <strong>eigene Tags</strong> zuweisen:</p>
+      <ul class="list-none flex flex-wrap gap-2 mb-6">
+        <li><span class="bg-slate-800 text-slate-300 px-3 py-1 rounded-full border border-slate-600 text-sm">Photoshop</span></li>
+        <li><span class="bg-slate-800 text-slate-300 px-3 py-1 rounded-full border border-slate-600 text-sm">OBS</span></li>
+        <li><span class="bg-slate-800 text-slate-300 px-3 py-1 rounded-full border border-slate-600 text-sm">Cyberpunk</span></li>
+        <li><span class="bg-slate-800 text-slate-300 px-3 py-1 rounded-full border border-slate-600 text-sm">Minimalistisch</span></li>
+      </ul>
+
+      <p>Zusätzlich vergibt CueKit <strong>automatische System-Tags</strong>, je nachdem, was du im Builder genutzt hast:</p>
+      <ul class="list-disc marker:text-pink-500">
+        <li><strong>Animiert:</strong> Wenn deine LED-Zonen Sweep-Effekte unterstützen.</li>
+        <li><strong>Statisch:</strong> Wenn es nur Ein-Farb-LEDs sind.</li>
+        <li><strong>Custom LEDs:</strong> Wenn du eigene LED-Zonen definiert hast.</li>
+      </ul>
+
+      <p>So können Endnutzer im Store zielsicher filtern: <em>"Zeige mir alle minimalistischen Gehäuse für Photoshop, die animierte LEDs unterstützen."</em></p>
+    </section>
+
+    <section>
+      <h2>6. Zusammenfassung der Architektur</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+          <div class="text-3xl mb-3">🛠️</div>
+          <h4 class="font-bold text-white mb-2">1. Designer</h4>
+          <p class="text-sm text-slate-400 mb-0">Du baust das Design visuell und bequem im Browser zusammen.</p>
+        </div>
+        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 relative">
+          <div class="hidden md:block absolute -left-3 top-1/2 -translate-y-1/2 text-slate-500 text-2xl">→</div>
+          <div class="text-3xl mb-3">📄</div>
+          <h4 class="font-bold text-white mb-2">2. JSON</h4>
+          <p class="text-sm text-slate-400 mb-0">Der Browser speichert deine Arbeit als sicheren Bauplan (Koordinaten, Zonen).</p>
+        </div>
+        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 relative">
+          <div class="hidden md:block absolute -left-3 top-1/2 -translate-y-1/2 text-slate-500 text-2xl">→</div>
+          <div class="text-3xl mb-3">🚀</div>
+          <h4 class="font-bold text-white mb-2">3. CueKit App</h4>
+          <p class="text-sm text-slate-400 mb-0">Die React-Engine des Nutzers liest das JSON und gießt die Wunschfarbe in deine Form.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer class="mt-16 text-center text-slate-500 text-sm border-t border-slate-800 pt-8">
+      &copy; 2026 SushiFlux · CueKit Community Team
+    </footer>
+
+  </div>
+</body>
+</html>

@@ -23,7 +23,9 @@ public static class SettingKeys
     public const string AppearancePlate = "appearance.plate";
     /// <summary>Optisches Subpixel-Mesh ueber alle Tasten (LCD Stream-Deck Matrix).</summary>
     public const string AppearanceDisplayMesh = "appearance.displayMesh";
-    public const string AppearanceSushiFluxColors = "appearance.sushiFluxColors";
+    public const string AppearanceLedColors = "appearance.ledColors";
+    public const string AppearanceLedSpeed = "appearance.ledSpeed";
+    public const string AppearanceLedEffect = "appearance.ledEffect";
 }
 
 /// <summary>
@@ -80,7 +82,9 @@ public class SettingsService(IServiceScopeFactory scopes, IDataProtectionProvide
     /// <summary>Optisches Subpixel-Mesh ueber alle Tasten (LCD Stream-Deck Look).</summary>
     public bool AppearanceDisplayMesh => Get(SettingKeys.AppearanceDisplayMesh) == "true";
 
-    public string AppearanceSushiFluxColors => Get(SettingKeys.AppearanceSushiFluxColors) ?? "#fb923c,#f43f5e,#06b6d4";
+    public string AppearanceLedColors => Get(SettingKeys.AppearanceLedColors) ?? "#a78bfa,#f472b6,#7dd3fc";
+    public int AppearanceLedSpeed => int.TryParse(Get(SettingKeys.AppearanceLedSpeed), out var s) ? s : 4;
+    public string AppearanceLedEffect => Get(SettingKeys.AppearanceLedEffect) ?? "sweep";
 
     public string? ObsPassword
     {

@@ -7,7 +7,16 @@ release lives in `CHANGELOG.md`.
 
 # English
 
-## v2026.10.14-dev – 2026-10-04 10:14:00
+## v2026.10.15-dev – 2026-10-04 23:20:00
+
+Architected the Community Plate JSON format and refined the LED appearance settings.
+
+- **Community Plate Architecture**: Designed the JSON schema for custom plates and `ledZones`. Added a comprehensive `COMMUNITY_CREATOR_GUIDE.html` Wiki to the repository detailing the visual builder, coordinate system, and the React Z-Index rendering layers (overlay/underlay).
+- **Appearance Settings Refactoring** (`AppearancePage.tsx`): Renamed "LED-Hardware Streifen" to "Gehäuse-Beleuchtung". Added dynamic validation to prevent selecting 1 color for sweeping effects.
+- **New Rainbow Effect** (`HousePlate.tsx`): Implemented a new `rainbow` LED effect that cycles through a hardcoded hue spectrum using `linear-gradient` animations. Color pickers are automatically hidden when this effect is active.
+- **CSS Filter Bugfix** (`index.css`): Removed `filter: saturate()` from the `sf-breathe` animation keyframes. Previously, this CSS keyframe filter was overriding and destroying Tailwind's `blur-[32px]` filter, causing the neon left/right edge glows to lose their softness.
+
+## v2026.10.14-dev – 2026-10-04 10:14:33
 
 Fixes and adjustments for the SushiFlux Limited Edition and the local dev environment.
 
@@ -278,7 +287,16 @@ Initial scaffold of Baton - a free, community-extensible Stream Deck alternative
 
 # Deutsch
 
-## v2026.10.14-dev – 2026-10-04 10:14:00
+## v2026.10.15-dev – 2026-10-04 23:20:00
+
+Architektur für das Community-Gehäuse-System und Verbesserungen der LED-Gehäuse-Einstellungen.
+
+- **Community Plate Architektur**: Das JSON-Schema für Custom Plates und `ledZones` konzipiert. Einen detaillierten `COMMUNITY_CREATOR_GUIDE.html` Wiki-Leitfaden in das Repository integriert, der den Visual Builder, das Koordinatensystem und die Z-Index Schichten (Overlay/Underlay) erklärt.
+- **Refactoring der Appearance-Einstellungen** (`AppearancePage.tsx`): Bereich in "Gehäuse-Beleuchtung" umbenannt. Dynamische Validierung hinzugefügt, damit Nutzer nicht versehentlich 1 Farbe bei Zirkulations-Effekten (Welle) auswählen können.
+- **Neuer Regenbogen-Effekt** (`HousePlate.tsx`): Einen `rainbow` LED-Effekt eingebaut, der über Farbverlauf-Animationen das RGB-Spektrum durchläuft. Die Farbauswahl wird in der UI automatisch ausgeblendet, sobald dieser Effekt aktiv ist.
+- **CSS Filter-Bug behoben** (`index.css`): Die Eigenschaft `filter: saturate()` aus dem `sf-breathe` (Atmen) Keyframe entfernt. Zuvor hat diese Eigenschaft den Tailwind-Filter `blur-[32px]` überschrieben und damit den Weichzeichner der seitlichen Neon-Glows zerstört.
+
+## v2026.10.14-dev – 2026-10-04 10:14:33
 
 Korrekturen und Feinschliff für die SushiFlux Limited Edition und die Entwicklerumgebung.
 

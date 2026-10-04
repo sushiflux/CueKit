@@ -44,6 +44,7 @@ export interface HousePlatePreset {
     ledColor?: string
     textColor?: string
     accentColor?: string
+    supportsRGB?: boolean
   }
 }
 
@@ -129,32 +130,34 @@ export const HOUSE_PLATE_PRESETS: HousePlatePreset[] = [
     key: 'house:sushiflux',
     name: 'SushiFlux Limited Edition',
     description: 'Ultra-Premium High Class Edition – Exklusives SushiFlux Design',
-    base: '#020617',
-    sheen: 'rgba(251, 146, 60, 0.6)',
-    surface: 'linear-gradient(to bottom, #0f172a 0%, #020617 50%, #000000 100%)',
+    base: '#121422',
+    sheen: 'rgba(6, 182, 212, 0.45)',
+    surface: 'linear-gradient(to bottom, #1b1e30 0%, #121422 50%, #0a0c16 100%)',
     hardware: {
       model: 'sushiflux',
       screws: false,
       header: true,
-      underglow: 'bg-gradient-to-r from-orange-500 via-rose-500 to-cyan-500 shadow-[0_0_20px_rgba(244,63,94,0.9)]',
+      underglow: true,
       chamferHighlight: 'rgba(251, 146, 60, 0.8)',
       ledColor: '#fb923c',
+      supportsRGB: true,
     },
   },
   {
     key: 'house:sushiflux_snow',
     name: 'SushiFlux Limited Edition Snow',
     description: 'Ultra-Premium High Class Edition – Strahlend weißes SushiFlux Design',
-    base: '#f1f5f9',
-    sheen: 'rgba(251, 146, 60, 0.4)',
-    surface: 'linear-gradient(to bottom, #ffffff 0%, #f1f5f9 50%, #e2e8f0 100%)',
+    base: '#e2e8f0',
+    sheen: 'rgba(255, 255, 255, 0.9)',
+    surface: 'linear-gradient(to bottom, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%)',
     hardware: {
       model: 'sushiflux',
       screws: false,
       header: true,
-      underglow: 'bg-gradient-to-r from-orange-500 via-rose-500 to-cyan-500 shadow-[0_0_20px_rgba(244,63,94,0.9)]',
+      underglow: true,
       chamferHighlight: 'rgba(251, 146, 60, 0.4)',
       ledColor: '#fb923c',
+      supportsRGB: true,
     },
   },
   plate(

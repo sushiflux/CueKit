@@ -7,7 +7,15 @@ release lives in `CHANGELOG.md`.
 
 # English
 
-## v2026.10.13-dev – 2026-10-04 10:07:00
+## v2026.10.14-dev – 2026-10-04 10:14:00
+
+Fixes and adjustments for the SushiFlux Limited Edition and the local dev environment.
+
+- **Neon Underglow adjustments** (`HousePlate.tsx`): Reverted the rounded bottom LED strip back to a soft shadow glow, mimicking neon underglow. Light sources are completely hidden behind the plate (`-z-10`) so only the light reflection (blur) on the desk is visible from the left, right, and bottom edges.
+- **Backend Array serialization fix** (`AppearanceController.cs`): Fixed a compilation error where `settings.AppearanceSushiFluxColors` was accessed as a string instead of being split into `string[]` for the `AppearanceDto`.
+- **Start script improvements** (`start.ps1`): The PowerShell dev script now runs Vite and the .NET backend in the background of the same terminal window. Pressing any key cleanly terminates the process trees (`taskkill /T /F`) to prevent lingering zombie nodes that block port 5200.
+
+## v2026.10.13-dev – 2026-10-04 10:07:58
 
 SushiFlux Limited Edition (Dark & Snow), animated desk reflections, and curved LED strips without blinking.
 
@@ -270,7 +278,15 @@ Initial scaffold of Baton - a free, community-extensible Stream Deck alternative
 
 # Deutsch
 
-## v2026.10.13-dev – 2026-10-04 10:07:00
+## v2026.10.14-dev – 2026-10-04 10:14:00
+
+Korrekturen und Feinschliff für die SushiFlux Limited Edition und die Entwicklerumgebung.
+
+- **Neon-Unterbodenbeleuchtung angepasst** (`HousePlate.tsx`): Der physische gebogene LED-Streifen unten wurde wieder entfernt. Alle drei Lichtquellen (links, rechts, unten) sind nun physisch hinter dem Gehäuse versteckt (`-z-10`), sodass ausschließlich ihr weiches Leuchten (`blur-xl`) auf dem Tisch unter den Kanten hervorscheint (wie bei einer echten Unterbodenbeleuchtung).
+- **Backend Array-Konvertierungs-Fix** (`AppearanceController.cs`): Behebt einen C#-Kompilierfehler, bei dem `settings.AppearanceSushiFluxColors` als String an das `AppearanceDto` (welches ein `string[]` erwartet) übergeben wurde, ohne `.Split(',')` zu nutzen.
+- **Start-Skript Verbesserungen** (`start.ps1`): Das Dev-Skript öffnet nun keine separaten Fenster mehr. Vite und das Backend laufen im selben Terminal. Ein Tastendruck beendet die Prozessbäume restlos (`taskkill /T /F`), um "Port already in use" Fehler durch verwaiste Node-Prozesse zu verhindern.
+
+## v2026.10.13-dev – 2026-10-04 10:07:58
 
 SushiFlux Limited Edition (Dark & Snow), animierte Tisch-Reflektionen und geschwungene LED-Streifen ohne Blinken.
 

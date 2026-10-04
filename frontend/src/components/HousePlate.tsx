@@ -66,8 +66,10 @@ export function HousePlate({ plateKey, children, className, deckName, keyCount, 
           } ${className ?? ''}`}
           style={{ background: preset.surface }}
         >
-          {/* Underglow Reflection (Tischplatte) */}
-          <div className={`absolute -inset-3 top-8 bg-gradient-to-r from-orange-500 via-rose-500 to-cyan-500 blur-2xl ${isSnow ? 'opacity-30' : 'opacity-40'} animate-sf-gradient pointer-events-none -z-10 rounded-[3rem]`} />
+          {/* Neon Underglow (Left, Right, Bottom) - Hidden behind the plate, casting a glowing reflection onto the desk */}
+          <div className={`absolute top-8 bottom-8 -left-2 w-6 bg-gradient-to-b from-orange-500 via-rose-500 to-cyan-500 blur-xl ${isSnow ? 'opacity-60' : 'opacity-100'} animate-sf-gradient pointer-events-none -z-10`} />
+          <div className={`absolute top-8 bottom-8 -right-2 w-6 bg-gradient-to-b from-cyan-500 via-rose-500 to-orange-500 blur-xl ${isSnow ? 'opacity-60' : 'opacity-100'} animate-sf-gradient pointer-events-none -z-10`} />
+          <div className={`absolute -bottom-2 inset-x-12 h-6 bg-gradient-to-r from-orange-500 via-rose-500 to-cyan-500 blur-xl ${isSnow ? 'opacity-60' : 'opacity-100'} animate-sf-gradient pointer-events-none -z-10`} />
 
           {/* Header */}
           <div className={`flex items-center justify-center ${preview ? 'mb-2' : 'mb-4'} select-none pointer-events-none z-10 w-full`}>
@@ -80,13 +82,6 @@ export function HousePlate({ plateKey, children, className, deckName, keyCount, 
           <div className={`flex-1 z-10 rounded-xl ${isSnow ? 'bg-slate-900/90 shadow-[inset_0_5px_30px_rgba(0,0,0,0.5)] ring-1 ring-slate-950/20' : 'bg-black/80 shadow-[inset_0_5px_30px_rgba(0,0,0,1)] ring-1 ring-white/5'} backdrop-blur-md ${preview ? 'p-2' : 'p-4'}`}>
             {children}
           </div>
-
-          {/* Bottom LED Curve (Hardware-Leiste) - goes into the rounded corners */}
-          {preset.hardware.underglow && (
-            <div className={`absolute bottom-0 inset-x-0 ${preview ? 'h-6' : 'h-10'} overflow-hidden rounded-b-3xl pointer-events-none z-20`}>
-              <div className={`absolute ${preview ? '-top-6' : '-top-10'} bottom-0 inset-x-0 rounded-3xl ${preview ? 'p-[2px]' : 'p-[3px]'} bg-gradient-to-r from-orange-500 via-rose-500 to-cyan-500 animate-sf-gradient`} style={{ WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)', WebkitMaskComposite: 'xor', maskComposite: 'exclude' }} />
-            </div>
-          )}
         </div>
       )
     }

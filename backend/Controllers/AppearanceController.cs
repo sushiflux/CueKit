@@ -28,7 +28,7 @@ public class AppearanceController(SettingsService settings, HubNotifier notifier
     public AppearanceDto Get() => ToDto();
 
     private AppearanceDto ToDto() =>
-        new(settings.AppearancePressBehavior, settings.AppearanceVolumeIndicator, settings.AppearancePlate, settings.AppearanceStateStyle, settings.AppearanceDisplayMesh);
+        new(settings.AppearancePressBehavior, settings.AppearanceVolumeIndicator, settings.AppearancePlate, settings.AppearanceStateStyle, settings.AppearanceDisplayMesh, settings.AppearanceSushiFluxColors.Split(','));
 
     [HttpPut]
     [Authorize(AuthenticationSchemes = DeviceAuth.Scheme, Policy = DeviceAuth.OwnerPolicy)]
@@ -58,6 +58,7 @@ public class AppearanceController(SettingsService settings, HubNotifier notifier
             [SettingKeys.AppearancePlate] = plate,
             [SettingKeys.AppearanceStateStyle] = stateStyle,
             [SettingKeys.AppearanceDisplayMesh] = displayMesh ? "true" : "false",
+            [SettingKeys.AppearanceSushiFluxColors] = input.SushiFluxColors is not null ? string.Join(",", input.SushiFluxColors) : settings.AppearanceSushiFluxColors,
         }, ct);
 
         notifier.AppearanceChanged();

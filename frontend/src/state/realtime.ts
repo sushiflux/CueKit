@@ -21,6 +21,13 @@ export async function reloadHotkeyStatus() {
   setState({ hotkeys: await api<{ global: boolean; conflicts: string[] }>('/api/hotkeys/status') })
 }
 
+// Monitorzustand (HDR, Aufloesung) kann sich auch ausserhalb von CueKit aendern (Windows-Einstellungen, Tastenkuerzel): alle 15 s neu lesen.
+if (typeof window !== 'undefined') {
+  window.setInterval(() => {
+    if (getState().displays.length > 0 && document.visibilityState === 'visible') void reloadDisplays().catch(() => {})
+  }, 15000)
+}
+
 export async function reloadDisplays() {
   const list = await api<DisplayInfo[]>('/api/displays')
   // Ein aelterer laufender Dienst liefert statt der Liste die Startseite (HTML).
@@ -88,7 +95,8 @@ export async function startRealtime() {
   connection.on('keyTriggered', (buttonId: number, error: string | null) => {
     window.dispatchEvent(new CustomEvent('deck:keyTriggered', { detail: { buttonId, error } }))
     // HDR-/Aufloesungswechsel dauern einen Moment: Monitorliste danach neu lesen, damit die Tasten ihren Zustand zeigen.
-    if (getState().displays.length > 0) window.setTimeout(() => void reloadDisplays().catch(() => {}), 1500)
+    // (der Wechsel kann je nach Monitor mehrere Sekunden dauern - deshalb mehrfach nachsehen)
+    if (getState().displays.length > 0) for (const delay of [1500, 4000, 8000]) window.setTimeout(() => void reloadDisplays().catch(() => {}), delay)
   },
   )
   connection.on('automationsChanged', () => {

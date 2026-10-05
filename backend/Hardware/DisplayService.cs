@@ -118,14 +118,23 @@ public sealed class DisplayService : IDisplayControl
         var target = enabled ?? !color.Enabled;
         if (target == color.Enabled) return target; // schon im gewuenschten Zustand - nichts zu tun, kein Flackern
 
+        // Neue Windows-Versionen: eigener HDR-Schalter (SET_HDR_STATE); die alte "Advanced Color"-Schaltung wuerde dort nur die Farbverwaltung aendern.
         var set = new SET_ADVANCED_COLOR_STATE
         {
-            header = new DEVICE_INFO_HEADER { type = SET_ADVANCED_COLOR_STATE_TYPE, size = (uint)Marshal.SizeOf<SET_ADVANCED_COLOR_STATE>(), adapterId = path.targetInfo.adapterId, id = path.targetInfo.id },
+            header = new DEVICE_INFO_HEADER { type = color.V2 ? SET_HDR_STATE_TYPE : SET_ADVANCED_COLOR_STATE_TYPE, size = (uint)Marshal.SizeOf<SET_ADVANCED_COLOR_STATE>(), adapterId = path.targetInfo.adapterId, id = path.targetInfo.id },
             value = target ? 1u : 0u,
         };
         var rc = DisplayConfigSetDeviceInfo(ref set);
         if (rc != 0) throw new InvalidOperationException($"HDR konnte nicht {(target ? "eingeschaltet" : "ausgeschaltet")} werden (Windows-Fehler {rc}).");
-        return target;
+
+        // Der Wechsel dauert je nach Monitor einige Sekunden (neuer Videomodus): bis zu 6 s warten, bis Windows den neuen Zustand meldet -
+        // sonst wuerde die Taste Erfolg zeigen, obwohl nichts passiert ist.
+        for (var i = 0; i < 24; i++)
+        {
+            Thread.Sleep(250);
+            if (GetColorInfo(FindPath(displayId)).Enabled == target) return target;
+        }
+        throw new InvalidOperationException($"Windows hat HDR nicht {(target ? "eingeschaltet" : "ausgeschaltet")} – der Monitor hat den Wechsel nicht übernommen.");
     }
 
     public void SetResolution(string displayId, int width, int height, int? hz)
@@ -204,18 +213,31 @@ public sealed class DisplayService : IDisplayControl
         return DisplayConfigGetDeviceInfo(ref info) == 0 ? (info.monitorFriendlyDeviceName, info.monitorDevicePath) : ("", "");
     }
 
-    private static (bool Supported, bool Enabled) GetColorInfo(PATH_INFO path)
+    /// <summary>
+    /// HDR-Faehigkeit und -Zustand eines Monitors. Ab Windows 11 24H2 trennt die neue Schnittstelle (GET_ADVANCED_COLOR_INFO_2) HDR von
+    /// der Farbverwaltung (WCG): die alte meldet "Advanced Color" auch dann als aktiv, wenn nur WCG laeuft, und kann HDR bei manchen Monitoren
+    /// als aus melden. Die neue gilt, wenn sie antwortet (V2 = true); sonst der Rueckfall auf die alte (aeltere Windows-Versionen).
+    /// </summary>
+    private static (bool Supported, bool Enabled, bool V2, uint Raw, int Mode) GetColorInfo(PATH_INFO path)
     {
+        var v2 = new GET_ADVANCED_COLOR_INFO_2 { header = new DEVICE_INFO_HEADER { type = GET_ADVANCED_COLOR_INFO_2_TYPE, size = (uint)Marshal.SizeOf<GET_ADVANCED_COLOR_INFO_2>(), adapterId = path.targetInfo.adapterId, id = path.targetInfo.id } };
+        if (DisplayConfigGetDeviceInfo(ref v2) == 0)
+        {
+            // Bit 4: HDR unterstuetzt, Bit 5: HDR vom Nutzer eingeschaltet; activeColorMode 2 = HDR laeuft gerade.
+            var supported = (v2.value & (1u << 4)) != 0;
+            var enabled = (v2.value & (1u << 5)) != 0 || v2.activeColorMode == 2;
+            return (supported, enabled, true, v2.value, v2.activeColorMode);
+        }
         var info = new GET_ADVANCED_COLOR_INFO { header = new DEVICE_INFO_HEADER { type = GET_ADVANCED_COLOR_INFO_TYPE, size = (uint)Marshal.SizeOf<GET_ADVANCED_COLOR_INFO>(), adapterId = path.targetInfo.adapterId, id = path.targetInfo.id } };
-        if (DisplayConfigGetDeviceInfo(ref info) != 0) return (false, false);
-        // Bit 0: Advanced Color (HDR) unterstuetzt, Bit 1: aktiv - gilt in allen Windows-Versionen.
-        return ((info.value & 1) != 0, (info.value & 2) != 0);
+        if (DisplayConfigGetDeviceInfo(ref info) != 0) return (false, false, false, 0, 0);
+        // Bit 0: Advanced Color (HDR) unterstuetzt, Bit 1: aktiv.
+        return ((info.value & 1) != 0, (info.value & 2) != 0, false, info.value, 0);
     }
 
     // ---------------- Konstanten / Interop ----------------
 
     private const uint QDC_ONLY_ACTIVE_PATHS = 2;
-    private const uint GET_SOURCE_NAME = 1, GET_TARGET_NAME = 2, GET_ADVANCED_COLOR_INFO_TYPE = 9, SET_ADVANCED_COLOR_STATE_TYPE = 10;
+    private const uint GET_SOURCE_NAME = 1, GET_TARGET_NAME = 2, GET_ADVANCED_COLOR_INFO_TYPE = 9, SET_ADVANCED_COLOR_STATE_TYPE = 10, GET_ADVANCED_COLOR_INFO_2_TYPE = 15, SET_HDR_STATE_TYPE = 16;
     private const int ENUM_CURRENT_SETTINGS = -1;
     private const uint DM_PELSWIDTH = 0x80000, DM_PELSHEIGHT = 0x100000, DM_DISPLAYFREQUENCY = 0x400000;
     private const uint CDS_UPDATEREGISTRY = 0x1, CDS_TEST = 0x2;
@@ -246,6 +268,7 @@ public sealed class DisplayService : IDisplayControl
     }
 
     [StructLayout(LayoutKind.Sequential)] private struct GET_ADVANCED_COLOR_INFO { public DEVICE_INFO_HEADER header; public uint value; public int colorEncoding; public uint bitsPerColorChannel; }
+    [StructLayout(LayoutKind.Sequential)] private struct GET_ADVANCED_COLOR_INFO_2 { public DEVICE_INFO_HEADER header; public uint value; public int colorEncoding; public uint bitsPerColorChannel; public int activeColorMode; }
     [StructLayout(LayoutKind.Sequential)] private struct SET_ADVANCED_COLOR_STATE { public DEVICE_INFO_HEADER header; public uint value; }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -267,6 +290,7 @@ public sealed class DisplayService : IDisplayControl
     [DllImport("user32.dll")] private static extern int DisplayConfigGetDeviceInfo(ref SOURCE_DEVICE_NAME info);
     [DllImport("user32.dll")] private static extern int DisplayConfigGetDeviceInfo(ref TARGET_DEVICE_NAME info);
     [DllImport("user32.dll")] private static extern int DisplayConfigGetDeviceInfo(ref GET_ADVANCED_COLOR_INFO info);
+    [DllImport("user32.dll")] private static extern int DisplayConfigGetDeviceInfo(ref GET_ADVANCED_COLOR_INFO_2 info);
     [DllImport("user32.dll")] private static extern int DisplayConfigSetDeviceInfo(ref SET_ADVANCED_COLOR_STATE info);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern bool EnumDisplaySettingsExW(string deviceName, int modeNum, ref DEVMODE devMode, uint flags);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int ChangeDisplaySettingsExW(string deviceName, ref DEVMODE devMode, IntPtr hwnd, uint flags, IntPtr lParam);

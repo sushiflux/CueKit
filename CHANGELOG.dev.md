@@ -7,7 +7,14 @@ release lives in `CHANGELOG.md`.
 
 # English
 
-## v2026.10.17 - 2026-10-05 23:00
+## v2026.10.18 - 2026-10-05 23:30
+
+HDR keys: read and switch HDR with the Windows 11 24H2+ interface, verify the switch, refresh the key state reliably.
+
+- **HDR on current Windows** (`Hardware/DisplayService.cs`): `GetColorInfo` now prefers `DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO_2` (type 15: bit 4 HDR supported, bit 5 HDR user-enabled, `activeColorMode` 2 = HDR) and falls back to the old advanced-color query (type 9) on older Windows - the old one mixes HDR with wide-color management and reported a working HDR monitor as off. `SetHdr` uses `SET_HDR_STATE` (type 16) when the new interface answers, otherwise `SET_ADVANCED_COLOR_STATE` (type 10), then waits up to 6 s until Windows reports the requested state and throws a concrete error otherwise (the monitor may need seconds for the mode change).
+- **Key state refresh** (`state/realtime.ts`): `reloadDisplays` runs 1.5 s, 4 s and 8 s after every `keyTriggered` and every 15 s while the page is visible, so HDR/resolution keys also follow changes made outside CueKit.
+
+## v2026.10.17 - 2026-10-05 22:31
 
 Monitor control (HDR, resolution), stream + recording details in the top OLED, deck navigation keys, Twitch chat, volume key polish (source names, icons, dB/percent), origin marks, and fixes for cover latency and recording counters.
 
@@ -318,7 +325,14 @@ Initial scaffold of Baton - a free, community-extensible CueDeck for OBS.
 
 # Deutsch
 
-## v2026.10.17 - 2026-10-05 23:00
+## v2026.10.18 - 2026-10-05 23:30
+
+HDR-Tasten: HDR mit der Schnittstelle von Windows 11 24H2+ lesen und schalten, den Wechsel prüfen und den Tastenzustand zuverlässig aktualisieren.
+
+- **HDR unter aktuellem Windows** (`Hardware/DisplayService.cs`): `GetColorInfo` bevorzugt jetzt `DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO_2` (Typ 15: Bit 4 HDR unterstützt, Bit 5 HDR vom Nutzer eingeschaltet, `activeColorMode` 2 = HDR) und fällt auf der alten Advanced-Color-Abfrage (Typ 9) zurück - die alte vermischt HDR mit der Farbverwaltung (WCG) und meldete einen funktionierenden HDR-Monitor als aus. `SetHdr` nutzt `SET_HDR_STATE` (Typ 16), wenn die neue Schnittstelle antwortet, sonst `SET_ADVANCED_COLOR_STATE` (Typ 10), und wartet danach bis zu 6 s, bis Windows den gewünschten Zustand meldet; sonst eine konkrete Fehlermeldung (der Monitor braucht für den Moduswechsel teils Sekunden).
+- **Tastenzustand aktualisieren** (`state/realtime.ts`): `reloadDisplays` läuft 1,5 s, 4 s und 8 s nach jedem `keyTriggered` sowie alle 15 s bei sichtbarer Seite, damit HDR-/Auflösungstasten auch Änderungen außerhalb von CueKit folgen.
+
+## v2026.10.17 - 2026-10-05 22:31
 
 Monitor-Steuerung (HDR, Auflösung), Stream- und Aufnahme-Details im oberen OLED, Navigations-Tasten, Twitch-Chat, Feinschliff der Lautstärke-Tasten (Quellennamen, Icons, dB/Prozent), Herkunftssymbole sowie Fixes für die Cover-Verzögerung und die Aufnahme-Zähler.
 

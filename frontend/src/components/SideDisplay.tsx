@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { AudioDevice, ObsSnapshot, SideDisplay as SideDisplayModel, SystemMonitorSnapshot } from '../api/types'
 import { INPUT_LEVEL_SUFFIX, useMeterDb } from '../state/meters'
+import { ORIGIN_ICONS, type AudioOrigin } from '../lib/origin'
 import { KeyIcon } from './KeyIcon'
 
 const METER_MIN_DB = -60
@@ -10,6 +11,10 @@ export interface SideDisplayInfo {
   meterKey: string
   name: string
   isSystem: boolean
+  /** Herkunft: Windows-Geraet/Standard-Ausgabe (unbearbeitet, ohne Filter) oder OBS-Quelle (kann Filter haben). */
+  origin: AudioOrigin
+  /** Aktive OBS-Filter der Quelle (nur bei origin 'obs'). */
+  filters?: string[]
   /** Windows-Mikrofon/Aufnahmegeraet - bestimmt das Icon. */
   isInput?: boolean
   muted: boolean
@@ -23,14 +28,15 @@ export interface SideDisplayInfo {
 export function sideDisplayInfo(source: string, obs: ObsSnapshot | null, systemMonitor: SystemMonitorSnapshot | null, audioDevices: AudioDevice[] = []): SideDisplayInfo {
   if (source.startsWith('win:')) {
     const device = audioDevices.find((d) => d.id === source.slice(4))
-    return { meterKey: source, name: device?.name ?? 'Audiogerät', isSystem: device?.kind === 'output', isInput: device?.kind === 'input', muted: device?.muted === true, volume: device ? device.percent / 100 : null, available: !!device }
+    return { meterKey: source, origin: 'windows', name: device?.name ?? 'Audiogerät', isSystem: device?.kind === 'output', isInput: device?.kind === 'input', muted: device?.muted === true, volume: device ? device.percent / 100 : null, available: !!device }
   }
   if (source === 'system') {
-    return { meterKey: 'system', name: 'System', isSystem: true, muted: systemMonitor?.volumeMuted === true, volume: systemMonitor?.volumePercent != null ? systemMonitor.volumePercent / 100 : null, available: true }
+    return { meterKey: 'system', origin: 'windows', name: 'System', isSystem: true, muted: systemMonitor?.volumeMuted === true, volume: systemMonitor?.volumePercent != null ? systemMonitor.volumePercent / 100 : null, available: true }
   }
   const name = source.replace(/^obs:/, '')
   const input = obs?.status === 'connected' ? obs.audioInputs.find((a) => a.name === name) : undefined
-  return { meterKey: source, name, isSystem: false, muted: input?.muted === true, volume: input ? Math.max(0, Math.min(1, (input.volumeDb + 60) / 60)) : null, available: !!input }
+  const filters = obs?.status === 'connected' ? obs.filters.filter((f) => f.source === name && f.enabled).map((f) => f.filterName) : []
+  return { meterKey: source, origin: 'obs', filters, name, isSystem: false, muted: input?.muted === true, volume: input ? Math.max(0, Math.min(1, (input.volumeDb + 60) / 60)) : null, available: !!input }
 }
 
 interface Props {
@@ -58,17 +64,19 @@ export function SideDisplay({ display, info, orientation, width, height, onPress
       type="button"
       className="oled-display"
       data-orientation={orientation}
+      data-origin={info.origin}
       data-muted={info.muted || undefined}
       data-offline={!info.available || undefined}
       style={{ width, height, fontSize: Math.max(10, Math.min(16, Math.round(thin * 0.14))) }}
       onClick={onPress}
       disabled={!onPress || !info.available}
-      title={info.available ? `${label} – ${info.muted ? 'stumm (Klick: Ton an)' : 'Klick: stumm schalten'}` : `${label} – nicht verfügbar`}
+      title={info.available ? `${label} · ${originText(info)} – ${info.muted ? 'stumm (Klick: Ton an)' : 'Klick: stumm schalten'}` : `${label} – nicht verfügbar`}
       aria-label={`${label}, ${info.muted ? 'stumm' : 'Ton an'}`}
     >
       {orientation === 'vertical' ? (
         <>
           {/* Hochkant: Pegelbalken oben (nimmt die volle Resthoehe), darunter Icon + dB-Wert, ganz unten der Name - alles waagerecht lesbar. */}
+          <OriginMarks info={info} corner />
           <span className="oled-bars">
             <OledMeter meterKey={info.meterKey} muted={info.muted} available={info.available} />
             <OledVolume volume={info.volume ?? null} available={info.available} />
@@ -79,14 +87,19 @@ export function SideDisplay({ display, info, orientation, width, height, onPress
             </span>
             <OledReadout meterKey={info.meterKey} muted={info.muted} available={info.available} />
           </span>
-          <span className="oled-name">{label}</span>
+          <span className="oled-name">
+            <span className="oled-name-text">{label}</span>
+          </span>
         </>
       ) : (
         <>
           <span className="oled-icon">
             <KeyIcon name={icon} size="1.5em" />
           </span>
-          <span className="oled-name">{label}</span>
+          <span className="oled-name">
+            <OriginMarks info={info} />
+            <span className="oled-name-text">{label}</span>
+          </span>
           <span className="oled-bars">
             <OledMeter meterKey={info.meterKey} muted={info.muted} available={info.available} />
             <OledVolume volume={info.volume ?? null} available={info.available} />
@@ -95,6 +108,22 @@ export function SideDisplay({ display, info, orientation, width, height, onPress
         </>
       )}
     </button>
+  )
+}
+
+function originText(info: SideDisplayInfo): string {
+  if (info.origin === 'obs') return info.filters?.length ? `OBS-Quelle mit Filtern: ${info.filters.join(', ')}` : 'OBS-Quelle (ohne aktive Filter)'
+  return 'Windows-Gerät (unbearbeitet, ohne Filter)'
+}
+
+/** Kleine Herkunftsmarke vor dem Namen: Windows-Logo (unbearbeitetes Geraet) bzw. OBS-Logo (+ Filter-Symbol, wenn Filter aktiv sind). */
+function OriginMarks({ info, corner = false }: { info: SideDisplayInfo; corner?: boolean }) {
+  const filtered = (info.filters?.length ?? 0) > 0
+  return (
+    <span className="oled-origin" data-corner={corner || undefined} title={originText(info)}>
+      <KeyIcon name={ORIGIN_ICONS[info.origin]} size="1.25em" />
+      {filtered && <KeyIcon name="tabler:adjustments-horizontal" size="1.25em" />}
+    </span>
   )
 }
 

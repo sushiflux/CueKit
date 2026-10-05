@@ -33,10 +33,12 @@ function useFilters(source: string | undefined) {
 
 const toOptions = (names: string[]) => names.map((n) => ({ value: n, label: n }))
 
-function FieldInput({ field, params, deck, onChange }: { field: ActionField; params: Params; deck?: DeckModel; onChange: (value: string) => void }) {
+function FieldInput({ field, params, deck, actionType, onChange }: { field: ActionField; params: Params; deck?: DeckModel; actionType?: string; onChange: (value: string) => void }) {
   const obs = useStore((s) => s.obs)
   const automations = useStore((s) => s.automations)
   const audioDevices = useStore((s) => s.audioDevices)
+  const displays = useStore((s) => s.displays)
+  const displayHdrOnly = field.key === 'display' && actionType === 'system.hdr'
   const id = useId()
   const value = params[field.key] == null ? '' : String(params[field.key])
   const filters = useFilters(field.kind === 'filter' && params.source ? String(params.source) : undefined)
@@ -54,6 +56,11 @@ function FieldInput({ field, params, deck, onChange }: { field: ActionField; par
       break
     case 'audioInput':
       options = toOptions((obs?.audioInputs ?? []).map((a) => a.name))
+      break
+    case 'display':
+      options = displays
+        .filter((d) => d.hdrSupported || !displayHdrOnly)
+        .map((d) => ({ value: d.id, label: `${d.name} · ${d.width}×${d.height}${d.isPrimary ? ' · Hauptmonitor' : ''}` }))
       break
     case 'audioDevice':
       options = audioDevices.map((d) => ({ value: d.id, label: `${d.kind === 'input' ? 'Eingang (Mikrofon)' : 'Ausgabe'} · ${d.name}${d.isDefault ? ' · Standard' : ''}` }))
@@ -85,12 +92,15 @@ function FieldInput({ field, params, deck, onChange }: { field: ActionField; par
     case 'page':
       options = (deck?.pages ?? []).filter((p) => p.parentPageId !== null).map((p) => ({ value: String(p.id), label: p.name }))
       break
+    case 'rootPage':
+      options = (deck?.pages ?? []).filter((p) => p.parentPageId === null).map((p) => ({ value: String(p.id), label: p.name }))
+      break
   }
 
   // OBS offline: gespeicherten Wert trotzdem anzeigen/behalten, statt ihn stillschweigend zu verlieren.
   if (options && value && !options.some((o) => o.value === value)) {
-    const obsBound = field.kind !== 'select' && field.kind !== 'automation' && field.kind !== 'page' && field.kind !== 'audioDevice'
-    const hint = field.kind === 'audioDevice' ? 'nicht angeschlossen' : obsBound && obs?.status !== 'connected' ? 'OBS nicht verbunden' : 'nicht gefunden'
+    const obsBound = field.kind !== 'select' && field.kind !== 'automation' && field.kind !== 'page' && field.kind !== 'rootPage' && field.kind !== 'audioDevice' && field.kind !== 'display'
+    const hint = field.kind === 'audioDevice' || field.kind === 'display' ? 'nicht angeschlossen' : obsBound && obs?.status !== 'connected' ? 'OBS nicht verbunden' : 'nicht gefunden'
     options = [{ value, label: `${value} (${hint})` }, ...options]
   }
 
@@ -105,6 +115,8 @@ function FieldInput({ field, params, deck, onChange }: { field: ActionField; par
           <option value="">
             {field.kind === 'audioDevice'
               ? 'Standard-Ausgabe (aktuelle Wiedergabe)'
+              : field.kind === 'rootPage'
+                ? 'Nur Ordner verlassen (keine Seite)'
               : options.length > 0
               ? 'Bitte wählen …'
               : field.kind === 'page'
@@ -278,6 +290,7 @@ export function StepEditor({
                     field={f}
                     params={step.params ?? {}}
                     deck={deck}
+                    actionType={step.type}
                     onChange={(v) => {
                       const params: Params = { ...step.params, [f.key]: f.kind === 'number' ? (v === '' ? null : Number(v)) : v }
                       // Szene gewechselt -> Quellenauswahl zuruecksetzen, sie gehoert zur alten Szene.

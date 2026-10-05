@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { AppearanceSettings, AudioDevice, NowPlaying, TwitchSnapshot, AutomationState, Catalog, DeckModel, Me, ObsSnapshot, SystemMonitorSnapshot } from '../api/types'
+import type { AppearanceSettings, AudioDevice, DisplayInfo, NowPlaying, ObsStats, TwitchSnapshot, AutomationState, Catalog, DeckModel, Me, ObsSnapshot, SystemMonitorSnapshot } from '../api/types'
 
 export type LinkStatus = 'connecting' | 'online' | 'offline'
 
@@ -23,10 +23,14 @@ export interface AppState {
   audioDevices: AudioDevice[]
   /** Konkrete Fehlermeldung, falls die Geraeteliste nicht geladen werden konnte (sonst null). */
   audioDevicesError: string | null
+  /** Aktive Windows-Monitore (HDR, Auflösungen) für die System-Aktionen; leer ohne nativen Windows-Dienst. */
+  displays: DisplayInfo[]
   /** Laufende Wiedergabe; receivedAt = lokale Empfangszeit (ms), ab der die Anzeige selbst weiterrechnet. */
   nowPlaying: (NowPlaying & { receivedAt: number }) | null
   /** Twitch-Live-Zahlen des verbundenen Kanals (oeffentlicher Stand, keine Zugangsdaten). */
   twitch: TwitchSnapshot | null
+  /** OBS-Leistungswerte waehrend einer Aufnahme (sonst null). */
+  obsStats: ObsStats | null
 }
 
 let state: AppState = {
@@ -43,8 +47,10 @@ let state: AppState = {
   switchStates: {},
   audioDevices: [],
   audioDevicesError: null,
+  displays: [],
   nowPlaying: null,
   twitch: null,
+  obsStats: null,
 }
 
 const listeners = new Set<() => void>()

@@ -41,6 +41,7 @@ function toInput(a: AppearanceSettings, patch: Partial<AppearanceSettings> = {})
     plate: patch.plate ?? a.plate ?? 'house:studiopro',
     stateStyle: nextStateStyle,
     keySurface: nextKeySurface,
+    plateText: patch.plateText ?? a.plateText,
     displayMesh: nextKeySurface === 'mesh',
     ledColors: patch.ledColors ?? a.ledColors,
     ledEffect: patch.ledEffect ?? a.ledEffect,
@@ -380,6 +381,21 @@ function KeyOpticsSection({
   )
 }
 
+/** Kleine Vorschau eines Gehaeuses: das echte HousePlate im Vorschau-Modus, verkleinert, mit sechs schlichten Platzhalter-Tasten. */
+function PlateThumb({ plateKey }: { plateKey: string }) {
+  return (
+    <span className="pointer-events-none absolute left-1/2 top-2 block w-[400px] origin-top -translate-x-1/2 scale-[0.42]">
+      <HousePlate plateKey={plateKey} preview deckName="Streaming" pageName="Standard" keyCount={6}>
+        <span className="grid grid-cols-3 gap-3">
+          {Array.from({ length: 6 }, (_, i) => (
+            <span key={i} className="block aspect-square rounded-[10px] border border-white/10 bg-white/[0.07]" />
+          ))}
+        </span>
+      </HousePlate>
+    </span>
+  )
+}
+
 /** Gehäuse-Plate Galerie (Option "Kein Gehäuse" ist entfernt – es bleibt immer ein Gehäuse aktiv) */
 function PlateSection({
   appearance,
@@ -412,6 +428,26 @@ function PlateSection({
 
   const selectedPreset = HOUSE_PLATE_PRESETS.find((p) => p.key === selected) ?? HOUSE_PLATE_PRESETS[0]
 
+  // Eigene Beschriftung oben rechts (nur die SushiFlux-Gehaeuse haben diese Zeile)
+  const savedText = appearance.plateText ?? 'SUSHIFLUX'
+  const [plateText, setPlateText] = useState(savedText)
+  useEffect(() => setPlateText(savedText), [savedText])
+  const savePlateText = async (value: string) => {
+    setSaving(true)
+    try {
+      const result = await api<AppearanceSettings>('/api/settings/appearance', {
+        method: 'PUT',
+        body: toInput(appearance, { plateText: value.trim() }),
+      })
+      onSaved(result)
+      toast(value.trim() ? 'Beschriftung gespeichert.' : 'Beschriftung ausgeblendet.', 'success')
+    } catch (e) {
+      toast(`Beschriftung konnte nicht gespeichert werden: ${errorMessage(e)}`, 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <AppearanceCard
       title="Gehäuse-Plate"
@@ -421,7 +457,7 @@ function PlateSection({
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
         {HOUSE_PLATE_PRESETS.map((p) => {
-          const isCurrent = (selected || 'house:studiopro') === p.key
+          const isCurrent = selected === p.key
           return (
             <button
               key={p.key}
@@ -431,28 +467,20 @@ function PlateSection({
               aria-pressed={isCurrent}
               disabled={saving}
               onClick={() => void choose(p.key)}
-              className="group relative aspect-video overflow-hidden rounded-ctl ring-offset-2 ring-offset-surface transition-all hover:scale-[1.02] aria-pressed:ring-2 aria-pressed:ring-select border border-white/10"
-              style={{ background: p.surface }}
+              className="group flex flex-col overflow-hidden rounded-ctl border border-line bg-surface-2 text-left transition-all hover:border-line-strong aria-pressed:border-select aria-pressed:ring-2 aria-pressed:ring-select"
             >
-              {p.hardware?.chamferHighlight && (
-                <div className="absolute inset-x-2 top-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
-              )}
-              {p.hardware?.underglow && (
-                <div className="absolute inset-x-3 bottom-7 h-[2px] rounded-full bg-gradient-to-r from-cyan-500 via-violet-500 to-fuchsia-500 shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
-              )}
-              <span className="absolute inset-x-0 bottom-0 bg-black/75 px-2 py-1.5 text-left text-xs font-semibold text-white backdrop-blur-sm flex items-center justify-between">
-                <span className="truncate pr-1">{p.name}</span>
-                {p.hardware && (
-                  <span className="shrink-0 text-[8px] font-extrabold uppercase tracking-wider text-cyan-300 px-1 py-0.5 rounded bg-cyan-500/25 border border-cyan-400/40">
-                    Pro
+              {/* Echte, verkleinerte Vorschau des Gehäuses - so sind die Unterschiede (Material, Display, Beleuchtung) auf einen Blick sichtbar */}
+              <span className="relative block h-32 overflow-hidden bg-[#0b0d12]" aria-hidden="true">
+                <PlateThumb plateKey={p.key} />
+              </span>
+              <span className="flex items-center justify-between gap-2 px-2.5 py-2 text-xs font-semibold text-ink">
+                <span className="line-clamp-2 leading-tight">{p.name}</span>
+                {isCurrent && (
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-select text-white">
+                    <IconCheck size={13} stroke={2.5} />
                   </span>
                 )}
               </span>
-              {isCurrent && (
-                <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-select text-white z-10 shadow-md">
-                  <IconCheck size={13} stroke={2.5} />
-                </span>
-              )}
             </button>
           )
         })}
@@ -460,6 +488,36 @@ function PlateSection({
       <p className="mt-3 text-xs text-ink-faint">
         Ausgewählt: <span className="font-semibold text-ink">{selectedPreset.name}</span> – {selectedPreset.description}.
       </p>
+
+      {selectedPreset.hardware?.model === 'sushiflux' && (
+        <div className="mt-5 border-t border-line/60 pt-4">
+          <label className="label" htmlFor="plate-text">
+            Beschriftung oben rechts
+          </label>
+          <div className="flex gap-2">
+            <input
+              id="plate-text"
+              className="field flex-1 font-bold uppercase tracking-widest"
+              value={plateText}
+              maxLength={16}
+              placeholder="SUSHIFLUX"
+              onChange={(e) => setPlateText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && plateText.trim() !== savedText && void savePlateText(plateText)}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <button className="btn btn-confirm" disabled={saving || plateText.trim() === savedText} onClick={() => void savePlateText(plateText)}>
+              <IconCheck size={16} /> Speichern
+            </button>
+            <button className="btn btn-ghost" disabled={saving || savedText === 'SUSHIFLUX'} onClick={() => void savePlateText('SUSHIFLUX')}>
+              Zurücksetzen
+            </button>
+          </div>
+          <p className="mt-1.5 text-xs text-ink-faint">
+            Höchstens 16 Zeichen, z. B. dein Name oder Kanalname ({plateText.length}/16). Leer lassen blendet den Text aus.
+          </p>
+        </div>
+      )}
     </AppearanceCard>
   )
 }

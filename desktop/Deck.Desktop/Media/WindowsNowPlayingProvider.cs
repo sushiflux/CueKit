@@ -59,7 +59,8 @@ public sealed class WindowsNowPlayingProvider : BackgroundService, INowPlayingPr
             {
                 // Ereignisse (Titel-/Statuswechsel, Spulen) wecken sofort; zusaetzlich alle 5 s als Sicherheitsnetz
                 // gegen verpasste Ereignisse. Kurz sammeln, weil beim Titelwechsel mehrere Ereignisse kurz nacheinander kommen.
-                await _refreshSignal.WaitAsync(TimeSpan.FromSeconds(5), stoppingToken);
+                // Wartet das Cover des neuen Titels noch (Spotify liefert es oft erst Sekunden nach dem Titel), alle 0,7 s nachsehen statt alle 5 s.
+                await _refreshSignal.WaitAsync(NeedsFastPoll ? TimeSpan.FromMilliseconds(700) : TimeSpan.FromSeconds(5), stoppingToken);
                 await Task.Delay(200, stoppingToken);
                 while (_refreshSignal.CurrentCount > 0) _refreshSignal.Wait(0);
             }
@@ -128,7 +129,20 @@ public sealed class WindowsNowPlayingProvider : BackgroundService, INowPlayingPr
     }
 
     private string _previousTrackCoverId = "";
+    private string _albumKey = "";
+    private bool _sameAlbum;
     private DateTimeOffset _trackChangedAt = DateTimeOffset.MinValue;
+
+    /// <summary>So lange nach einem Titelwechsel wird schnell nachgefragt, ob das richtige Cover da ist.</summary>
+    private static readonly TimeSpan FastPollWindow = TimeSpan.FromSeconds(25);
+
+    /// <summary>Titel laeuft, aber sein Cover fehlt noch bzw. zeigt noch das des vorherigen Albums - dann wird schneller nachgefragt.</summary>
+    private bool NeedsFastPoll =>
+        _current is not null && DateTimeOffset.UtcNow - _trackChangedAt < FastPollWindow &&
+        (_cover is null || (!_sameAlbum && _cover.Id == _previousTrackCoverId));
+
+    /// <summary>Album eines Titels als Vergleichsschluessel (Chromium legt das Album ins Interpreten-Feld, daher dessen Fallback).</summary>
+    private static string AlbumKeyOf(NowPlayingInfo info) => (info.Album ?? info.Artist).Trim().ToLowerInvariant();
 
     /// <summary>So lange nach einem Titelwechsel gilt ein unveraendertes Bild als das noch alte Cover des vorherigen Titels.</summary>
     private static readonly TimeSpan StaleCoverWindow = TimeSpan.FromSeconds(8);
@@ -146,6 +160,8 @@ public sealed class WindowsNowPlayingProvider : BackgroundService, INowPlayingPr
             _cover = null;
             _coverKey = "";
             _previousTrackCoverId = "";
+            _albumKey = "";
+            _sameAlbum = false;
             return null;
         }
 
@@ -153,7 +169,11 @@ public sealed class WindowsNowPlayingProvider : BackgroundService, INowPlayingPr
         if (key != _coverKey)
         {
             _previousTrackCoverId = _cover?.Id ?? _previousTrackCoverId;
-            _cover = null;
+            var albumKey = AlbumKeyOf(info);
+            // Naechster Titel vom selben Album: das Cover bleibt gleich und wird sofort weiterverwendet (kein Warten, kein Wegblenden).
+            _sameAlbum = albumKey.Length > 0 && albumKey == _albumKey && _cover is not null;
+            _albumKey = albumKey;
+            if (!_sameAlbum) _cover = null;
             _coverKey = key;
             _trackChangedAt = DateTimeOffset.UtcNow;
         }
@@ -161,7 +181,7 @@ public sealed class WindowsNowPlayingProvider : BackgroundService, INowPlayingPr
         var fresh = await ReadThumbnailAsync(props);
         if (fresh is not null)
         {
-            var stale = fresh.Id == _previousTrackCoverId && DateTimeOffset.UtcNow - _trackChangedAt < StaleCoverWindow;
+            var stale = !_sameAlbum && fresh.Id == _previousTrackCoverId && DateTimeOffset.UtcNow - _trackChangedAt < StaleCoverWindow;
             if (!stale) _cover = fresh;
         }
         return _cover?.Id;

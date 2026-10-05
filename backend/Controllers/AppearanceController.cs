@@ -6,9 +6,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Deck.Server.Controllers;
 
-public record AppearanceDto(string PressBehavior, string VolumeIndicator, string Plate, string StateStyle, bool DisplayMesh, string[] LedColors, string LedEffect, int LedSpeed, string KeySurface);
+public record AppearanceDto(string PressBehavior, string VolumeIndicator, string Plate, string StateStyle, bool DisplayMesh, string[] LedColors, string LedEffect, int LedSpeed, string KeySurface, string PlateText);
 
-public record AppearanceInput(string PressBehavior, string VolumeIndicator, string? Plate, string? StateStyle = null, bool? DisplayMesh = null, string[]? LedColors = null, string? LedEffect = null, int? LedSpeed = null, string? KeySurface = null);
+public record AppearanceInput(string PressBehavior, string VolumeIndicator, string? Plate, string? StateStyle = null, bool? DisplayMesh = null, string[]? LedColors = null, string? LedEffect = null, int? LedSpeed = null, string? KeySurface = null, string? PlateText = null);
 
 /// <summary>
 /// App-weite (nicht Pro-Deck) Aussehen-Einstellungen: Tastendruckverhalten, Lautstaerkeanzeige und
@@ -28,7 +28,7 @@ public class AppearanceController(SettingsService settings, HubNotifier notifier
     public AppearanceDto Get() => ToDto();
 
     private AppearanceDto ToDto() =>
-        new(settings.AppearancePressBehavior, settings.AppearanceVolumeIndicator, settings.AppearancePlate, settings.AppearanceStateStyle, settings.AppearanceDisplayMesh, settings.AppearanceLedColors.Split(','), settings.AppearanceLedEffect, settings.AppearanceLedSpeed, settings.AppearanceKeySurface);
+        new(settings.AppearancePressBehavior, settings.AppearanceVolumeIndicator, settings.AppearancePlate, settings.AppearanceStateStyle, settings.AppearanceDisplayMesh, settings.AppearanceLedColors.Split(','), settings.AppearanceLedEffect, settings.AppearanceLedSpeed, settings.AppearanceKeySurface, settings.AppearancePlateText);
 
     [HttpPut]
     [Authorize(AuthenticationSchemes = DeviceAuth.Scheme, Policy = DeviceAuth.OwnerPolicy)]
@@ -55,6 +55,17 @@ public class AppearanceController(SettingsService settings, HubNotifier notifier
             return BadRequest(new { error = $"Ungültige Tastenoberfläche '{keySurface}' – erlaubt sind „smooth“, „mesh“ und „oled“." });
         var displayMesh = keySurface == "mesh";
 
+        // Eigene Beschriftung des SushiFlux-Gehaeuses: null = unveraendert, "" = ausblenden.
+        var plateText = settings.AppearancePlateText;
+        if (input.PlateText is not null)
+        {
+            plateText = input.PlateText.Trim();
+            if (plateText.Length > SettingsService.MaxPlateTextLength)
+                return BadRequest(new { error = $"Die Beschriftung darf höchstens {SettingsService.MaxPlateTextLength} Zeichen lang sein (aktuell {plateText.Length})." });
+            if (plateText.Any(char.IsControl))
+                return BadRequest(new { error = "Die Beschriftung darf keine Steuerzeichen enthalten." });
+        }
+
         await settings.SetManyAsync(new Dictionary<string, string>
         {
             [SettingKeys.AppearancePressBehavior] = input.PressBehavior,
@@ -63,6 +74,7 @@ public class AppearanceController(SettingsService settings, HubNotifier notifier
             [SettingKeys.AppearanceStateStyle] = stateStyle,
             [SettingKeys.AppearanceDisplayMesh] = displayMesh ? "true" : "false",
             [SettingKeys.AppearanceKeySurface] = keySurface,
+            [SettingKeys.AppearancePlateText] = plateText,
             [SettingKeys.AppearanceLedColors] = input.LedColors is not null ? string.Join(",", input.LedColors.Take(4)) : settings.AppearanceLedColors, // Max 4 colors
             [SettingKeys.AppearanceLedEffect] = input.LedEffect ?? settings.AppearanceLedEffect,
             [SettingKeys.AppearanceLedSpeed] = (input.LedSpeed ?? settings.AppearanceLedSpeed).ToString(),

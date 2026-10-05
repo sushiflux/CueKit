@@ -1,11 +1,15 @@
 import { getState } from '../state/store'
 import type { TwitchSnapshot } from '../api/types'
+import type { AudioOrigin } from './origin'
 import type { ActionStep, AutomationState, ButtonModel, Catalog, ObsSnapshot, SystemMonitorSnapshot } from '../api/types'
 
 /** Aktionstypen mit einem echten An/Aus-Zustand - nur fuer diese ergibt eine LED (gruen/rot) Sinn. */
 const TOGGLE_ACTION_TYPES = new Set([
   'automation.toggle',
   'system.mute',
+  'system.hdr',
+  'system.resolution',
+  'system.resolution.toggle',
   'obs.scene.switch',
   'obs.scene.preview',
   'obs.source.visibility',
@@ -37,6 +41,25 @@ function systemMuteState(step: ActionStep, systemMonitor: SystemMonitorSnapshot 
   const id = stepDeviceId(step)
   if (id) return getState().audioDevices.find((d) => d.id === id)?.muted ?? null
   return systemMonitor?.volumeMuted ?? null
+}
+
+/** Der Monitor, den ein system.hdr-/system.resolution*-Schritt steuert (aus der Monitorliste im Store). */
+function stepDisplay(step: ActionStep) {
+  const id = step.params?.display ? String(step.params.display) : ''
+  return id ? getState().displays.find((d) => d.id === id) : undefined
+}
+
+/** Zustand der Monitor-Tasten: HDR an, bzw. diese Aufloesung ist gerade eingestellt (beim Umschalter: die zweite = B). Null = kein Monitor-Schritt. */
+function displayStepActive(step: ActionStep): boolean | null {
+  if (step.type !== 'system.hdr' && step.type !== 'system.resolution' && step.type !== 'system.resolution.toggle') return null
+  const d = stepDisplay(step)
+  if (!d) return false
+  const p = step.params ?? {}
+  if (step.type === 'system.hdr') return p.mode === 'off' ? !d.hdrEnabled : d.hdrEnabled
+  // Bei gedrehten Monitoren zaehlt auch die vertauschte Schreibweise (aeltere Tasten: 2160x3840 statt 3840x2160).
+  const is = (w: number, h: number) => (d.width === w && d.height === h) || (!!d.rotated && d.width === h && d.height === w)
+  if (step.type === 'system.resolution') return is(Number(p.width), Number(p.height))
+  return is(Number(p.widthB), Number(p.heightB))
 }
 
 /** Ob diese Taste ueberhaupt einen An/Aus-Zustand hat (LED zeigen) statt eine reine Einmal-Aktion zu sein. */
@@ -71,13 +94,14 @@ function needsStreamingSoftware(actionType: string): boolean {
   return STREAMING_SOFTWARE_PREFIXES.some((p) => actionType.startsWith(p))
 }
 
-/** Aktionstypen, bei denen "aktiv" = stummgeschaltet bedeutet - Warnzustand, deshalb umgekehrte
- * Zustandsfarbe (rot statt gruen), siehe .deck-key[data-mute='true'] in index.css. */
-const MUTE_ACTION_TYPES = new Set(['obs.audio.mute', 'system.mute'])
+/** Aktionstypen mit UMGEKEHRTER Zustandsfarbe: "aktiv" ist der Zustand, auf den man achten muss, deshalb rot - und "inaktiv"
+ * gruen. Stumm (aktiv = stummgeschaltet) sowie Stream und Aufnahme (aktiv = du bist live bzw. nimmst auf, wie das rote
+ * Aufnahme-Laempchen). Siehe .deck-key[data-mute='true'] in index.css (der Attributname stammt noch von den Mute-Tasten). */
+const INVERTED_STATE_ACTION_TYPES = new Set(['obs.audio.mute', 'system.mute', 'obs.stream', 'obs.record', 'obs.record.pause'])
 
 /** Aktionen, bei denen "aktiv" nur heisst "diese Auswahl ist gerade gewaehlt" (Szene, Uebergang, Profil ...) - ein
  * nicht gewaehlter Eintrag ist kein "Aus"-Zustand und wird deshalb nie rot eingefaerbt. */
-const SELECTION_ACTION_TYPES = new Set(['obs.scene.switch', 'obs.scene.preview', 'obs.transition.set', 'obs.collection', 'obs.profile'])
+const SELECTION_ACTION_TYPES = new Set(['system.resolution', 'system.resolution.toggle', 'obs.scene.switch', 'obs.scene.preview', 'obs.transition.set', 'obs.collection', 'obs.profile'])
 
 /** Art des Zustands einer Taste: "onoff" (An = gruen, Aus = rot), "select" (nur "gewaehlt" = gruen) oder null (kein Zustand). */
 export function buttonStateKind(button: ButtonModel): 'onoff' | 'select' | null {
@@ -87,10 +111,17 @@ export function buttonStateKind(button: ButtonModel): 'onoff' | 'select' | null 
   return SELECTION_ACTION_TYPES.has(type) ? 'select' : 'onoff'
 }
 
-/** Ob diese Taste eine Mute-Taste ist (umgekehrte Zustandsfarbe: rot = stumm statt gruen = an). */
-export function isMuteAction(button: ButtonModel): boolean {
+/** Ob die Taste gerade den "pausiert"-Zustand zeigt (orange): die Pause-Taste selbst, wenn pausiert ist - und die Aufnahme-Taste
+ * waehrend einer pausierten Aufnahme. */
+export function isRecordPausedState(button: ButtonModel, active: boolean, recordPaused: boolean): boolean {
   const type = button.actions[0]?.type
-  return type != null && MUTE_ACTION_TYPES.has(type)
+  return recordPaused && active && (type === 'obs.record' || type === 'obs.record.pause')
+}
+
+/** Ob diese Taste umgekehrte Zustandsfarben hat (Mute, Stream, Aufnahme): rot = aktiv/laeuft, gruen = inaktiv. */
+export function isInvertedStateAction(button: ButtonModel): boolean {
+  const type = button.actions[0]?.type
+  return type != null && INVERTED_STATE_ACTION_TYPES.has(type)
 }
 
 /**
@@ -181,6 +212,8 @@ export function isButtonActive(
   // Systemlautstaerke ist kein OBS-Zustand - unabhaengig vom OBS-Verbindungsstatus pruefen, sonst
   // wuerde die LED faelschlich immer aus sein, wenn OBS gerade nicht verbunden ist.
   if (step.type === 'system.mute') return systemMuteState(step, systemMonitor) === true
+  const displayActive = displayStepActive(step)
+  if (displayActive != null) return displayActive
   if (!obs || obs.status !== 'connected') return false
   switch (step.type) {
     case 'obs.scene.switch':
@@ -281,12 +314,48 @@ export function activeIcon(button: ButtonModel, active: boolean): string | null 
     if (active && p?.iconOn) return p.iconOn
     return button.icon
   }
+  const volumeIcon = volumeStepIcon(button)
+  if (volumeIcon) return volumeIcon
   if (!active) return button.icon
   const type = button.actions[0]?.type
   if (type === 'obs.audio.mute' && button.icon === 'tabler:microphone') return 'tabler:microphone-off'
   if (type === 'obs.audio.mute' && button.icon === 'tabler:volume') return 'tabler:volume-off'
   if (type === 'obs.media' && button.icon === 'tabler:player-play') return 'tabler:player-pause'
   return button.icon
+}
+
+const VOLUME_ACTION_TYPES = new Set(['obs.audio.volume', 'system.volume'])
+const GENERIC_VOLUME_ICONS = new Set(['', 'tabler:volume', 'tabler:volume-2', 'tabler:volume-3'])
+/** Standard-Beschriftungen aus der Palette, die durch den Namen der Audioquelle ersetzt werden (eigene Beschriftungen bleiben). */
+const GENERIC_AUDIO_LABELS = new Set(['', 'Lautstärke ändern', 'Lautstärke', 'Lauter', 'Leiser', 'Audioquelle +', 'Audioquelle −', 'Audioquelle', 'Systemlautstärke', 'Systemlautstärke +', 'Systemlautstärke −', 'Stumm / Ton an'])
+
+/** Lauter-/Leiser-/Festwert-Taste mit Standard-Icon (eigene Icons bleiben unberuehrt). */
+function volumeStepIcon(button: ButtonModel): string | null {
+  const step = button.actions[0]
+  if (!step || !VOLUME_ACTION_TYPES.has(step.type) || !GENERIC_VOLUME_ICONS.has(button.icon ?? '')) return null
+  const mode = step.params?.mode
+  // Lautsprecher + Plus (lauter), + Minus (leiser), + Gleichheitszeichen (springt auf einen festen Wert)
+  return mode === 'up' ? 'mdi:volume-plus' : mode === 'down' ? 'mdi:volume-minus' : mode === 'set' ? 'mdi:volume-equal' : null
+}
+
+/** Name der Audioquelle fuer Lautstaerke-/Stumm-Tasten mit Standard-Beschriftung ("Lautstärke ändern" -> "Mikrofon"); sonst null. */
+function audioSourceLabel(button: ButtonModel): string | null {
+  const step = button.actions[0]
+  if (!step || !GENERIC_AUDIO_LABELS.has(button.label.trim())) return null
+  if (step.type === 'obs.audio.volume' || step.type === 'obs.audio.mute') return step.params?.input ? String(step.params.input) : null
+  if (step.type === 'system.volume' || step.type === 'system.mute') {
+    const id = stepDeviceId(step)
+    return id ? (getState().audioDevices.find((d) => d.id === id)?.name ?? null) : 'System'
+  }
+  return null
+}
+
+/** Woher die Audioquelle einer Taste kommt: "windows" (System/Windows-Geraet) oder "obs" (OBS-Quelle); null = keine Audio-Taste. */
+export function buttonOrigin(button: ButtonModel): AudioOrigin | null {
+  const type = button.actions[0]?.type
+  if (type === 'system.mute' || type === 'system.volume') return 'windows'
+  if (type === 'obs.audio.mute' || type === 'obs.audio.volume') return 'obs'
+  return null
 }
 
 /** Beschriftung einer Taste - Multi-Aktionsschalter können im Aus-Zustand eine abweichende Beschriftung zeigen. */
@@ -296,7 +365,12 @@ export function activeLabel(button: ButtonModel, active: boolean): string {
     if (!active && p?.labelOff) return p.labelOff
     if (active && p?.labelOn) return p.labelOn
   }
-  return button.label
+  // Aufloesungs-Umschalter: die Taste zeigt immer die aktuell eingestellte Aufloesung des Monitors.
+  if (button.actions[0]?.type === 'system.resolution.toggle') {
+    const d = stepDisplay(button.actions[0])
+    if (d) return `${d.width}×${d.height}`
+  }
+  return audioSourceLabel(button) ?? button.label
 }
 
 /**

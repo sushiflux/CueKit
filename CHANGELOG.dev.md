@@ -7,6 +7,20 @@ release lives in `CHANGELOG.md`.
 
 # English
 
+## v2026.10.17 - 2026-10-05 23:00
+
+Monitor control (HDR, resolution), stream + recording details in the top OLED, deck navigation keys, Twitch chat, volume key polish (source names, icons, dB/percent), origin marks, and fixes for cover latency and recording counters.
+
+- **Monitors** (`Hardware/DisplayService.cs`, `IDisplayControl`/`NoDisplayControl`, `GET /api/displays` via `DisplaysController`, `FieldKind.Display`): DisplayConfig API (`QueryDisplayConfig`, advanced-color get/set) for HDR, GDI `EnumDisplaySettingsEx`/`ChangeDisplaySettingsEx` (test first with `CDS_TEST`) for modes. Resolutions are exposed in the panel's native orientation (`DisplayInfo.Rotated`; Windows reports rotated monitors swapped, the swapped spelling is still accepted - `DisplayInfoExtensions.IsMode`). Actions `system.hdr`, `system.resolution`, `system.resolution.toggle`; palette System > Monitor · HDR / Monitor · Auflösung (HDR only for capable monitors); keys get state from the `displays` store (`displayStepActive` in `lib/buttonState.ts`; HDR on/off, resolution = selection, toggle label = current resolution via `activeLabel`). The list is reloaded 1.5 s after every `keyTriggered`.
+- **Stream + recording in the top OLED** (`Obs/ObsStats.cs`, new `Obs/ObsOutputInfo.cs`, `HeaderStream.tsx`): `ObsStatsService` now runs while recording OR streaming, reads codec/format/audio tracks via `GetProfileParameter` (Simple/Advanced/FFmpeg/"same as stream"), stream settings incl. Enhanced Broadcasting (limit "auto" or kbit/s), measured stream bitrate (`GetStreamStatus.outputBytes` delta) and congestion. `useStreamInfo()` exposes `streaming`/`recording`; with both active only one time is shown (stream wins) and both detail blocks are rendered compactly. Counters baseline per session (`ObsCounters.Relative`) fixes "Verworfen 3" at every recording start; file size = real file length when readable.
+- **Deck navigation**: palette Deck group gets Seite zurück/weiter and Home; `deck.home` takes an optional `page` (`FieldKind.RootPage`), `DeckPage.press` jumps there; backup import remaps it.
+- **Twitch chat**: `twitch.chat` (`TwitchService.SendChatMessageAsync`, Helix `POST /chat/messages`, scope `user:write:chat` added - existing connections must reconnect once, the error says so; `is_sent=false` drop reasons are surfaced).
+- **Volume keys**: default-labelled volume/mute keys show the source name (`audioSourceLabel`), default speaker icons become `mdi:volume-plus/-minus/-equal` (`volumeStepIcon`); `obs.audio.volume` has a unit select (dB | percent). Percent is the OBS **fader position** (`Obs/ObsFader.cs`, libobs log curve: 50 % = about -18.7 dB, 100 % = 0 dB), not linear amplitude.
+- **Origin marks** (`lib/origin.ts`, `DeckKey` `.key-origin`, `.oled-origin`): white, larger, top-left on audio keys and OLED displays (OBS / Windows; Streamlabs / XSplit icons prepared).
+- **Meters / colors / plates (earlier uncommitted work)**: level meters follow the fader (`MeterBroadcaster` subtracts the Windows slider attenuation, `AudioDeviceInfo.VolumeDb`), stream/record/mute inverted state colors + paused orange, plate text (`appearance.plateText`), plate gallery thumbnails.
+- **Now playing**: faster cover pickup - `WindowsNowPlayingProvider` polls every 0.7 s while the new track's cover is missing/stale (`NeedsFastPoll`), and keeps the cover immediately for the next track of the same album (`_sameAlbum`) instead of hiding an unchanged image for 8 s.
+- **Docs**: CLAUDE.md, QUELLEN.md (DisplayConfig, GetProfileParameter, Helix chat).
+
 ## v2026.10.16 - 2026-10-05 21:00
 
 Side OLED displays, Windows audio devices, now-playing + stream info in the top OLED, Twitch integration, an OLED key surface, keys that sit inside the plate openings, plus the multi-action switch / hardware-monitor / start-script work that was still uncommitted.
@@ -303,6 +317,20 @@ Initial scaffold of Baton - a free, community-extensible CueDeck for OBS.
   note + CLA in `CONTRIBUTING.md`.
 
 # Deutsch
+
+## v2026.10.17 - 2026-10-05 23:00
+
+Monitor-Steuerung (HDR, Auflösung), Stream- und Aufnahme-Details im oberen OLED, Navigations-Tasten, Twitch-Chat, Feinschliff der Lautstärke-Tasten (Quellennamen, Icons, dB/Prozent), Herkunftssymbole sowie Fixes für die Cover-Verzögerung und die Aufnahme-Zähler.
+
+- **Monitore** (`Hardware/DisplayService.cs`, `IDisplayControl`/`NoDisplayControl`, `GET /api/displays` über `DisplaysController`, `FieldKind.Display`): DisplayConfig-API (`QueryDisplayConfig`, Advanced-Color lesen/setzen) für HDR, GDI `EnumDisplaySettingsEx`/`ChangeDisplaySettingsEx` (vorher Test mit `CDS_TEST`) für Auflösungen. Auflösungen werden in der nativen Ausrichtung des Panels geführt (`DisplayInfo.Rotated`; Windows meldet gedrehte Monitore vertauscht, die vertauschte Schreibweise wird weiter akzeptiert - `DisplayInfoExtensions.IsMode`). Aktionen `system.hdr`, `system.resolution`, `system.resolution.toggle`; Palette System > Monitor · HDR / Monitor · Auflösung (HDR nur für fähige Monitore); der Tastenzustand kommt aus dem `displays`-Store (`displayStepActive` in `lib/buttonState.ts`; HDR an/aus, Auflösung = Auswahl, Umschalter zeigt die aktuelle Auflösung über `activeLabel`). Die Liste wird 1,5 s nach jedem `keyTriggered` neu gelesen.
+- **Stream + Aufnahme im oberen OLED** (`Obs/ObsStats.cs`, neu `Obs/ObsOutputInfo.cs`, `HeaderStream.tsx`): `ObsStatsService` läuft jetzt bei Aufnahme ODER Stream, liest Codec/Format/Audiospuren per `GetProfileParameter` (Einfach/Erweitert/FFmpeg/„wie Stream“), Stream-Einstellungen inkl. Enhanced Broadcasting (Limit „auto“ oder kbit/s), gemessene Stream-Bitrate (`GetStreamStatus.outputBytes`-Differenz) und Stau. `useStreamInfo()` liefert `streaming`/`recording` getrennt; laufen beide, gibt es nur eine Zeit (Stream gewinnt) und beide Detail-Blöcke kompakt. Zähler-Basis je Sitzung (`ObsCounters.Relative`) behebt „Verworfen 3“ bei jedem Aufnahmestart; Dateigröße = echte Dateilänge, wenn lesbar.
+- **Deck-Navigation**: Palette Deck bekommt Seite zurück/weiter und Home; `deck.home` nimmt optional `page` (`FieldKind.RootPage`), `DeckPage.press` springt dorthin; der Backup-Import ordnet sie neu zu.
+- **Twitch-Chat**: `twitch.chat` (`TwitchService.SendChatMessageAsync`, Helix `POST /chat/messages`, Scope `user:write:chat` ergänzt - bestehende Verbindungen müssen einmal neu verbunden werden, die Fehlermeldung sagt das; Ablehnungsgründe bei `is_sent=false` werden angezeigt).
+- **Lautstärke-Tasten**: Lautstärke-/Stumm-Tasten mit Standardbeschriftung zeigen den Quellennamen (`audioSourceLabel`), Standard-Lautsprecher-Icons werden zu `mdi:volume-plus/-minus/-equal` (`volumeStepIcon`); `obs.audio.volume` hat eine Einheit-Auswahl (dB | Prozent). Prozent ist die **Reglerstellung** des OBS-Mixers (`Obs/ObsFader.cs`, logarithmische libobs-Kurve: 50 % = ca. -18,7 dB, 100 % = 0 dB), nicht die lineare Amplitude.
+- **Herkunftssymbole** (`lib/origin.ts`, `DeckKey` `.key-origin`, `.oled-origin`): weiß, größer, oben links an Audio-Tasten und OLED-Displays (OBS / Windows; Streamlabs-/XSplit-Icons vorbereitet).
+- **Pegel / Farben / Platten (früher ungesicherte Arbeit)**: Pegel folgen dem Fader (`MeterBroadcaster` zieht die Windows-Reglerdämpfung ab, `AudioDeviceInfo.VolumeDb`), umgekehrte Zustandsfarben für Stream/Aufnahme/Stumm + Pause orange, Platten-Text (`appearance.plateText`), Vorschaubilder in der Platten-Galerie.
+- **Wiedergabe**: schnellere Cover-Übernahme - `WindowsNowPlayingProvider` fragt alle 0,7 s nach, solange das Cover des neuen Titels fehlt oder noch veraltet ist (`NeedsFastPoll`), und behält das Cover beim nächsten Titel desselben Albums sofort (`_sameAlbum`), statt ein unverändertes Bild 8 s lang zu verbergen.
+- **Doku**: CLAUDE.md, QUELLEN.md (DisplayConfig, GetProfileParameter, Helix-Chat).
 
 ## v2026.10.16 - 2026-10-05 21:00
 

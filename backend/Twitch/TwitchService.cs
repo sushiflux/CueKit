@@ -51,7 +51,7 @@ public class TwitchException(string message, int status = 0, Exception? inner = 
 public sealed class TwitchService(SettingsService settings, IHttpClientFactory httpFactory, IConfiguration config, IHubContext<DeckHub> hub, ILogger<TwitchService> log) : BackgroundService
 {
     /// <summary>Minimal noetige Berechtigungen: Follower lesen, Subs lesen, Clips erstellen, Marker setzen.</summary>
-    public const string Scopes = "moderator:read:followers channel:read:subscriptions clips:edit channel:manage:broadcast";
+    public const string Scopes = "moderator:read:followers channel:read:subscriptions clips:edit channel:manage:broadcast user:write:chat";
 
     private static readonly TimeSpan StreamInterval = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan CountsInterval = TimeSpan.FromSeconds(90);
@@ -242,6 +242,38 @@ public sealed class TwitchService(SettingsService settings, IHttpClientFactory h
             new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull });
         using var doc = await ApiAsync(HttpMethod.Post, "/streams/markers", new StringContent(body, System.Text.Encoding.UTF8, "application/json"), ct,
             offlineMessage: "Der Kanal ist gerade nicht live – Marker gehen nur während eines Streams.");
+    }
+
+    /// <summary>
+    /// Schreibt eine Nachricht in den eigenen Twitch-Chat (z.B. einen Bot-Befehl wie "!preise"). Twitch erlaubt maximal 500 Zeichen.
+    /// Braucht die Berechtigung "user:write:chat" - Verbindungen aus der Zeit davor muessen einmal neu verbunden werden.
+    /// </summary>
+    public async Task SendChatMessageAsync(string? message, CancellationToken ct)
+    {
+        var userId = RequireConnected();
+        message = message?.Trim();
+        if (string.IsNullOrEmpty(message)) throw new TwitchException("Kein Chat-Text angegeben.");
+        if (message.Length > 500) message = message[..500];
+        JsonDocument doc;
+        try
+        {
+            doc = await ApiAsync(HttpMethod.Post, "/chat/messages",
+                new StringContent(JsonSerializer.Serialize(new { broadcaster_id = userId, sender_id = userId, message }), System.Text.Encoding.UTF8, "application/json"), ct);
+        }
+        catch (TwitchException ex) when (ex.Status is 401 or 403)
+        {
+            throw new TwitchException("Twitch-Berechtigung zum Chatten fehlt – einmal unter Einstellungen > Twitch trennen und neu verbinden (neue Berechtigung „Chat schreiben“).", ex.Status);
+        }
+        using (doc)
+        {
+            // Twitch antwortet auch bei abgelehnten Nachrichten mit 200 - dann steht der Grund in drop_reason.
+            if (doc.RootElement.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Array && data.GetArrayLength() > 0
+                && data[0].TryGetProperty("is_sent", out var sent) && sent.ValueKind == JsonValueKind.False)
+            {
+                var reason = data[0].TryGetProperty("drop_reason", out var drop) && drop.TryGetProperty("message", out var m) ? m.GetString() : null;
+                throw new TwitchException($"Twitch hat die Chat-Nachricht nicht gesendet{(string.IsNullOrWhiteSpace(reason) ? "." : $": {reason}")}");
+            }
+        }
     }
 
     /// <summary>Aendert die Kategorie (Spiel) des Kanals. Sucht den Namen bei Twitch; bei mehreren Treffern gewinnt die genaue Schreibweise.</summary>

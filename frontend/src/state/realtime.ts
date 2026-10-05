@@ -1,6 +1,6 @@
 import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr'
 import { api, errorMessage, getToken } from '../api/client'
-import type { AppearanceSettings, AudioDevice, NowPlaying, TwitchSnapshot, AutomationState, Catalog, DeckModel, ObsSnapshot, SystemMonitorSnapshot } from '../api/types'
+import type { AppearanceSettings, AudioDevice, DisplayInfo, NowPlaying, ObsStats, TwitchSnapshot, AutomationState, Catalog, DeckModel, ObsSnapshot, SystemMonitorSnapshot } from '../api/types'
 import { clearMeters, setMeters, type MeterPayload } from './meters'
 import { getState, setState } from './store'
 
@@ -21,6 +21,12 @@ export async function reloadHotkeyStatus() {
   setState({ hotkeys: await api<{ global: boolean; conflicts: string[] }>('/api/hotkeys/status') })
 }
 
+export async function reloadDisplays() {
+  const list = await api<DisplayInfo[]>('/api/displays')
+  // Ein aelterer laufender Dienst liefert statt der Liste die Startseite (HTML).
+  if (Array.isArray(list)) setState({ displays: list })
+}
+
 export async function reloadAudioDevices() {
   try {
     const list = await api<AudioDevice[]>('/api/audio-devices')
@@ -39,6 +45,10 @@ function applyNowPlaying(np: NowPlaying | null | undefined) {
 
 export async function reloadNowPlaying() {
   applyNowPlaying(await api<NowPlaying | undefined>('/api/now-playing'))
+}
+
+export async function reloadObsStats() {
+  setState({ obsStats: (await api<ObsStats | undefined>('/api/obs-stats')) ?? null })
 }
 
 export async function reloadTwitch() {
@@ -66,6 +76,7 @@ export async function startRealtime() {
   connection.on('obsState', (obs: ObsSnapshot) => setState({ obs }))
   connection.on('systemState', (systemMonitor: SystemMonitorSnapshot) => setState({ systemMonitor }))
   connection.on('meters', (payload: MeterPayload) => setMeters(payload))
+  connection.on('obsStats', (stats: ObsStats | null) => setState({ obsStats: stats }))
   connection.on('twitch', (t: TwitchSnapshot) => setState({ twitch: t }))
   connection.on('nowPlaying', (np: NowPlaying | null) => applyNowPlaying(np))
   connection.on('audioDevices', (devices: AudioDevice[]) => setState({ audioDevices: devices, audioDevicesError: null }))
@@ -74,8 +85,11 @@ export async function startRealtime() {
   connection.on('pluginsChanged', () => window.dispatchEvent(new CustomEvent('deck:plugins')))
   connection.on('hotkeysChanged', () => void reloadHotkeyStatus().catch(() => {}))
   // Systemweites Tastenkuerzel wurde am PC gedrueckt -> offene Decks zeigen den Druck bzw. den Fehler.
-  connection.on('keyTriggered', (buttonId: number, error: string | null) =>
-    window.dispatchEvent(new CustomEvent('deck:keyTriggered', { detail: { buttonId, error } })),
+  connection.on('keyTriggered', (buttonId: number, error: string | null) => {
+    window.dispatchEvent(new CustomEvent('deck:keyTriggered', { detail: { buttonId, error } }))
+    // HDR-/Aufloesungswechsel dauern einen Moment: Monitorliste danach neu lesen, damit die Tasten ihren Zustand zeigen.
+    if (getState().displays.length > 0) window.setTimeout(() => void reloadDisplays().catch(() => {}), 1500)
+  },
   )
   connection.on('automationsChanged', () => {
     void reloadAutomationStates().catch(() => {})
@@ -91,7 +105,7 @@ export async function startRealtime() {
   connection.onreconnected(async () => {
     setState({ link: 'online' })
     // Waehrend der Trennung verpasste Aenderungen nachholen.
-    await Promise.allSettled([reloadDecks(), reloadCatalog(), reloadAutomationStates(), reloadHotkeyStatus(), reloadAppearance(), reloadAudioDevices(), reloadNowPlaying(), reloadTwitch()])
+    await Promise.allSettled([reloadDecks(), reloadCatalog(), reloadAutomationStates(), reloadHotkeyStatus(), reloadAppearance(), reloadAudioDevices(), reloadDisplays(), reloadNowPlaying(), reloadTwitch(), reloadObsStats()])
     if (systemMonitorWanted) await connection?.invoke('SetSystemMonitor', true).catch(() => {})
     if (metersWanted) await connection?.invoke('SetMeters', true).catch(() => {})
   })

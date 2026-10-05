@@ -4,6 +4,9 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace Deck.Server.Hardware;
 
+/// <summary>Pegel eines Windows-Geraets in dB: nach dem Lautstaerkeregler (Anzeige) und roh vor dem Regler (zeigt bei Stumm weiter das Signal).</summary>
+public record WinMeterLevel(double Peak, double InputPeak);
+
 /// <summary>Wer gerade Tasten mit Live-Pegelanzeige offen hat - solange niemand zuschaut, wird weder
 /// bei OBS die hochfrequente Pegel-Event-Gruppe abonniert noch der Windows-Pegel abgefragt.</summary>
 public sealed class MeterSubscribers
@@ -38,8 +41,8 @@ public sealed class MeterBroadcaster(
         obs.MetersChanged += OnObsMeters;
         var subscribed = false;
         IReadOnlyDictionary<string, ObsMeterLevel> lastObs = NoLevels;
-        double? lastSystem = null;
-        Dictionary<string, double> lastWin = [];
+        (double? Peak, double? InputPeak) lastSystem = default;
+        Dictionary<string, WinMeterLevel> lastWin = [];
         IReadOnlyList<AudioDeviceInfo> devices = [];
         var devicesRefreshedTicks = 0L;
         try
@@ -53,7 +56,7 @@ public sealed class MeterBroadcaster(
                     obs.SetMetersWanted(any);
                     if (!any) _obsLevels = NoLevels;
                     lastObs = NoLevels;
-                    lastSystem = null;
+                    lastSystem = default;
                     lastWin = [];
                 }
 
@@ -61,16 +64,26 @@ public sealed class MeterBroadcaster(
                 {
                     try
                     {
-                        var system = systemVolume is NoSystemVolume ? null : systemVolume.ReadPeakDb();
-                        // Pegel aller aktiven Windows-Geraete (Ausgaben + Mikrofone); die Geraeteliste nur alle 3 s neu lesen.
-                        if (systemVolume is not NoSystemVolume && Environment.TickCount64 - devicesRefreshedTicks > 3000)
+                        // Geraeteliste (Lautstaerke/Stumm) alle 500 ms neu lesen, damit der Pegel einem bewegten Regler sofort folgt.
+                        if (systemVolume is not NoSystemVolume && Environment.TickCount64 - devicesRefreshedTicks > 500)
                         {
                             devices = systemVolume.ListDevices();
                             devicesRefreshedTicks = Environment.TickCount64;
                         }
-                        var win = new Dictionary<string, double>();
+
+                        // Windows liefert bei WIEDERGABE-Geraeten den Pegel VOR dem Lautstaerkeregler (OBS dagegen nach dem Fader). Damit die
+                        // Anzeige wie der OBS-Mixer reagiert - leiser gestellt = der Balken schlaegt nur noch bis dorthin aus - wird die
+                        // Reglerdaempfung (dB) hier abgezogen; stumm = Stille. Aufnahmegeraete (Mikrofone) liefern den Pegel schon nach der Verstaerkung.
+                        static double Post(double raw, AudioDeviceInfo d) => d.Muted ? -100 : d.Kind == "output" ? Math.Max(-100, Math.Round(raw + d.VolumeDb, 1)) : raw;
+
+                        var win = new Dictionary<string, WinMeterLevel>();
                         foreach (var device in devices)
-                            if (systemVolume.ReadPeakDbDevice(device.Id) is { } db) win[device.Id] = db;
+                            if (systemVolume.ReadPeakDbDevice(device.Id) is { } raw) win[device.Id] = new WinMeterLevel(Post(raw, device), raw);
+
+                        // "System" = Standard-Ausgabe
+                        var systemRaw = systemVolume is NoSystemVolume ? null : systemVolume.ReadPeakDb();
+                        var defaultOutput = devices.FirstOrDefault(d => d.Kind == "output" && d.IsDefault);
+                        var system = systemRaw is { } sr ? (Peak: defaultOutput is null ? sr : Post(sr, defaultOutput), InputPeak: (double?)sr) : (Peak: (double?)null, InputPeak: (double?)null);
 
                         var levels = _obsLevels;
                         if (system != lastSystem || !Same(levels, lastObs) || !SameWin(win, lastWin))
@@ -78,7 +91,7 @@ public sealed class MeterBroadcaster(
                             lastObs = levels;
                             lastSystem = system;
                             lastWin = win;
-                            await hub.Clients.Group(DeckHub.MetersGroup).SendAsync("meters", new { obs = levels, system, win }, stoppingToken);
+                            await hub.Clients.Group(DeckHub.MetersGroup).SendAsync("meters", new { obs = levels, system = system.Peak, systemInput = system.InputPeak, win }, stoppingToken);
                         }
                     }
                     catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
@@ -101,7 +114,7 @@ public sealed class MeterBroadcaster(
 
     private void OnObsMeters(IReadOnlyDictionary<string, ObsMeterLevel> levels) => _obsLevels = levels;
 
-    private static bool SameWin(Dictionary<string, double> a, Dictionary<string, double> b)
+    private static bool SameWin(Dictionary<string, WinMeterLevel> a, Dictionary<string, WinMeterLevel> b)
     {
         if (a.Count != b.Count) return false;
         foreach (var (key, value) in a)

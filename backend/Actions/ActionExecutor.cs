@@ -129,6 +129,11 @@ public class ActionExecutor(ObsService obs, PluginHost plugins, SystemVolume sys
             case "obs.audio.volume":
             {
                 var input = Required(step, "input");
+                if (step.Str("unit") == "percent")
+                {
+                    await AdjustVolumePercentAsync(input, step, ct);
+                    break;
+                }
                 double target;
                 if (step.Str("mode") == "set")
                 {
@@ -233,6 +238,11 @@ public class ActionExecutor(ObsService obs, PluginHost plugins, SystemVolume sys
                 catch (TwitchException ex) { throw new ActionExecutionException(ex.Message, ex); }
                 break;
 
+            case "twitch.chat":
+                try { await services.GetRequiredService<TwitchService>().SendChatMessageAsync(step.Str("message"), ct); }
+                catch (TwitchException ex) { throw new ActionExecutionException(ex.Message, ex); }
+                break;
+
             case "twitch.marker":
                 try { await services.GetRequiredService<TwitchService>().CreateMarkerAsync(step.Str("description"), ct); }
                 catch (TwitchException ex) { throw new ActionExecutionException(ex.Message, ex); }
@@ -244,6 +254,18 @@ public class ActionExecutor(ObsService obs, PluginHost plugins, SystemVolume sys
 
             case "system.mute":
                 ExecuteSystemMute(step);
+                break;
+
+            case "system.hdr":
+                ExecuteHdr(step);
+                break;
+
+            case "system.resolution":
+                ExecuteResolution(step);
+                break;
+
+            case "system.resolution.toggle":
+                ExecuteResolutionToggle(step);
                 break;
 
             case "system.browser.open":
@@ -340,6 +362,68 @@ public class ActionExecutor(ObsService obs, PluginHost plugins, SystemVolume sys
                 case "off": systemVolume.SetMutedDevice(DeviceId(step), false); break;
                 default: systemVolume.ToggleMutedDevice(DeviceId(step)); break;
             }
+        }
+        catch (InvalidOperationException ex) { throw new ActionExecutionException(ex.Message, ex); }
+    }
+
+    /// <summary>
+    /// Lautstaerke einer OBS-Quelle in Prozent der Reglerstellung des OBS-Mixers (siehe <see cref="ObsFader"/>): 50 % = Regler in der Mitte,
+    /// 100 % = 0 dB, 0 % = ganz unten. Lauter geht nicht ueber 0 dB hinaus (es sei denn, die Quelle liegt schon darueber), leiser nicht unter 0 %.
+    /// </summary>
+    private async Task AdjustVolumePercentAsync(string input, ActionStep step, CancellationToken ct)
+    {
+        double targetDb;
+        if (step.Str("mode") == "set")
+        {
+            var value = step.Dbl("value") ?? throw new ActionExecutionException("Zielwert in Prozent fehlt.");
+            targetDb = ObsFader.ToDb(Math.Clamp(value, 0, 100) / 100);
+        }
+        else
+        {
+            var current = await obs.RequestAsync("GetInputVolume", new { inputName = input }, ct);
+            var db = current?["inputVolumeDb"]?.GetValue<double>() ?? -100;
+            if (!double.IsFinite(db)) db = -100;
+            var stepPercent = Math.Abs(step.Dbl("step") ?? 5);
+            var position = ObsFader.ToPosition(db) * 100;
+            if (step.Str("mode") == "down") targetDb = ObsFader.ToDb(Math.Max(0, position - stepPercent) / 100);
+            else targetDb = db >= 0 ? db : ObsFader.ToDb(Math.Min(100, position + stepPercent) / 100);
+        }
+        await obs.RequestAsync("SetInputVolume", new { inputName = input, inputVolumeDb = Math.Round(Math.Clamp(targetDb, -100, 26), 2) }, ct);
+    }
+
+    private void ExecuteHdr(ActionStep step)
+    {
+        var display = Required(step, "display");
+        try
+        {
+            bool? enabled = step.Mode switch { "on" => true, "off" => false, _ => null };
+            services.GetRequiredService<Deck.Server.Hardware.IDisplayControl>().SetHdr(display, enabled);
+        }
+        catch (InvalidOperationException ex) { throw new ActionExecutionException(ex.Message, ex); }
+    }
+
+    private void ExecuteResolution(ActionStep step)
+    {
+        var display = Required(step, "display");
+        var width = step.Int("width");
+        var height = step.Int("height");
+        if (width is not > 0 || height is not > 0) throw new ActionExecutionException("Breite und Höhe der Auflösung fehlen.");
+        try { services.GetRequiredService<Deck.Server.Hardware.IDisplayControl>().SetResolution(display, width.Value, height.Value, step.Int("hz") is > 0 and var hz ? hz : null); }
+        catch (InvalidOperationException ex) { throw new ActionExecutionException(ex.Message, ex); }
+    }
+
+    private void ExecuteResolutionToggle(ActionStep step)
+    {
+        var display = Required(step, "display");
+        var (wa, ha, wb, hb) = (step.Int("widthA"), step.Int("heightA"), step.Int("widthB"), step.Int("heightB"));
+        if (wa is not > 0 || ha is not > 0 || wb is not > 0 || hb is not > 0) throw new ActionExecutionException("Beide Auflösungen (Breite und Höhe) müssen eingetragen sein.");
+        var control = services.GetRequiredService<Deck.Server.Hardware.IDisplayControl>();
+        try
+        {
+            var current = control.List().FirstOrDefault(d => d.Id == display) ?? throw new InvalidOperationException("Der Monitor wurde nicht gefunden (abgesteckt oder ausgeschaltet?).");
+            // Ist gerade A eingestellt, wird B gesetzt - in jedem anderen Fall (B oder eine dritte Auflösung) A.
+            var toB = Deck.Server.Hardware.DisplayInfoExtensions.IsMode(current, wa.Value, ha.Value);
+            control.SetResolution(display, toB ? wb.Value : wa.Value, toB ? hb.Value : ha.Value, null);
         }
         catch (InvalidOperationException ex) { throw new ActionExecutionException(ex.Message, ex); }
     }

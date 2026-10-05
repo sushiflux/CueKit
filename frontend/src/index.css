@@ -42,6 +42,9 @@
   /* Nur 4 % Weiss: bei stark aufgehellten Toenen (frueher 28 %) fiel weisse Schrift unter 4,5:1 - jetzt gruen ~4,7:1, rot ~5,8:1. */
   --c-toggle-on-bg: color-mix(in oklab, white 4%, var(--c-toggle-on));
   --c-toggle-off-bg: color-mix(in oklab, white 4%, var(--c-toggle-off));
+  /* Pausiert (z. B. pausierte Aufnahme): Orange, weisser Text >= 4.5:1 */
+  --c-pause: #b45309;
+  --c-pause-bg: color-mix(in oklab, white 4%, var(--c-pause));
   /* Icon-Ton fuer stummgeschaltete Mute-Tasten - bewusst kein reines Weiss (Kernpunkt der
      Nutzer-Vorgabe: das Icon soll selbst zur Warnfarbe gehoeren), aber hell genug fuer 3:1
      UI-Kontrast gegen den roten Tastenhintergrund (--c-toggle-off): 4.47:1 hier. */
@@ -49,6 +52,7 @@
   /* Darstellung "Nur Symbol": Symbol/Text in Zustandsfarbe auf neutralem Tastenkoerper. Hell: auf #fff..#eceef5 >= 5.5:1 */
   --c-state-on-text: #166534;
   --c-state-off-text: #b91c1c;
+  --c-state-pause-text: #b45309;
   --c-focus: #5b4bf5;
   --c-shadow: 220 30% 20%;
 
@@ -93,6 +97,8 @@
      Ton direkt. */
   --c-toggle-on-bg: color-mix(in oklab, var(--key-body-bottom) 55%, var(--c-toggle-on));
   --c-toggle-off-bg: color-mix(in oklab, var(--key-body-bottom) 55%, var(--c-toggle-off));
+  --c-pause: #f59e0b;
+  --c-pause-bg: color-mix(in oklab, var(--key-body-bottom) 55%, var(--c-pause));
   /* Icon-Ton fuer stummgeschaltete Mute-Tasten, siehe light-Theme-Kommentar - 3.34:1 gegen
      --c-toggle-off hier (knapper als im hellen Theme, da --c-toggle-off dort dunkler ist, aber
      weiterhin >= 3:1 fuer UI-Elemente/Icons). */
@@ -100,6 +106,7 @@
   /* Dunkel: auf #232835..#161a23 >= 6:1 (gruen ~10:1, rot ~6:1) */
   --c-state-on-text: #4ade80;
   --c-state-off-text: #f87171;
+  --c-state-pause-text: #fbbf24;
   --c-focus: #a597ff;
   --c-shadow: 230 40% 2%;
 
@@ -562,6 +569,16 @@
     --key-accent: var(--c-toggle-off);
     --key-edge-active: color-mix(in oklab, white 20%, var(--key-accent));
   }
+  /* Pausiert (Aufnahme-/Pause-Taste): Orange statt Rot. Gleiche Spezifitaet wie die Rot-Regeln oben, steht danach. */
+  .deck-key[data-paused='true'][data-active='true'] {
+    --key-solid: var(--c-pause-bg);
+    --key-edge-active: color-mix(in oklab, white 35%, var(--key-solid));
+  }
+  [data-theme='dark'] .deck-key[data-paused='true'][data-active='true'] {
+    --key-accent: var(--c-pause);
+    --key-edge-active: color-mix(in oklab, white 20%, var(--key-accent));
+  }
+  .deck-key[data-tone='paused'] { --tone: var(--c-state-pause-text); }
   /* Flacher "eingedrueckt"-Schatten statt der vollen Kante - gilt fuer jede Taste, die im
      eingedrueckten Zustand UND in ihrer Zustandsfarbe steht. Bei normalen Toggle-Tasten ist das
      [data-active='true'], bei Mute-Tasten aber der GRUENE (gute, nicht-stumme) Zustand, also
@@ -646,6 +663,8 @@
     background: color-mix(in oklab, var(--oled-accent) 20%, #000) !important;
     box-shadow: inset 0 0 0 2px var(--oled-accent) !important;
   }
+  .deck-key[data-surface='oled'][data-paused='true'],
+  .deck-key[data-surface='oled'][data-tone='paused'] { --oled-accent: #ffb020; }
   .deck-key[data-surface='oled'][data-tone] { --key-icon: var(--oled-accent); }
   .deck-key[data-surface='oled'] .key-label { color: #f2f6ff; text-shadow: none; }
   /* Druck: kurzes Aufleuchten statt Eindruecken */
@@ -1043,6 +1062,19 @@
   }
   
   /* Tastenkuerzel-Etikett oben links */
+  /* Herkunft der Audioquelle (OBS / Windows) - kleines weisses Logo oben links; das Tastenkuerzel rueckt dann daneben */
+  .deck-key .key-origin {
+    position: absolute;
+    top: 7%;
+    left: 7%;
+    display: flex;
+    color: #fff;
+    opacity: 0.85;
+    filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.6));
+    pointer-events: none;
+    z-index: 10;
+  }
+  .deck-key[data-origin] .key-hotkey { left: calc(7% + 1.7em); }
   .deck-key .key-hotkey {
     position: absolute;
     top: 7%;
@@ -1149,6 +1181,14 @@
   .oled-display[data-orientation='vertical'] { flex-direction: column; }
   .oled-display[data-orientation='horizontal'] { flex-direction: row; }
   .oled-icon { display: flex; flex: none; color: #8fb4ff; }
+  /* Herkunft der Quelle: beide Logos weiss und gut lesbar (Windows unbearbeitet, OBS evtl. mit Filtern), OBS-Namen leicht getoent */
+  .oled-origin { display: inline-flex; flex: none; align-items: center; gap: 0.2em; }
+  /* Hochkant-Display: Marken senkrecht in der oberen rechten Ecke (neben den Balken, nehmen dem Namen keinen Platz weg) */
+  .oled-origin[data-corner] { position: absolute; top: 0.45em; left: 0.4em; z-index: 3; flex-direction: column; gap: 0.3em; }
+  .oled-origin { color: #fff; }
+  .oled-display[data-origin='obs'] .oled-name { color: #e3d9ff; }
+  .oled-name { display: flex; align-items: center; justify-content: center; gap: 0.4em; }
+  .oled-name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .oled-name {
     min-width: 0;
     overflow: hidden;

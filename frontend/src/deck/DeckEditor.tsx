@@ -2,7 +2,7 @@ import { DndContext, DragOverlay, PointerSensor, useDraggable, useDroppable, use
 import { IconCheck, IconClick, IconMusic, IconDownload, IconLayoutGrid, IconPlus, IconRoute, IconSparkles } from '@tabler/icons-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api, errorMessage } from '../api/client'
-import { reloadAudioDevices } from '../state/realtime'
+import { reloadAudioDevices, reloadDisplays } from '../state/realtime'
 import type { ButtonModel, DeckModel, PageModel, SideDisplay as SideDisplayModel } from '../api/types'
 import { DeckGrid, type SideSlot } from '../components/DeckGrid'
 import { SideDisplay, sideDisplayInfo } from '../components/SideDisplay'
@@ -66,6 +66,7 @@ function EditKey({ button, size, selected, onSelect, onOpen }: { button: ButtonM
   const catalog = useStore((s) => s.catalog)
   const systemMonitor = useStore((s) => s.systemMonitor)
   useStore((s) => s.audioDevices) // Stumm-/Pegel-Zustand von Geraete-Tasten (siehe lib/buttonState.ts)
+  useStore((s) => s.displays) // Zustand von Monitor-Tasten (HDR, Aufloesung)
   const appearance = useStore((s) => s.appearance)
   const switchStates = useStore((s) => s.switchStates)
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `key:${button.id}`, data: { button } })
@@ -186,8 +187,10 @@ export function DeckEditor({ deck, page, onOpenFolder, onDeckCreated, onDone, in
   const audioDevices = useStore((s) => s.audioDevices)
   // Beim Oeffnen des Editors die Geraeteliste frisch holen (Geraete koennen seit dem App-Start dazugekommen sein).
   useEffect(() => void reloadAudioDevices().catch(() => {}), [])
+  useEffect(() => void reloadDisplays().catch(() => {}), [])
+  const displays = useStore((s) => s.displays)
   const audioDevicesError = useStore((s) => s.audioDevicesError)
-  const groups = useMemo(() => buildPalette(obs, catalog, audioDevices, audioDevicesError), [obs, catalog, audioDevices, audioDevicesError])
+  const groups = useMemo(() => buildPalette(obs, catalog, audioDevices, audioDevicesError, displays), [obs, catalog, audioDevices, audioDevicesError, displays])
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
   // Andere Taste gewaehlt -> zurueck auf den Aktion-Tab, statt den zuletzt betrachteten Automation-Tab zu behalten.

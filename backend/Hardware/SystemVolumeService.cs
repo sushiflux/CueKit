@@ -7,7 +7,7 @@ namespace Deck.Server.Hardware;
 public record SystemVolumeStatus(bool Available, int Percent, bool Muted, string? Error);
 
 /// <summary>Ein aktives Windows-Audiogeraet. Kind: "output" (Wiedergabe) oder "input" (Aufnahme, z.B. Mikrofon).</summary>
-public record AudioDeviceInfo(string Id, string Name, string Kind, bool IsDefault, int Percent, bool Muted);
+public record AudioDeviceInfo(string Id, string Name, string Kind, bool IsDefault, int Percent, bool Muted, double VolumeDb = 0);
 
 /// <summary>
 /// Plattformneutraler Zugriff auf die Windows-Systemlautstaerke. Auf Nicht-Windows-Systemen
@@ -143,8 +143,8 @@ public sealed class SystemVolumeService : ISystemVolume
                             {
                                 device.GetId(out var id);
                                 var name = _names.GetOrAdd(id, _ => ReadFriendlyName(device) ?? id);
-                                var (percent, muted) = ReadVolume(device);
-                                result.Add(new AudioDeviceInfo(id, name, kind, id == defaultId, percent, muted));
+                                var (percent, muted, volumeDb) = ReadVolume(device);
+                                result.Add(new AudioDeviceInfo(id, name, kind, id == defaultId, percent, muted, volumeDb));
                             }
                             catch { /* Geraet verschwand waehrend der Abfrage (z.B. USB abgezogen) - ueberspringen. */ }
                             finally { Marshal.ReleaseComObject(device); }
@@ -170,7 +170,7 @@ public sealed class SystemVolumeService : ISystemVolume
         catch { return null; }
     }
 
-    private static (int Percent, bool Muted) ReadVolume(IMMDevice device)
+    private static (int Percent, bool Muted, double VolumeDb) ReadVolume(IMMDevice device)
     {
         var iid = typeof(IAudioEndpointVolume).GUID;
         device.Activate(ref iid, 0x1, IntPtr.Zero, out var volumeObj);
@@ -178,8 +178,12 @@ public sealed class SystemVolumeService : ISystemVolume
         try
         {
             volume.GetMasterVolumeLevelScalar(out var level);
+            volume.GetMasterVolumeLevel(out var levelDb); // echte Daempfung des Reglers in dB (nicht linear zur Prozentanzeige)
             volume.GetMute(out var muted);
-            return ((int)Math.Round(level * 100), muted != 0);
+            // Manche Geraete (z.B. USB-Lautsprecher) kennen keine dB-Skala und melden einen Platzhalter um -127 dB: dann aus der
+            // Prozentstellung abschaetzen (Amplitude proportional zum Reglerwert).
+            var db = levelDb > -100f ? levelDb : 20 * Math.Log10(Math.Max(level, 0.0001f));
+            return ((int)Math.Round(level * 100), muted != 0, Math.Round(db, 1));
         }
         finally { Marshal.ReleaseComObject(volume); }
     }

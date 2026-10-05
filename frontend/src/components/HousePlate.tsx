@@ -47,6 +47,8 @@ function HeaderMainLarge() {
 export function HousePlate({ plateKey, children, className, deckName, pageName, keyCount, preview, oledLarge }: Props) {
   const appearance = useStore((s) => s.appearance)
   const preset = plateKey ? HOUSE_PLATE_PRESETS.find((p) => p.key === plateKey) : undefined
+  // Beschriftung oben rechts (eigener Text aus Aussehen > Gehaeuse-Plate; leer = ausgeblendet)
+  const brandText = (appearance?.plateText ?? 'SUSHIFLUX').trim().toUpperCase()
 
   if (!preset) return <div className={className}>{children}</div>
 
@@ -162,7 +164,7 @@ export function HousePlate({ plateKey, children, className, deckName, pageName, 
                   Seite // <span className="font-bold text-cyan-300">{pageName ? pageName.toUpperCase() : 'STANDARD'}</span>
                 </span>
                 <span className={`text-[11px] font-black tracking-[0.25em] text-transparent bg-clip-text ${getLedClass('r')}`} style={getLedStyle('right', 0)}>
-                  SUSHIFLUX
+                  {brandText}
                 </span>
               </div>
               <div className="relative z-10 flex min-h-0 flex-1 items-center gap-6">
@@ -213,7 +215,7 @@ export function HousePlate({ plateKey, children, className, deckName, pageName, 
             {/* Right: SUSHIFLUX illuminated brand name */}
             <div className="relative flex items-center shrink-0 z-10">
               <span className={`${preview ? 'text-[9px]' : 'text-xs'} font-black tracking-[0.25em] text-transparent bg-clip-text ${getLedClass('r')} ${isSnow ? 'drop-shadow-[0_0_8px_rgba(251,146,60,0.4)]' : 'drop-shadow-[0_0_10px_rgba(251,146,60,0.5)]'}`} style={getLedStyle('right', 0)}>
-                SUSHIFLUX
+                {brandText}
               </span>
             </div>
           </div>

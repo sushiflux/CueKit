@@ -34,7 +34,9 @@ public static class FieldKind
     public const string SceneItem = "sceneItem";   // benoetigt ein "scene"-Feld im selben Formular
     public const string AudioInput = "audioInput";
     public const string AudioDevice = "audioDevice"; // Windows-Audiogeraet (Wiedergabe/Aufnahme); leer = Standard-Ausgabe
+    public const string Display = "display";       // Windows-Monitor (HDR-faehige bzw. alle aktiven)
     public const string Page = "page";
+    public const string RootPage = "rootPage";     // Hauptseite des Decks (keine Ordner) - z.B. Ziel einer Home-Taste
     public const string Source = "source";           // Szenen + Inputs (fuer Filter)
     public const string Filter = "filter";           // benoetigt ein "source"-Feld im selben Formular
     public const string MediaInput = "mediaInput";

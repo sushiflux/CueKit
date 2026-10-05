@@ -2,7 +2,7 @@ import { useDraggable } from '@dnd-kit/core'
 import { IconChevronRight, IconSearch } from '@tabler/icons-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useMemo, useState } from 'react'
-import type { ActionStep, AudioDevice, Catalog, ObsSnapshot } from '../api/types'
+import type { ActionStep, AudioDevice, Catalog, DisplayInfo, ObsSnapshot } from '../api/types'
 import { KeyIcon } from '../components/KeyIcon'
 import { defaultParams } from './StepEditor'
 
@@ -41,7 +41,7 @@ export interface PaletteGroup {
 const step = (type: string, params: ActionStep['params'] = {}): ActionStep[] => [{ type, params }]
 
 /** Baut die Palette aus dem Live-Zustand von OBS, dem Aktionskatalog und den Plugins. */
-export function buildPalette(obs: ObsSnapshot | null, catalog: Catalog | null, audioDevices: AudioDevice[] = [], audioDevicesError: string | null = null): PaletteGroup[] {
+export function buildPalette(obs: ObsSnapshot | null, catalog: Catalog | null, audioDevices: AudioDevice[] = [], audioDevicesError: string | null = null, displays: DisplayInfo[] = []): PaletteGroup[] {
   const def = (type: string) => defaultParams(catalog?.actions.find((a) => a.type === type))
 
   const browserInputs = new Set((obs?.inputs ?? []).filter((i) => i.kind === 'browser_source').map((i) => i.name))
@@ -109,8 +109,8 @@ export function buildPalette(obs: ObsSnapshot | null, catalog: Catalog | null, a
     color: 'emerald',
     actions: step('obs.audio.mute', { input: a.name, mode: 'toggle' }),
     variants: [
-      { id: `vol-up:${a.name}`, short: 'Lauter', label: `${a.name} +`, icon: 'tabler:volume-2', color: 'emerald', actions: step('obs.audio.volume', { input: a.name, mode: 'up', step: 3 }) },
-      { id: `vol-down:${a.name}`, short: 'Leiser', label: `${a.name} −`, icon: 'tabler:volume-3', color: 'emerald', actions: step('obs.audio.volume', { input: a.name, mode: 'down', step: 3 }) },
+      { id: `vol-up:${a.name}`, short: 'Lauter', label: `${a.name} +`, icon: 'mdi:volume-plus', color: 'emerald', actions: step('obs.audio.volume', { input: a.name, mode: 'up', step: 3 }) },
+      { id: `vol-down:${a.name}`, short: 'Leiser', label: `${a.name} −`, icon: 'mdi:volume-minus', color: 'emerald', actions: step('obs.audio.volume', { input: a.name, mode: 'down', step: 3 }) },
     ],
   }))
 
@@ -123,8 +123,8 @@ export function buildPalette(obs: ObsSnapshot | null, catalog: Catalog | null, a
       color: 'emerald',
       actions: step('obs.audio.mute', def('obs.audio.mute')),
       variants: [
-        { id: 'ctl:audio-vol-up', short: 'Lauter', label: 'Audioquelle +', icon: 'tabler:volume-2', color: 'emerald', actions: step('obs.audio.volume', { ...def('obs.audio.volume'), mode: 'up', step: 3 }) },
-        { id: 'ctl:audio-vol-down', short: 'Leiser', label: 'Audioquelle −', icon: 'tabler:volume-3', color: 'emerald', actions: step('obs.audio.volume', { ...def('obs.audio.volume'), mode: 'down', step: 3 }) },
+        { id: 'ctl:audio-vol-up', short: 'Lauter', label: 'Audioquelle +', icon: 'mdi:volume-plus', color: 'emerald', actions: step('obs.audio.volume', { ...def('obs.audio.volume'), mode: 'up', step: 3 }) },
+        { id: 'ctl:audio-vol-down', short: 'Leiser', label: 'Audioquelle −', icon: 'mdi:volume-minus', color: 'emerald', actions: step('obs.audio.volume', { ...def('obs.audio.volume'), mode: 'down', step: 3 }) },
       ],
     },
     {
@@ -277,7 +277,10 @@ export function buildPalette(obs: ObsSnapshot | null, catalog: Catalog | null, a
             kind: 'multi-switch',
           },
           { id: 'deck:folder', label: 'Ordner', icon: 'tabler:folder-plus', color: 'amber', actions: [], kind: 'folder' },
-          { id: 'deck:back', label: 'Zurück', icon: 'tabler:arrow-back-up', color: 'slate', actions: step('deck.back') },
+          { id: 'deck:back', label: 'Zurück', sublabel: 'Eine Ordner-Ebene zurück', icon: 'tabler:arrow-back-up', color: 'slate', actions: step('deck.back') },
+          { id: 'deck:prev-page', label: 'Seite zurück', sublabel: 'Zur vorherigen Seite blättern', icon: 'tabler:arrow-left', color: 'slate', actions: step('deck.prevPage') },
+          { id: 'deck:next-page', label: 'Seite weiter', sublabel: 'Zur nächsten Seite blättern', icon: 'tabler:arrow-right', color: 'slate', actions: step('deck.nextPage') },
+          { id: 'deck:home', label: 'Home', sublabel: 'Home-Seite danach wählen', icon: 'tabler:home', color: 'slate', actions: step('deck.home', def('deck.home')) },
         ],
       },
     ],
@@ -300,10 +303,53 @@ export function buildPalette(obs: ObsSnapshot | null, catalog: Catalog | null, a
     color: 'cyan',
     actions: step('system.mute', { device: d.id, mode: 'toggle' }),
     variants: [
-      { id: `win-up:${d.id}`, short: 'Lauter', label: `${d.name} +`, icon: 'tabler:volume-2', color: 'cyan', actions: step('system.volume', { device: d.id, mode: 'up', step: 5 }) },
-      { id: `win-down:${d.id}`, short: 'Leiser', label: `${d.name} −`, icon: 'tabler:volume-3', color: 'cyan', actions: step('system.volume', { device: d.id, mode: 'down', step: 5 }) },
+      { id: `win-up:${d.id}`, short: 'Lauter', label: `${d.name} +`, icon: 'mdi:volume-plus', color: 'cyan', actions: step('system.volume', { device: d.id, mode: 'up', step: 5 }) },
+      { id: `win-down:${d.id}`, short: 'Leiser', label: `${d.name} −`, icon: 'mdi:volume-minus', color: 'cyan', actions: step('system.volume', { device: d.id, mode: 'down', step: 5 }) },
     ],
   })
+
+  // Monitore: HDR nur fuer HDR-faehige; Aufloesungen als feste Tasten (native + gaengige Stufen, soweit der Monitor sie kann).
+  const COMMON_RESOLUTIONS: [number, number][] = [[5120, 1440], [3840, 2160], [3840, 1080], [3440, 1440], [2560, 1440], [1920, 1080], [1280, 720]]
+  const hdrEntry = (m: DisplayInfo): PaletteEntry => ({
+    id: `hdr:${m.id}`,
+    label: `HDR · ${m.name}`,
+    sublabel: 'HDR ein / aus',
+    icon: 'tabler:sun-high',
+    color: 'amber',
+    actions: step('system.hdr', { display: m.id, mode: 'toggle' }),
+    variants: [
+      { id: `hdr-on:${m.id}`, short: 'HDR an', label: `HDR an · ${m.name}`, icon: 'tabler:sun-high', color: 'amber', actions: step('system.hdr', { display: m.id, mode: 'on' }) },
+      { id: `hdr-off:${m.id}`, short: 'HDR aus', label: `HDR aus · ${m.name}`, icon: 'tabler:sun-off', color: 'amber', actions: step('system.hdr', { display: m.id, mode: 'off' }) },
+    ],
+  })
+  const resolutionEntries = (m: DisplayInfo): PaletteEntry[] => {
+    const native = m.resolutions[0]
+    const wanted = new Map<string, [number, number]>()
+    if (native) wanted.set(`${native.width}x${native.height}`, [native.width, native.height])
+    for (const [w, h] of COMMON_RESOLUTIONS) if (m.resolutions.some((r) => r.width === w && r.height === h)) wanted.set(`${w}x${h}`, [w, h])
+    // Umschalter zwischen Hauptaufloesung (A) und einer kleineren (B, bevorzugt 1920x1080); die Taste zeigt die aktuelle Aufloesung.
+    const small = m.resolutions.find((r) => r.width === 1920 && r.height === 1080) ?? [...m.resolutions].reverse().find((r) => COMMON_RESOLUTIONS.some(([w, h]) => w === r.width && h === r.height)) ?? m.resolutions[m.resolutions.length - 1]
+    const toggle: PaletteEntry[] =
+      native && small && (small.width !== native.width || small.height !== native.height)
+        ? [{
+            id: `res-toggle:${m.id}`,
+            label: `${m.name}: umschalten`,
+            sublabel: `${native.width}×${native.height} ⇄ ${small.width}×${small.height}`,
+            icon: 'tabler:arrows-exchange',
+            color: 'cyan',
+            actions: step('system.resolution.toggle', { display: m.id, widthA: native.width, heightA: native.height, widthB: small.width, heightB: small.height }),
+          }]
+        : []
+    return [...toggle, ...[...wanted.values()].map(([w, h]) => ({
+      id: `res:${m.id}:${w}x${h}`,
+      short: `${w}×${h}`,
+      label: `${m.name}: ${w}×${h}`,
+      icon: 'tabler:device-desktop',
+      color: 'cyan',
+      actions: step('system.resolution', { display: m.id, width: w, height: h }),
+    }))]
+  }
+  const displayHint = 'Keine Monitore gefunden (nur im nativ installierten Windows-Dienst verfügbar).'
 
   const deviceHint = (what: string) =>
     audioDevicesError ? `Geräteliste nicht ladbar: ${audioDevicesError}. Dienst neu starten (start.ps1).` : `Keine ${what} gefunden.`
@@ -324,8 +370,8 @@ export function buildPalette(obs: ObsSnapshot | null, catalog: Catalog | null, a
             color: 'cyan',
             actions: step('system.mute', def('system.mute')),
             variants: [
-              { id: 'system:vol-up', short: 'Lauter', label: 'Systemlautstärke +', icon: 'tabler:volume-2', color: 'cyan', actions: step('system.volume', { mode: 'up', step: 5 }) },
-              { id: 'system:vol-down', short: 'Leiser', label: 'Systemlautstärke −', icon: 'tabler:volume-3', color: 'cyan', actions: step('system.volume', { mode: 'down', step: 5 }) },
+              { id: 'system:vol-up', short: 'Lauter', label: 'Systemlautstärke +', icon: 'mdi:volume-plus', color: 'cyan', actions: step('system.volume', { mode: 'up', step: 5 }) },
+              { id: 'system:vol-down', short: 'Leiser', label: 'Systemlautstärke −', icon: 'mdi:volume-minus', color: 'cyan', actions: step('system.volume', { mode: 'down', step: 5 }) },
             ],
           },
         ],
@@ -341,6 +387,20 @@ export function buildPalette(obs: ObsSnapshot | null, catalog: Catalog | null, a
         title: 'Audioquellen · Eingang',
         entries: audioDevices.filter((d) => d.kind === 'input').map(deviceEntry),
         emptyHint: deviceHint('Aufnahmegeräte'),
+      },
+      {
+        id: 'hdr',
+        title: 'Monitor · HDR',
+        entries: displays.filter((m) => m.hdrSupported).map(hdrEntry),
+        emptyHint: displays.length > 0 ? 'Kein angeschlossener Monitor unterstützt HDR.' : displayHint,
+      },
+      {
+        id: 'resolution',
+        title: 'Monitor · Auflösung',
+        entries: [
+          ...displays.flatMap(resolutionEntries),
+          { id: 'system:resolution', label: 'Eigene Auflösung', sublabel: 'Monitor und Größe danach wählen', icon: 'tabler:device-desktop-cog', color: 'cyan', actions: step('system.resolution', def('system.resolution')) },
+        ],
       },
       {
         id: 'misc',
@@ -423,6 +483,7 @@ export function buildPalette(obs: ObsSnapshot | null, catalog: Catalog | null, a
           { id: 'twitch:clip', label: 'Clip erstellen', sublabel: 'Letzte Sekunden des Streams', icon: 'tabler:movie', color: 'violet', actions: step('twitch.clip', {}) },
           { id: 'twitch:category', label: 'Kategorie setzen', sublabel: 'Spielname danach eintragen', icon: 'tabler:category', color: 'violet', actions: step('twitch.category', def('twitch.category')) },
           { id: 'twitch:title', label: 'Titel setzen', sublabel: 'Stream-Titel danach eintragen', icon: 'tabler:letter-case', color: 'violet', actions: step('twitch.title', def('twitch.title')) },
+          { id: 'twitch:chat', label: 'Chat-Nachricht senden', sublabel: 'Text/Befehl danach eintragen (z. B. !preise)', icon: 'tabler:message-circle', color: 'violet', actions: step('twitch.chat', def('twitch.chat')) },
           { id: 'twitch:marker', label: 'Stream-Marker setzen', sublabel: 'Lesezeichen im Stream', icon: 'tabler:bookmark', color: 'violet', actions: step('twitch.marker', def('twitch.marker')) },
         ],
       },

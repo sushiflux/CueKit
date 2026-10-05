@@ -47,6 +47,11 @@ public static class ActionCatalog
         new("up", "Lauter"), new("down", "Leiser"), new("set", "Auf festen Wert setzen"),
     ];
 
+    private static readonly FieldOption[] VolumeUnits =
+    [
+        new("db", "Dezibel (dB)"), new("percent", "Prozent (Reglerstellung wie im OBS-Mixer)"),
+    ];
+
     private static readonly FieldOption[] MediaModes =
     [
         new("playpause", "Abspielen/Pause"), new("play", "Abspielen"), new("pause", "Pause"), new("stop", "Stopp"),
@@ -101,8 +106,9 @@ public static class ActionCatalog
         new("obs.audio.volume", ObsAudio, "Lautstärke", "Macht eine Audioquelle lauter, leiser oder setzt sie auf einen festen Wert.", "tabler:volume",
             [new("input", "Audioquelle", FieldKind.AudioInput),
              new("mode", "Modus", FieldKind.Select, Options: VolumeModes, Default: "up"),
-             new("step", "Schritt in dB (lauter/leiser)", FieldKind.Number, Required: false, Default: "3"),
-             new("value", "Zielwert in dB (0 = voll, -60 = sehr leise)", FieldKind.Number, Required: false, Default: "-10")], "emerald"),
+             new("unit", "Einheit", FieldKind.Select, Options: VolumeUnits, Default: "db"),
+             new("step", "Schritt (lauter/leiser) in der gewählten Einheit", FieldKind.Number, Required: false, Default: "3"),
+             new("value", "Zielwert (dB: 0 = voll, -60 = sehr leise · Prozent: 0-100 = Reglerstellung, 50 = Mitte)", FieldKind.Number, Required: false, Default: "-10")], "emerald"),
 
         // --- Medien ---
         new("obs.media", ObsMedia, "Medien steuern", "Abspielen, Pause, Stopp, von vorn - für Medien- und VLC-Quellen.", "tabler:player-play",
@@ -152,7 +158,8 @@ public static class ActionCatalog
         new("deck.nextPage", Deck, "Nächste Seite", "Wechselt zur nächsten Seite des Decks.", "tabler:arrow-right", [], "slate"),
         new("deck.prevPage", Deck, "Vorherige Seite", "Wechselt zur vorherigen Seite des Decks.", "tabler:arrow-left", [], "slate"),
         new("deck.back", Deck, "Zurück", "Geht eine Ordner-Ebene zurück.", "tabler:arrow-back-up", [], "slate"),
-        new("deck.home", Deck, "Startseite", "Springt zur Startseite des Decks.", "tabler:home", [], "slate"),
+        new("deck.home", Deck, "Home", "Springt zu der Seite, die du hier als Home wählst (z.B. aus einem Ordner oder von Seite 4 zurück zur ersten Seite). Ohne Auswahl verlässt sie nur den aktuellen Ordner.", "tabler:home",
+            [new("page", "Home-Seite", FieldKind.RootPage, Required: false)], "slate"),
         new("deck.multiSwitch", Deck, "Multi-Aktionsschalter", "Schaltet zwischen zwei Zuständen mit jeweils eigenen Aktionen um.", "tabler:toggle-right", [], "indigo"),
 
         // --- Automation ---
@@ -173,6 +180,20 @@ public static class ActionCatalog
         new("system.mute", System, "Systemlautstärke stumm", "Schaltet ein Windows-Audiogerät (Standard: aktuelle Ausgabe, auch Mikrofone) stumm oder laut.", "tabler:volume-3",
             [new("device", "Audiogerät (leer = Standard-Ausgabe)", FieldKind.AudioDevice, Required: false),
              new("mode", "Modus", FieldKind.Select, Options: MuteModes, Default: "toggle")], "cyan"),
+        new("system.hdr", System, "HDR ein/aus", "Schaltet HDR (Windows „Advanced Color“) eines Monitors ein, aus oder um. Nur Monitore, die HDR unterstützen, stehen zur Wahl.", "tabler:sun-high",
+            [new("display", "Monitor", FieldKind.Display),
+             new("mode", "Modus", FieldKind.Select, Options: ToggleModes, Default: "toggle")], "amber"),
+        new("system.resolution", System, "Auflösung ändern", "Stellt die Bildschirmauflösung eines Monitors um (z.B. 3440×1440 auf 1920×1080). Ohne Bildwiederholrate bleibt die aktuelle erhalten, wenn die neue Auflösung sie kann.", "tabler:device-desktop",
+            [new("display", "Monitor", FieldKind.Display),
+             new("width", "Breite in Pixeln", FieldKind.Number, Default: "1920"),
+             new("height", "Höhe in Pixeln", FieldKind.Number, Default: "1080"),
+             new("hz", "Bildwiederholrate in Hz (optional)", FieldKind.Number, Required: false)], "cyan"),
+        new("system.resolution.toggle", System, "Auflösung umschalten", "Wechselt bei jedem Druck zwischen zwei Auflösungen eines Monitors (z.B. 3840×2160 und 1920×1080). Die Taste zeigt die aktuelle Auflösung.", "tabler:arrows-exchange",
+            [new("display", "Monitor", FieldKind.Display),
+             new("widthA", "Auflösung A · Breite", FieldKind.Number, Default: "3840"),
+             new("heightA", "Auflösung A · Höhe", FieldKind.Number, Default: "2160"),
+             new("widthB", "Auflösung B · Breite", FieldKind.Number, Default: "1920"),
+             new("heightB", "Auflösung B · Höhe", FieldKind.Number, Default: "1080")], "cyan"),
         new("system.browser.open", System, "Browser öffnen", "Öffnet eine fest hinterlegte Adresse im Standardbrowser.", "tabler:world",
             [new("url", "Adresse (http/https)", FieldKind.Url)], "cyan"),
         new("system.program.open", System, "Programm öffnen", "Startet ein Programm (.exe, .bat, .cmd, .lnk) auf dem PC, optional mit Startparametern.", "tabler:app-window",
@@ -193,6 +214,8 @@ public static class ActionCatalog
             [new("category", "Kategorie (Spielname, wie bei Twitch)", FieldKind.Text)], "violet"),
         new("twitch.title", Twitch, "Titel setzen", "Ändert den Twitch-Stream-Titel auf den eingetragenen Text (max. 140 Zeichen).", "tabler:letter-case",
             [new("title", "Stream-Titel", FieldKind.Text)], "violet"),
+        new("twitch.chat", Twitch, "Chat-Nachricht senden", "Schreibt den eingetragenen Text in deinen Twitch-Chat – z.B. einen Bot-Befehl wie „!preise“ (max. 500 Zeichen).", "tabler:message-circle",
+            [new("message", "Text / Befehl (z.B. !preise)", FieldKind.Text)], "violet"),
         new("twitch.marker", Twitch, "Stream-Marker setzen", "Setzt ein Lesezeichen im Stream (im Video-Archiv wiederzufinden), optional mit Beschreibung.", "tabler:bookmark",
             [new("description", "Beschreibung (optional, max. 140 Zeichen)", FieldKind.Text, Required: false)], "violet"),
     ];

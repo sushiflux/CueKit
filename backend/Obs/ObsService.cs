@@ -87,6 +87,12 @@ public sealed class ObsService(SettingsService settings, ILogger<ObsService> log
     /// <summary>Beendet die aktuelle Sitzung, damit der Verbindungsloop mit neuen Einstellungen neu verbindet.</summary>
     public void Reconnect() => _sessionCts?.Cancel();
 
+    /// <summary>
+    /// Pfad der Datei, in die OBS gerade aufnimmt - bekannt, sobald OBS ihn meldet (Ereignis "RecordFileChanged", z.B. nach einem
+    /// Aufnahme-Split; je nach OBS-Version auch schon beim Start). Beim Start einer Aufnahme geleert, damit kein alter Pfad stehen bleibt.
+    /// </summary>
+    public string? RecordPath { get; private set; }
+
     public bool IsConnected => _client is { IsOpen: true };
 
     /// <summary>Den konkreten Grund nennen (z.B. falsches Passwort), nicht nur "nicht verbunden".</summary>
@@ -378,10 +384,17 @@ public sealed class ObsService(SettingsService settings, ILogger<ObsService> log
                 Update(s => s with { Streaming = active, StreamStartedAt = active ? s.StreamStartedAt ?? now : null });
                 break;
             }
+            case "RecordFileChanged":
+            {
+                RecordPath = Str(data, "newOutputPath");
+                break;
+            }
             case "RecordStateChanged":
             {
                 var active = Bool(data, "outputActive");
                 var state = Str(data, "outputState");
+                if (state is "OBS_WEBSOCKET_OUTPUT_STARTING" or "OBS_WEBSOCKET_OUTPUT_STARTED") RecordPath = null;
+                else if (state == "OBS_WEBSOCKET_OUTPUT_STOPPED") RecordPath = null;
                 Update(s => s with
                 {
                     Recording = active,

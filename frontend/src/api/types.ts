@@ -32,6 +32,58 @@ export interface PageModel {
   buttons: ButtonModel[]
 }
 
+/** OBS-Leistungswerte waehrend einer Aufnahme (obs-websocket GetStats). */
+export interface ObsStats {
+  cpuUsage: number
+  memoryUsageMb: number
+  availableDiskSpaceMb: number
+  activeFps: number
+  averageFrameRenderTimeMs: number
+  renderSkippedFrames: number
+  renderTotalFrames: number
+  outputSkippedFrames: number
+  outputTotalFrames: number
+  /** Bisher geschriebene Bytes der laufenden Aufnahme. */
+  outputBytes: number
+  recordDirectory: string | null
+  /** Datei, in die gerade aufgenommen wird (falls ermittelbar). */
+  recordPath: string | null
+  /** Leinwand (Basis-Aufloesung) und Ausgabe-Aufloesung, Soll-Bildrate laut OBS. */
+  baseWidth: number
+  baseHeight: number
+  outputWidth: number
+  outputHeight: number
+  targetFps: number
+  /** Aufnahme-Einstellungen des OBS-Profils (nur waehrend einer Aufnahme). */
+  record?: RecordSettings | null
+  /** Stream-Einstellungen des OBS-Profils (nur waehrend eines Streams). */
+  streamSettings?: StreamSettings | null
+  /** Tatsaechlich gesendete Stream-Bitrate in kbit/s und Netzwerk-Stau (0-1). */
+  streamKbps: number
+  streamCongestion: number
+}
+
+export interface AudioTrackInfo {
+  number: number
+  /** Eigener Spurname aus OBS, sonst null. */
+  name: string | null
+}
+export interface RecordSettings {
+  /** z. B. "AV1 · NVIDIA NVENC". */
+  codec: string
+  /** z. B. "Hybrid MP4". */
+  format: string
+  tracks: AudioTrackInfo[]
+}
+export interface StreamSettings {
+  codec: string | null
+  /** Enhanced Broadcasting: Dienst (Twitch) waehlt Codec und Videospuren selbst. */
+  enhanced: boolean
+  /** Bandbreiten-Limit in kbit/s; null = automatisch. */
+  maxKbps: number | null
+  maxVideoTracks: number | null
+}
+
 /** Oeffentlicher Twitch-Stand (keine Zugangsdaten): Live-Zahlen des verbundenen Kanals. */
 export interface TwitchSnapshot {
   configured: boolean
@@ -84,6 +136,27 @@ export interface NowPlaying {
   coverId?: string | null
 }
 
+/** Aktiver Windows-Monitor mit HDR-Zustand und den unterstützten Auflösungen (Hz absteigend). */
+export interface DisplayResolution {
+  width: number
+  height: number
+  refreshRates: number[]
+}
+export interface DisplayInfo {
+  id: string
+  name: string
+  gdiName: string
+  isPrimary: boolean
+  hdrSupported: boolean
+  hdrEnabled: boolean
+  width: number
+  height: number
+  refreshRate: number
+  resolutions: DisplayResolution[]
+  /** Monitor ist gedreht (Hochkant) - Breite/Höhe sind trotzdem in der nativen Ausrichtung angegeben. */
+  rotated?: boolean
+}
+
 /** Aktives Windows-Audiogeraet: Wiedergabe ("output") oder Aufnahme/Mikrofon ("input"). */
 export interface AudioDevice {
   id: string
@@ -92,6 +165,8 @@ export interface AudioDevice {
   isDefault: boolean
   percent: number
   muted: boolean
+  /** Daempfung des Reglers in dB (0 = voll aufgedreht). */
+  volumeDb?: number
 }
 
 /** Seitliches OLED-Display neben dem Tastenraster. source: "system", "obs:<Eingangsname>" oder "win:<Windows-Geraete-ID>". */
@@ -169,17 +244,21 @@ export interface AppearanceSettings {
   displayMesh: boolean
   /** Tastenoberflaeche: glatt, Subpixel-Matrix oder flache OLED-Displays (ohne Tastenhub, ohne Druckverhalten). */
   keySurface?: 'smooth' | 'mesh' | 'oled'
+  /** Eigene Beschriftung oben rechts im SushiFlux-Gehaeuse (max. 16 Zeichen; leer = ausgeblendet; nie gesetzt = "SUSHIFLUX"). */
+  plateText?: string
   ledColors?: string[]
   ledEffect?: string
   ledSpeed?: number
 }
 
 export type FieldKind =
+  | 'display'
   | 'scene'
   | 'sceneItem'
   | 'audioInput'
   | 'audioDevice'
   | 'page'
+  | 'rootPage'
   | 'source'
   | 'filter'
   | 'mediaInput'

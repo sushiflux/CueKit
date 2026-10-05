@@ -96,6 +96,7 @@ public static class ServerHost
         else
         {
             builder.Services.AddSingleton<ISystemVolume, NoSystemVolume>();
+            builder.Services.AddSingleton<IDisplayControl, NoDisplayControl>();
             // Entwickler-Notbehelf nur im Docker-Dev-Stack: Container-eigene CPU/RAM-Werte statt
             // "nicht verfuegbar", damit Anzeige-Kacheln ueberhaupt Live-Zahlen zeigen (siehe
             // Hardware/ContainerSystemMonitor.cs - das sind Container-, nicht PC-Werte). In
@@ -118,6 +119,7 @@ public static class ServerHost
         AddHostedSingleton<TwitchService>(builder.Services);
 
         AddHostedSingleton<ObsService>(builder.Services);
+        AddHostedSingleton<ObsStatsService>(builder.Services); // OBS-Leistungswerte waehrend einer Aufnahme
         AddHostedSingleton<AutomationEngine>(builder.Services);
         AddHostedSingleton<HubNotifier>(builder.Services);
 
@@ -265,6 +267,7 @@ public static class ServerHost
     private static void AddWindowsHardware(IServiceCollection services)
     {
         services.AddSingleton<ISystemVolume, SystemVolumeService>();
+        services.AddSingleton<IDisplayControl, DisplayService>();
         services.AddSingleton<SystemMonitorService>();
         services.AddSingleton<ISystemMonitor>(sp => sp.GetRequiredService<SystemMonitorService>());
     }

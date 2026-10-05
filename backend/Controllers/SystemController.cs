@@ -70,6 +70,17 @@ public class AudioDevicesController(ISystemVolume volume) : ControllerBase
     public IReadOnlyList<AudioDeviceInfo> Get() => volume.ListDevices();
 }
 
+/// <summary>Aktive Windows-Monitore mit HDR-Faehigkeit/-Zustand und unterstuetzten Aufloesungen - fuer die Palette (HDR nur bei
+/// faehigen Monitoren) und die Aufloesungs-Tasten. Lesen duerfen alle gekoppelten Geraete.</summary>
+[ApiController]
+[Route("api/displays")]
+[Authorize(AuthenticationSchemes = DeviceAuth.Scheme)]
+public class DisplaysController(IDisplayControl displays) : ControllerBase
+{
+    [HttpGet]
+    public IReadOnlyList<DisplayInfo> Get() => displays.List();
+}
+
 /// <summary>Windows-Systemlautstaerke (Master, nicht OBS-Audio) + Live-Sensoren (CPU/GPU/RAM) - nur
 /// nativ unter Windows verfuegbar, siehe Hardware/SystemVolumeService.cs und Hardware/SystemMonitorService.cs.
 /// Systemweite Aenderungen bleiben Owner vorbehalten, wie die uebrigen Settings-Endpunkte.</summary>

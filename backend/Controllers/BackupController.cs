@@ -207,6 +207,14 @@ public class BackupController(AppDbContext db, HubNotifier notifier, AutomationE
     {
         if (step.Type == "deck.openPage")
             return step.Int("page") is { } oldPage && pages.TryGetValue(oldPage, out var page) ? WithParam(step, "page", page.Id) : null;
+        if (step.Type == "deck.home" && step.Int("page") is { } oldHome)
+        {
+            // Home-Seite im Import neu zuordnen; fehlt sie, wird die Taste zur einfachen Home-Taste (Ordner verlassen).
+            if (pages.TryGetValue(oldHome, out var homePage)) return WithParam(step, "page", homePage.Id);
+            var p = step.Params?.DeepClone().AsObject() ?? new JsonObject();
+            p.Remove("page");
+            return step with { Params = p };
+        }
         if (step.Type == "automation.toggle")
             return step.Int("automation") is { } oldId && automations.TryGetValue(oldId, out var newId) ? WithParam(step, "automation", newId) : null;
         return step;

@@ -75,3 +75,9 @@ Wo Informationen für dieses Projekt nachgeschlagen wurden.
 
 - Twitch Developer Docs: Authentication > Device code grant flow - https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/#device-code-grant-flow - Anmeldung ohne Client-Secret (Public-Client); `POST /oauth2/device`, `POST /oauth2/token`, `GET /oauth2/validate`, `POST /oauth2/revoke` in `TwitchService.cs`.
 - Twitch Helix Reference - https://dev.twitch.tv/docs/api/reference/ - `Get Streams`, `Get Channel Followers` (moderator:read:followers), `Get Broadcaster Subscriptions` (channel:read:subscriptions, nur Affiliate/Partner), `Create Clip` (clips:edit), `Create Stream Marker` (channel:manage:broadcast). Hinweis: Die Einzelheiten sind aus dem Gedaechtnis umgesetzt und nur gegen einen lokalen Mock getestet - vor dem ersten echten Einsatz mit echtem Twitch-Konto pruefen.
+
+## Monitore, OBS-Ausgabe-Einstellungen, Twitch-Chat (2026-10)
+
+- **Windows DisplayConfig API** (`QueryDisplayConfig`, `DisplayConfigGetDeviceInfo`/`SetDeviceInfo` mit `DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO`=9 / `SET_ADVANCED_COLOR_STATE`=10) - https://learn.microsoft.com/windows/win32/api/wingdi/ - HDR-Faehigkeit (Bit 0) und Zustand (Bit 1) je Monitor; `EnumDisplaySettingsEx`/`ChangeDisplaySettingsEx` fuer Aufloesungen (Hochkant-Monitore melden Breite/Hoehe vertauscht, `dmDisplayOrientation` 1/3).
+- **obs-websocket v5 `GetProfileParameter`** - https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md - liest basic.ini des Profils (`Output.Mode`, `AdvOut.RecEncoder/RecFormat2/RecTracks`, `SimpleOutput.RecEncoder/RecQuality`, `Stream1.EnableMultitrackVideo` = Enhanced Broadcasting); Beispiel-Datei: `%APPDATA%\obs-studio\basic\profiles\<Profil>\basic.ini`.
+- **Twitch Helix "Send Chat Message"** - https://dev.twitch.tv/docs/api/reference/#send-chat-message - Scope `user:write:chat`; `is_sent=false` + `drop_reason` auch bei HTTP 200.

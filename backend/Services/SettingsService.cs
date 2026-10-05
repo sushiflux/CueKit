@@ -36,6 +36,8 @@ public static class SettingKeys
     /// <summary>Optisches Subpixel-Mesh ueber alle Tasten (LCD CueDeck Matrix).</summary>
     public const string AppearanceDisplayMesh = "appearance.displayMesh";
     public const string AppearanceKeySurface = "appearance.keySurface";
+    /// <summary>Eigene Beschriftung oben rechts im SushiFlux-Gehaeuse (max. 16 Zeichen; leer = ausgeblendet, nie gesetzt = "SUSHIFLUX").</summary>
+    public const string AppearancePlateText = "appearance.plateText";
     public const string AppearanceLedColors = "appearance.ledColors";
     public const string AppearanceLedSpeed = "appearance.ledSpeed";
     public const string AppearanceLedEffect = "appearance.ledEffect";
@@ -94,6 +96,11 @@ public class SettingsService(IServiceScopeFactory scopes, IDataProtectionProvide
 
     /// <summary>Optisches Subpixel-Mesh ueber alle Tasten (LCD CueDeck Look).</summary>
     public bool AppearanceDisplayMesh => Get(SettingKeys.AppearanceDisplayMesh) == "true";
+
+    public const int MaxPlateTextLength = 16;
+
+    /// <summary>Beschriftung des SushiFlux-Gehaeuses: gesetzter Text (auch leer = ausblenden), sonst die Marke.</summary>
+    public string AppearancePlateText => Get(SettingKeys.AppearancePlateText) ?? "SUSHIFLUX";
 
     private static readonly HashSet<string> ValidKeySurfaces = ["smooth", "mesh", "oled"];
 

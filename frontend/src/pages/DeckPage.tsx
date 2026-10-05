@@ -64,6 +64,7 @@ export function DeckPage() {
   const catalog = useStore((s) => s.catalog)
   const systemMonitor = useStore((s) => s.systemMonitor)
   const audioDevices = useStore((s) => s.audioDevices) // Geraete-Tasten/-Displays zeichnen bei Aenderungen neu
+  useStore((s) => s.displays) // Monitor-Tasten (HDR, Aufloesung) zeichnen bei Aenderungen neu
   const appearance = useStore((s) => s.appearance)
   const switchStates = useStore((s) => s.switchStates)
   const isOwner = me?.role === 'owner'
@@ -264,7 +265,15 @@ export function DeckPage() {
             setStack([])
           }
         } else if (step.type === 'deck.back') setStack((s) => s.slice(0, -1))
-        else if (step.type === 'deck.home') setStack([])
+        else if (step.type === 'deck.home') {
+          // Mit gewaehlter Home-Seite dorthin springen (und alle Ordner verlassen), sonst nur die Ordner verlassen.
+          const target = step.params?.page ? Number(step.params.page) : null
+          if (target != null) {
+            if (deck?.pages.some((p) => p.id === target && p.parentPageId === null)) setRootPageId(target)
+            else toast('Die Home-Seite dieser Taste existiert nicht mehr – bitte in der Taste neu wählen.', 'error')
+          }
+          setStack([])
+        }
       }
     },
     [deck, catalog, obs, rootPages, currentRoot],

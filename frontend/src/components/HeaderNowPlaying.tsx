@@ -33,7 +33,7 @@ function useCoverUrl(coverId: string | null | undefined): string | null {
       return
     }
     let alive = true
-    apiBlob('/api/now-playing/cover')
+    apiBlob(`/api/now-playing/cover?v=${encodeURIComponent(coverId)}`) // eigene Adresse pro Cover: sonst liefert der Browser-Cache (max-age) das Bild des vorigen Titels
       .then((blob) => {
         const objectUrl = URL.createObjectURL(blob)
         if (coverCache.size >= 12) {

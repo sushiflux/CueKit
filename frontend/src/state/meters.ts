@@ -8,9 +8,11 @@ import { useSyncExternalStore } from 'react'
  */
 export interface MeterPayload {
   obs: Record<string, { peak: number; inputPeak: number }>
+  /** Standard-Ausgabe: Pegel nach dem Lautstaerkeregler (wie OBS nach dem Fader); systemInput = vor dem Regler. */
   system: number | null
-  /** Windows-Audiogeraete: Geraete-ID -> dB. */
-  win?: Record<string, number>
+  systemInput?: number | null
+  /** Windows-Audiogeraete: Geraete-ID -> {peak nach Regler, inputPeak vor Regler} in dB. */
+  win?: Record<string, { peak: number; inputPeak: number }>
 }
 
 export const INPUT_LEVEL_SUFFIX = ':in'
@@ -24,13 +26,13 @@ export function setMeters(payload: MeterPayload) {
     next[`obs:${name}`] = level.peak
     next[`obs:${name}${INPUT_LEVEL_SUFFIX}`] = level.inputPeak
   }
-  for (const [id, db] of Object.entries(payload.win ?? {})) {
-    next[`win:${id}`] = db
-    next[`win:${id}${INPUT_LEVEL_SUFFIX}`] = db
+  for (const [id, level] of Object.entries(payload.win ?? {})) {
+    next[`win:${id}`] = level.peak
+    next[`win:${id}${INPUT_LEVEL_SUFFIX}`] = level.inputPeak
   }
   if (payload.system != null) {
     next.system = payload.system
-    next[`system${INPUT_LEVEL_SUFFIX}`] = payload.system
+    next[`system${INPUT_LEVEL_SUFFIX}`] = payload.systemInput ?? payload.system
   }
   levels = next
   listeners.forEach((l) => l())

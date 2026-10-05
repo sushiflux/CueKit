@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import type { ButtonModel, SystemMonitorSnapshot } from '../api/types'
-import { activeIcon, activeLabel, buttonHasToggleState, buttonStateKind, isMonitorLoadMetric, isMuteAction, isTwitchMetric, monitorDisplay, twitchDisplay } from '../lib/buttonState'
+import { activeIcon, activeLabel, buttonHasToggleState, buttonOrigin, buttonStateKind, isInvertedStateAction, isMonitorLoadMetric, isRecordPausedState, isTwitchMetric, monitorDisplay, twitchDisplay } from '../lib/buttonState'
 import { hotkeyParts } from '../lib/hotkeys'
 import { INPUT_LEVEL_SUFFIX, useMeterDb } from '../state/meters'
 import { useStore } from '../state/store'
+import { ORIGIN_ICONS, ORIGIN_NAMES } from '../lib/origin'
 import { KeyIcon } from './KeyIcon'
 import { RingGauge } from './RingGauge'
 
@@ -222,6 +223,7 @@ export function DeckKey({
   const icon = activeIcon(button, active)
   const label = activeLabel(button, active)
   const hasLabel = label.trim().length > 0
+  const origin = buttonOrigin(button)
   const labelRef = useFitLabel(label, size)
   const iconSize = Math.round(size * (hasLabel ? 0.36 : 0.46))
   const fontSize = Math.max(10, Math.round(size * 0.115))
@@ -246,7 +248,9 @@ export function DeckKey({
   // Monitor-Tasten (CPU, GPU, RAM) und Einmal-Aktionen springen IMMER sofort wieder zurueck!
   const oled = keySurface === 'oled'
   const stays = !oled && pressBehavior === 'stay' && buttonHasToggleState(button) && !unavailable
-  const mute = isMuteAction(button)
+  const recordPaused = useStore((s) => s.obs?.recordPaused === true)
+  const pausedState = !unavailable && isRecordPausedState(button, active, recordPaused) // pausierte Aufnahme: orange
+  const mute = isInvertedStateAction(button) // Mute, Stream, Aufnahme: rot = aktiv, gruen = inaktiv
   const hasToggle = buttonHasToggleState(button)
   // Bei "bleibt gedrueckt" soll der GRUENE (gute) Zustand unten/eingedrueckt wirken - bei normalen
   // Toggle-Tasten ist das active=true, bei Mute-Tasten aber genau umgekehrt active=false ("nicht
@@ -259,7 +263,7 @@ export function DeckKey({
   const stateOn = mute ? !active : active
   const fillMode = stateStyle === 'fill'
   const off = !unavailable && stateKind === 'onoff' && !stateOn
-  const tone: 'on' | 'off' | undefined = unavailable || stateKind == null ? undefined : stateOn ? 'on' : off ? 'off' : undefined
+  const tone: 'on' | 'off' | 'paused' | undefined = unavailable || stateKind == null ? undefined : pausedState ? 'paused' : stateOn ? 'on' : off ? 'off' : undefined
 
   // Harmonische Zustandsanzeige ohne Kollision:
   // Wenn stateStyle ein Indikator ist ('glow' | 'corner' | 'led' | 'level'), bleibt der Tastenkörper neutral
@@ -300,11 +304,13 @@ export function DeckKey({
       type="button"
       className="deck-key"
       data-surface={oled ? 'oled' : undefined}
+      data-origin={origin ?? undefined}
       data-color={button.color}
       data-active={fillMode ? active : false}
       data-mute={(fillMode && mute && !unavailable) || undefined}
       data-off={(fillMode && off && !mute) || undefined}
       data-tone={fillMode ? undefined : tone}
+      data-paused={(fillMode && pausedState) || undefined}
       data-unavailable={unavailable || undefined}
       data-meter={showMeter || undefined}
       data-pressed={stays ? visuallyOn : pressed || flash}
@@ -360,6 +366,11 @@ export function DeckKey({
           {showStatusBar && <span className="key-status-bar" data-led={stateOn ? 'on' : 'off'} aria-hidden="true" />}
           {showCorner && <span className="key-corner-indicator" data-led={stateOn ? 'on' : 'off'} aria-hidden="true" />}
           {showGlow && <span className="key-backlight-indicator" data-led={stateOn ? 'on' : 'off'} aria-hidden="true" />}
+          {origin && size >= 56 && (
+            <span className="key-origin" title={ORIGIN_NAMES[origin]}>
+              <KeyIcon name={ORIGIN_ICONS[origin]} size={Math.max(10, Math.round(size * 0.15))} />
+            </span>
+          )}
           {showHotkey && button.hotkey && size >= 72 && <span className="key-hotkey">{hotkeyParts(button.hotkey).join('+')}</span>}
           {icon && <KeyIcon name={icon} size={iconSize} className="key-icon" />}
           {hasLabel && (

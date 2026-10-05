@@ -12,7 +12,7 @@ import { DevicesPage } from './pages/DevicesPage'
 import { PluginsPage } from './pages/PluginsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { MarketingVideo } from './pages/MarketingVideo'
-import { reloadAppearance, reloadAutomationStates, reloadCatalog, reloadDecks, reloadHotkeyStatus, startRealtime, stopRealtime } from './state/realtime'
+import { reloadAppearance, reloadAudioDevices, reloadAutomationStates, reloadNowPlaying, reloadTwitch, reloadCatalog, reloadDecks, reloadHotkeyStatus, startRealtime, stopRealtime } from './state/realtime'
 import { setState, useStore } from './state/store'
 import { loadIconSet } from './lib/icons'
 
@@ -46,7 +46,7 @@ export default function App() {
         try {
           const me = await api<Me>('/api/auth/me')
           setState({ me })
-          await Promise.all([reloadDecks(), reloadCatalog(), reloadAutomationStates(), reloadAppearance()])
+          await Promise.all([reloadDecks(), reloadCatalog(), reloadAutomationStates(), reloadAppearance(), reloadAudioDevices().catch(() => {}), reloadNowPlaying().catch(() => {}), reloadTwitch().catch(() => {})])
           void reloadHotkeyStatus().catch(() => {})
           void startRealtime()
           void loadIconSet('tabler') // Standard-Sammlung vorladen, damit Tasten sofort Icons zeigen

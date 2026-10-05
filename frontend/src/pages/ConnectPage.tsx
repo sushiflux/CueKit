@@ -53,7 +53,7 @@ function BrandPanel() {
             {branding.tagline}
           </motion.h1>
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} className="mt-4 text-lg text-white/75">
-            Das kostenlose Stream-Deck für OBS – auf jedem Gerät, das du schon besitzt.
+            Das kostenlose CueDeck für OBS – auf jedem Gerät, das du schon besitzt.
           </motion.p>
 
           <div className="mt-10 grid gap-3">

@@ -8,7 +8,8 @@
   -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- 10.0.19041 = Windows 10 2004: noetig fuer die Windows-Mediensteuerung (Windows.Media.Control) -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWindowsForms>true</UseWindowsForms>
@@ -25,6 +26,7 @@
     <!-- Das WebView2-Paket bringt einen (hier ungenutzten) WPF-Verweis mit, der eine harmlose
          WindowsBase-Konfliktwarnung erzeugt. -->
     <NoWarn>$(NoWarn);MSB3277</NoWarn>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
   <!-- Branding + Version aus den Wurzeldateien des Repos (eine Quelle der Wahrheit). -->

@@ -46,32 +46,38 @@ export function AppShell({ title, actions, children }: { title: ReactNode; actio
   }, [infoOpen])
 
   return (
-    <div className="flex h-full flex-col bg-canvas text-ink">
-      {/* Haupt-Topbar */}
-      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-line bg-surface/85 px-4 backdrop-blur-md lg:px-6">
+    <div className="flex h-full flex-col overflow-hidden bg-canvas text-ink">
+      {/* Haupt-Topbar: Ein Tick größer (h-16), ultra-stylisch mit Glassmorphism & Brand-Akzentlinie */}
+      <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-line/80 bg-surface/80 px-4 backdrop-blur-xl shadow-[0_4px_24px_-4px_rgba(0,0,0,0.12)] lg:px-7 isolate">
+        {/* Dezent leuchtende Akzentlinie am unteren Rand der Topbar */}
+        <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-brand/30 to-transparent pointer-events-none" />
+
         {/* Links: Logo & Markenname */}
-        <NavLink to="/" className="flex items-center gap-2.5 rounded-ctl py-1 pr-2 transition-opacity hover:opacity-90">
-          <img src="/logo.svg" alt="" className="h-7 w-7" />
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-base font-extrabold tracking-tight text-ink">{branding.productName}</span>
-            <span className="hidden text-[10px] font-semibold uppercase tracking-wider text-ink-faint xl:inline">
+        <NavLink to="/" className="group flex items-center gap-3 rounded-ctl py-1.5 pr-2 transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]">
+          <div className="relative flex items-center justify-center">
+            <div className="absolute -inset-1 rounded-full bg-brand/20 blur-sm opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+            <img src="/logo.svg" alt="" className="relative h-8 w-8 drop-shadow-[0_2px_8px_rgba(99,102,241,0.25)]" />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-black tracking-tight text-ink group-hover:text-brand transition-colors">{branding.productName}</span>
+            <span className="hidden text-[10px] font-bold uppercase tracking-wider text-ink-muted bg-surface-2/90 border border-line/60 px-2 py-0.5 rounded-full xl:inline">
               {branding.tagline}
             </span>
           </div>
         </NavLink>
 
-        {/* Mitte: Stylische Navigations-Pills mit animiertem Aktiv-Hintergrund */}
-        <nav className="flex items-center gap-1 sm:gap-1.5" aria-label="Hauptnavigation">
+        {/* Mitte: Stylische Navigations-Pills in einem dezenten Glass-Dock */}
+        <nav className="flex items-center gap-1 rounded-full border border-line/60 bg-surface-2/60 p-1 backdrop-blur-md shadow-inner" aria-label="Hauptnavigation">
           {NAV.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
               end={end}
               className={({ isActive }) =>
-                `group relative flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all ${
+                `group relative flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all ${
                   isActive
                     ? 'text-white'
-                    : 'text-ink-muted hover:bg-surface-2 hover:text-ink'
+                    : 'text-ink-muted hover:bg-surface-3/60 hover:text-ink'
                 }`
               }
             >
@@ -80,11 +86,11 @@ export function AppShell({ title, actions, children }: { title: ReactNode; actio
                   {isActive && (
                     <motion.span
                       layoutId="topbar-nav-pill"
-                      className="absolute inset-0 -z-10 rounded-full bg-brand shadow-sm shadow-brand/30"
+                      className="absolute inset-0 -z-10 rounded-full bg-brand shadow-md shadow-brand/35"
                       transition={{ type: 'spring', stiffness: 450, damping: 32 }}
                     />
                   )}
-                  <Icon size={18} stroke={isActive ? 2.2 : 1.8} className={isActive ? 'text-white' : 'text-ink-muted group-hover:text-ink'} />
+                  <Icon size={19} stroke={isActive ? 2.3 : 1.9} className={isActive ? 'text-white' : 'text-ink-muted group-hover:text-ink transition-colors'} />
                   <span className="hidden sm:inline">{label}</span>
                 </>
               )}
@@ -93,40 +99,45 @@ export function AppShell({ title, actions, children }: { title: ReactNode; actio
         </nav>
 
         {/* Rechts: Geraetestatus, Theme-Umschalter & Info-Popup */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           {me && (
             <NavLink
               to="/devices"
-              className="hidden items-center gap-1.5 rounded-full border border-line bg-surface-2 px-2.5 py-1 text-sm font-medium text-ink transition-colors hover:border-brand/40 sm:flex"
+              className="hidden items-center gap-2 rounded-full border border-line/80 bg-surface-2/80 px-3 py-1.5 text-sm font-medium text-ink transition-all hover:border-brand/50 hover:bg-surface-2 sm:flex shadow-sm"
               title={me.role === 'owner' ? 'Besitzer-Gerät verwalten' : 'Steuergerät'}
             >
-              <span
-                className={`h-2 w-2 rounded-full ${
-                  me.role === 'owner' ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]' : 'bg-sky-400'
-                }`}
-              />
-              <span className="max-w-[110px] truncate text-xs font-semibold">{me.name}</span>
+              <span className="relative flex h-2 w-2">
+                {me.role === 'owner' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />}
+                <span
+                  className={`relative inline-flex h-2 w-2 rounded-full ${
+                    me.role === 'owner' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)]' : 'bg-sky-400'
+                  }`}
+                />
+              </span>
+              <span className="max-w-[120px] truncate text-xs font-bold">{me.name}</span>
             </NavLink>
           )}
 
           <button
-            className="btn btn-ghost btn-icon h-8 w-8 rounded-full"
+            className="btn btn-ghost btn-icon h-9 w-9 rounded-full border border-line/60 bg-surface-2/40 hover:bg-surface-2 hover:border-line hover:scale-105 active:scale-95 transition-all shadow-sm"
             onClick={toggle}
             title={theme === 'dark' ? 'Helles Design' : 'Dunkles Design'}
             aria-label="Design umschalten"
           >
-            {theme === 'dark' ? <IconSun size={16} /> : <IconMoon size={16} />}
+            {theme === 'dark' ? <IconSun size={17} /> : <IconMoon size={17} />}
           </button>
 
           {/* Info & Version Popup */}
           <div className="relative" ref={infoRef}>
             <button
-              className={`btn btn-ghost btn-icon h-8 w-8 rounded-full ${infoOpen ? 'bg-surface-2 text-ink' : ''}`}
+              className={`btn btn-ghost btn-icon h-9 w-9 rounded-full border border-line/60 bg-surface-2/40 hover:bg-surface-2 hover:border-line hover:scale-105 active:scale-95 transition-all shadow-sm ${
+                infoOpen ? 'bg-surface-2 text-ink border-brand/50' : ''
+              }`}
               onClick={() => setInfoOpen(!infoOpen)}
               title="Über Maestro / CueKit"
               aria-label="App-Informationen anzeigen"
             >
-              <IconInfoCircle size={16} />
+              <IconInfoCircle size={17} />
             </button>
 
             <AnimatePresence>
@@ -136,7 +147,7 @@ export function AppShell({ title, actions, children }: { title: ReactNode; actio
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: -4 }}
                   transition={{ duration: 0.15, ease: 'easeOut' }}
-                  className="absolute right-0 top-10 z-50 w-64 rounded-card border border-line bg-surface p-4 shadow-xl backdrop-blur-md"
+                  className="absolute right-0 top-11 z-50 w-64 rounded-card border border-line bg-surface p-4 shadow-xl backdrop-blur-md"
                 >
                   <AppInfoHint />
                 </motion.div>
@@ -146,9 +157,9 @@ export function AppShell({ title, actions, children }: { title: ReactNode; actio
         </div>
       </header>
 
-      {/* Sub-Header: Titel & Aktionen (Breadcrumbs beim Deck, Seitentitel bei Einstellungen etc.) */}
+      {/* Sub-Header: Titel & Aktionen (Breadcrumbs beim Deck, Page Switcher, etc.) */}
       {(actions || (title && typeof title !== 'string')) && (
-        <div className="flex min-h-[46px] shrink-0 items-center justify-between border-b border-line/60 bg-surface/40 px-4 backdrop-blur-sm lg:px-8">
+        <div className="relative z-20 flex min-h-[52px] shrink-0 items-center justify-between border-b border-line/60 bg-surface/40 px-4 backdrop-blur-md lg:px-8">
           {typeof title !== 'string' && title ? (
             <div className="flex min-w-0 flex-1 items-center gap-3">{title}</div>
           ) : (

@@ -10,8 +10,12 @@ export const folderTargetOf = (b: ButtonModel) => {
   return page == null ? null : Number(page)
 }
 
+/** Multi-Aktionsschalter: genau ein Schritt "deck.multiSwitch". */
+export const isMultiSwitch = (b: ButtonModel) =>
+  b.actions.length === 1 && b.actions[0].type === 'deck.multiSwitch'
+
 /** Multifunktion = keine oder mehrere Aktionen; dort haengt Ziehen neue Schritte an, statt zu ersetzen. */
-export const isMulti = (b: ButtonModel) => b.actions.length !== 1 && folderTargetOf(b) == null
+export const isMulti = (b: ButtonModel) => b.actions.length !== 1 && folderTargetOf(b) == null && !isMultiSwitch(b)
 
 /**
  * Loescht eine Taste samt dem, was an ihr haengt: Automations-Tasten nehmen ihre Automation mit,

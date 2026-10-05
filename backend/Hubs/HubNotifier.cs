@@ -30,6 +30,9 @@ public sealed class HubNotifier(
     /// <summary>App-weite Aussehen-Einstellungen (Zustandsanzeige/Druckverhalten/Hintergrund) geaendert.</summary>
     public void AppearanceChanged() => _ = hub.Clients.All.SendAsync("appearanceChanged");
 
+    /// <summary>Schaltzustand eines Multi-Aktionsschalters geändert.</summary>
+    public void SwitchStateChanged(int buttonId, bool isOn) => _ = hub.Clients.All.SendAsync("switchStateChanged", buttonId, isOn);
+
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
         obs.StateChanged += OnObsStateChanged;

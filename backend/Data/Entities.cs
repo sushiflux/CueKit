@@ -1,7 +1,7 @@
 namespace Deck.Server.Data;
 
 /// <summary>
-/// Ein Deck = ein komplettes Tastenlayout mit festem Raster (z.B. 3x5 wie ein Stream Deck MK.2).
+/// Ein Deck = ein komplettes Tastenlayout mit festem Raster (z.B. 3x5 wie ein CueDeck MK.2).
 /// Mehrere Decks erlauben unterschiedliche Layouts pro Geraet (Handy hochkant vs. Tablet quer).
 /// </summary>
 public class DeckEntity
@@ -12,6 +12,16 @@ public class DeckEntity
     public int Columns { get; set; } = 5;
     public int SortOrder { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    /// <summary>
+    /// JSON-Liste der seitlichen OLED-Displays (links/rechts neben dem Tastenraster, so hoch wie das Raster).
+    /// Gilt fuer alle Seiten des Decks. Format siehe <c>SideDisplayDto</c>.
+    /// </summary>
+    public string SideDisplaysJson { get; set; } = "[]";
+
+    /// <summary>Groesse des oberen OLED-Displays der Gehaeuse-Plate: "normal" (eine Zeile) oder "large" (Cover + Titel/Interpret/Album untereinander).</summary>
+    public string OledSize { get; set; } = "normal";
+
     public List<PageEntity> Pages { get; set; } = [];
 }
 

@@ -12,12 +12,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
+using Deck.Server.Services;
+
 namespace Deck.Server.Controllers;
 
 [ApiController]
 [Route("api")]
 [Authorize(AuthenticationSchemes = DeviceAuth.Scheme)]
-public partial class DecksController(AppDbContext db, HubNotifier notifier, ObsService obs, ActionExecutor executor, AutomationEngine automationEngine) : ControllerBase
+public partial class DecksController(AppDbContext db, HubNotifier notifier, ObsService obs, ActionExecutor executor, AutomationEngine automationEngine, SwitchStateService switchStates) : ControllerBase
 {
     private const int MaxSteps = 20;
 
@@ -41,7 +43,16 @@ public partial class DecksController(AppDbContext db, HubNotifier notifier, ObsS
         if (button is null) return NotFound(new { error = "Button nicht gefunden." });
         try
         {
-            await executor.ExecuteAsync(ParseSteps(button.ActionsJson), $"Button '{button.Label}'", ct);
+            var steps = ParseSteps(button.ActionsJson);
+            if (steps.Count == 1 && steps[0].Type == "deck.multiSwitch")
+            {
+                var res = await switchStates.ExecuteSwitchPressAsync(button, steps[0], executor, ct);
+                if (!res.Ok) return UnprocessableEntity(new { error = res.Error });
+                automationEngine.NotifyButtonPressed(id);
+                return NoContent();
+            }
+
+            await executor.ExecuteAsync(steps, $"Button '{button.Label}'", ct);
             // Erst NACH erfolgreichem Abschluss der Sofort-Aktionen - feuert selbst im Hintergrund
             // (Task.Run in AutomationEngine.Fire) und blockiert diese Antwort nicht.
             automationEngine.NotifyButtonPressed(id);
@@ -93,6 +104,77 @@ public partial class DecksController(AppDbContext db, HubNotifier notifier, ObsS
         await db.SaveChangesAsync();
         await notifier.DecksChangedAsync();
         return NoContent();
+    }
+
+    /// <summary>Stellt die Groesse des oberen OLED-Displays ein ("normal" | "large").</summary>
+    [HttpPut("decks/{id:int}/oled")]
+    [Authorize(Policy = DeviceAuth.OwnerPolicy)]
+    public async Task<IActionResult> UpdateOled(int id, OledInput input)
+    {
+        if (input.Size is not ("normal" or "large")) return BadRequest(new { error = $"Ungültige OLED-Größe '{input.Size}' - erlaubt sind 'normal' und 'large'." });
+        var deck = await db.Decks.FirstOrDefaultAsync(d => d.Id == id);
+        if (deck is null) return NotFound(new { error = "Deck nicht gefunden." });
+        deck.OledSize = input.Size;
+        await db.SaveChangesAsync();
+        await notifier.DecksChangedAsync();
+        return NoContent();
+    }
+
+    private const int MaxSideDisplaysPerSide = 3;
+
+    /// <summary>Ersetzt die seitlichen OLED-Displays eines Decks komplett (Reihenfolge = von innen nach aussen).</summary>
+    [HttpPut("decks/{id:int}/side-displays")]
+    [Authorize(Policy = DeviceAuth.OwnerPolicy)]
+    public async Task<IActionResult> UpdateSideDisplays(int id, SideDisplaysInput input)
+    {
+        var deck = await db.Decks.FirstOrDefaultAsync(d => d.Id == id);
+        if (deck is null) return NotFound(new { error = "Deck nicht gefunden." });
+
+        var clean = new List<SideDisplayDto>();
+        foreach (var d in input.Displays)
+        {
+            if (d.Side is not ("left" or "right")) return BadRequest(new { error = $"Ungültige Seite '{d.Side}' - erlaubt sind 'left' und 'right'." });
+            var source = d.Source.Trim();
+            if (source != "system" && !(source.StartsWith("obs:", StringComparison.Ordinal) && source.Length > 4) && !(source.StartsWith("win:", StringComparison.Ordinal) && source.Length > 4))
+                return BadRequest(new { error = $"Ungültige Quelle '{d.Source}' - erwartet 'system', 'obs:<Audioquelle>' oder 'win:<Windows-Gerät>'." });
+            var displayId = d.Id.Trim();
+            if (clean.Any(c => c.Id == displayId)) return BadRequest(new { error = $"Display-ID '{displayId}' ist doppelt vergeben." });
+            clean.Add(new SideDisplayDto(displayId, d.Side, source, string.IsNullOrWhiteSpace(d.Label) ? null : d.Label.Trim()));
+        }
+        foreach (var side in new[] { "left", "right" })
+            if (clean.Count(c => c.Side == side) > MaxSideDisplaysPerSide)
+                return BadRequest(new { error = $"Pro Seite sind höchstens {MaxSideDisplaysPerSide} Displays möglich." });
+
+        deck.SideDisplaysJson = JsonSerializer.Serialize(clean, JsonSerializerOptions.Web);
+        await db.SaveChangesAsync();
+        await notifier.DecksChangedAsync();
+        return NoContent();
+    }
+
+    /// <summary>Klick auf ein seitliches Display: schaltet dessen Audioquelle stumm bzw. wieder laut.</summary>
+    [HttpPost("decks/{id:int}/side-displays/{displayId}/mute")]
+    public async Task<IActionResult> ToggleSideDisplayMute(int id, string displayId, CancellationToken ct)
+    {
+        var deck = await db.Decks.AsNoTracking().FirstOrDefaultAsync(d => d.Id == id, ct);
+        if (deck is null) return NotFound(new { error = "Deck nicht gefunden." });
+        var display = ParseSideDisplays(deck.SideDisplaysJson).FirstOrDefault(d => d.Id == displayId);
+        if (display is null) return NotFound(new { error = "Display nicht gefunden." });
+
+        var step = display.Source switch
+        {
+            "system" => Step("system.mute", ("mode", "toggle")),
+            var s when s.StartsWith("win:", StringComparison.Ordinal) => Step("system.mute", ("device", s[4..]), ("mode", "toggle")),
+            var s => Step("obs.audio.mute", ("input", s[4..]), ("mode", "toggle")),
+        };
+        try
+        {
+            await executor.ExecuteAsync([step], $"Display '{display.Label ?? display.Source}'", ct);
+            return NoContent();
+        }
+        catch (ActionExecutionException ex)
+        {
+            return UnprocessableEntity(new { error = ex.Message });
+        }
     }
 
     [HttpDelete("decks/{id:int}")]
@@ -154,6 +236,26 @@ public partial class DecksController(AppDbContext db, HubNotifier notifier, ObsS
 
     // ---------- Seiten / Ordner ----------
 
+    [HttpPost("decks/{deckId:int}/pages")]
+    [Authorize(Policy = DeviceAuth.OwnerPolicy)]
+    public async Task<ActionResult<PageDto>> CreatePage(int deckId, PageInput input)
+    {
+        var deck = await db.Decks.FirstOrDefaultAsync(d => d.Id == deckId);
+        if (deck is null) return NotFound(new { error = "Deck nicht gefunden." });
+
+        var name = string.IsNullOrWhiteSpace(input.Name) ? "Neue Seite" : input.Name.Trim();
+        var page = new PageEntity
+        {
+            DeckId = deckId,
+            ParentPageId = null,
+            Name = name,
+        };
+        db.Pages.Add(page);
+        await db.SaveChangesAsync();
+        await notifier.DecksChangedAsync();
+        return ToDto(page);
+    }
+
     [HttpPost("pages/{parentId:int}/folders")]
     [Authorize(Policy = DeviceAuth.OwnerPolicy)]
     public async Task<ActionResult<ButtonDto>> CreateFolder(int parentId, FolderInput input)
@@ -200,7 +302,13 @@ public partial class DecksController(AppDbContext db, HubNotifier notifier, ObsS
     {
         var page = await db.Pages.FirstOrDefaultAsync(p => p.Id == id);
         if (page is null) return NotFound(new { error = "Seite nicht gefunden." });
-        if (page.ParentPageId is null) return Conflict(new { error = "Die Startseite eines Decks kann nicht gelöscht werden." });
+
+        if (page.ParentPageId is null)
+        {
+            var rootPagesCount = await db.Pages.CountAsync(p => p.DeckId == page.DeckId && p.ParentPageId == null);
+            if (rootPagesCount <= 1)
+                return Conflict(new { error = "Die letzte Hauptseite eines Decks kann nicht gelöscht werden." });
+        }
 
         // Unterordner rekursiv einsammeln, damit keine verwaisten Seiten zurueckbleiben.
         var all = await db.Pages.Where(p => p.DeckId == page.DeckId).Select(p => new { p.Id, p.ParentPageId }).ToListAsync();
@@ -299,6 +407,7 @@ public partial class DecksController(AppDbContext db, HubNotifier notifier, ObsS
     {
         var deleted = await db.Buttons.Where(b => b.Id == id).ExecuteDeleteAsync();
         if (deleted == 0) return NotFound(new { error = "Button nicht gefunden." });
+        switchStates.Remove(id);
         // Eine an diese Taste gebundene Automation faellt per DB-Cascade mit weg (siehe AppDbContext) -
         // die Engine muss das mitbekommen, sonst haelt sie einen veralteten "button.pressed"-Trigger vor.
         automationEngine.Invalidate();
@@ -345,6 +454,19 @@ public partial class DecksController(AppDbContext db, HubNotifier notifier, ObsS
         }
         var steps = input.Actions ?? [];
         if (steps.Count > MaxSteps) return $"Höchstens {MaxSteps} Schritte pro Button.";
+
+        if (steps.Count == 1 && steps[0].Type == "deck.multiSwitch")
+        {
+            var onSteps = SwitchStateService.GetSubSteps(steps[0].Params, "onSteps");
+            var offSteps = SwitchStateService.GetSubSteps(steps[0].Params, "offSteps");
+            if (onSteps.Count > MaxSteps || offSteps.Count > MaxSteps) return $"Höchstens {MaxSteps} Schritte pro Zustand.";
+            var unknownOn = onSteps.FirstOrDefault(s => !ActionCatalog.BuiltIn.Any(d => d.Type == s.Type) && !PluginHost.TryParseActionType(s.Type, out _, out _));
+            if (unknownOn is not null) return $"Unbekannte Aktion in Zustand 1 '{unknownOn.Type}'.";
+            var unknownOff = offSteps.FirstOrDefault(s => !ActionCatalog.BuiltIn.Any(d => d.Type == s.Type) && !PluginHost.TryParseActionType(s.Type, out _, out _));
+            if (unknownOff is not null) return $"Unbekannte Aktion in Zustand 2 '{unknownOff.Type}'.";
+            return null;
+        }
+
         var unknown = steps.FirstOrDefault(s => !ActionCatalog.BuiltIn.Any(d => d.Type == s.Type) && !PluginHost.TryParseActionType(s.Type, out _, out _));
         return unknown is null ? null : $"Unbekannte Aktion '{unknown.Type}'.";
     }
@@ -384,8 +506,18 @@ public partial class DecksController(AppDbContext db, HubNotifier notifier, ObsS
 
     private static ButtonDto ToDto(ButtonEntity b) => new(b.Id, b.PageId, b.Row, b.Column, b.Label, b.Icon, b.Color, ParseSteps(b.ActionsJson), b.Hotkey);
 
+    private static PageDto ToDto(PageEntity p) => new(p.Id, p.ParentPageId, p.Name, p.Buttons.OrderBy(b => b.Row).ThenBy(b => b.Column).Select(ToDto).ToList());
+
     private static DeckDto ToDto(DeckEntity d) => new(d.Id, d.Name, d.Rows, d.Columns, d.SortOrder,
         d.Pages.OrderBy(p => p.ParentPageId.HasValue).ThenBy(p => p.Id)
-            .Select(p => new PageDto(p.Id, p.ParentPageId, p.Name, p.Buttons.OrderBy(b => b.Row).ThenBy(b => b.Column).Select(ToDto).ToList()))
-            .ToList());
+            .Select(ToDto)
+            .ToList(),
+        ParseSideDisplays(d.SideDisplaysJson),
+        d.OledSize);
+
+    private static List<SideDisplayDto> ParseSideDisplays(string json)
+    {
+        try { return JsonSerializer.Deserialize<List<SideDisplayDto>>(json, JsonSerializerOptions.Web) ?? []; }
+        catch (JsonException) { return []; }
+    }
 }

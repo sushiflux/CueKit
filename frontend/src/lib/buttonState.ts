@@ -1,4 +1,6 @@
-import type { AutomationState, ButtonModel, Catalog, ObsSnapshot, SystemMonitorSnapshot } from '../api/types'
+import { getState } from '../state/store'
+import type { TwitchSnapshot } from '../api/types'
+import type { ActionStep, AutomationState, ButtonModel, Catalog, ObsSnapshot, SystemMonitorSnapshot } from '../api/types'
 
 /** Aktionstypen mit einem echten An/Aus-Zustand - nur fuer diese ergibt eine LED (gruen/rot) Sinn. */
 const TOGGLE_ACTION_TYPES = new Set([
@@ -21,10 +23,26 @@ const TOGGLE_ACTION_TYPES = new Set([
   'obs.studio',
 ])
 
+/** Gewaehltes Windows-Audiogeraet eines system.*-Schritts ("" = Standard-Ausgabe). */
+function stepDeviceId(step: ActionStep): string {
+  return step.params?.device ? String(step.params.device) : ''
+}
+
+/**
+ * Stumm-Zustand eines system.mute-Schritts: bei gewaehltem Geraet aus der Geraeteliste, sonst die
+ * Standard-Ausgabe aus dem Monitor-Schnappschuss. Die Geraeteliste kommt aus dem globalen Store (die
+ * rendernden Seiten abonnieren sie, damit sie bei Aenderungen neu zeichnen).
+ */
+function systemMuteState(step: ActionStep, systemMonitor: SystemMonitorSnapshot | null): boolean | null {
+  const id = stepDeviceId(step)
+  if (id) return getState().audioDevices.find((d) => d.id === id)?.muted ?? null
+  return systemMonitor?.volumeMuted ?? null
+}
+
 /** Ob diese Taste ueberhaupt einen An/Aus-Zustand hat (LED zeigen) statt eine reine Einmal-Aktion zu sein. */
 export function buttonHasToggleState(button: ButtonModel): boolean {
   const type = button.actions[0]?.type
-  return type != null && TOGGLE_ACTION_TYPES.has(type)
+  return type != null && (TOGGLE_ACTION_TYPES.has(type) || type === 'deck.multiSwitch')
 }
 
 /**
@@ -35,6 +53,13 @@ export function buttonHasToggleState(button: ButtonModel): boolean {
  */
 export function isButtonUnavailable(button: ButtonModel, obs: ObsSnapshot | null): boolean {
   if (obs?.status === 'connected') return false
+  if (button.actions[0]?.type === 'deck.multiSwitch') {
+    const p = button.actions[0].params as any
+    const onSteps: ActionStep[] = Array.isArray(p?.onSteps) ? p.onSteps : []
+    const offSteps: ActionStep[] = Array.isArray(p?.offSteps) ? p.offSteps : []
+    const all = [...onSteps, ...offSteps].filter((a) => a.type !== 'flow.delay')
+    return all.length > 0 && all.every((a) => needsStreamingSoftware(a.type))
+  }
   const steps = button.actions.filter((a) => a.type !== 'flow.delay')
   return steps.length > 0 && steps.every((a) => needsStreamingSoftware(a.type))
 }
@@ -57,6 +82,7 @@ const SELECTION_ACTION_TYPES = new Set(['obs.scene.switch', 'obs.scene.preview',
 /** Art des Zustands einer Taste: "onoff" (An = gruen, Aus = rot), "select" (nur "gewaehlt" = gruen) oder null (kein Zustand). */
 export function buttonStateKind(button: ButtonModel): 'onoff' | 'select' | null {
   const type = button.actions[0]?.type
+  if (type === 'deck.multiSwitch') return 'onoff'
   if (type == null || !TOGGLE_ACTION_TYPES.has(type)) return null
   return SELECTION_ACTION_TYPES.has(type) ? 'select' : 'onoff'
 }
@@ -68,17 +94,93 @@ export function isMuteAction(button: ButtonModel): boolean {
 }
 
 /**
+ * Ermittelt den Zustand eines Multi-Aktionsschalters: Wenn Schritte live beobachtbare OBS-Ziele
+ * steuern (z.B. Audio-Stummschaltungen), wird der Zustand direkt live ausgewertet.
+ * Sonst greift der synchronisierte Schaltzustand.
+ */
+export function isMultiSwitchActive(
+  step: ActionStep,
+  obs: ObsSnapshot | null,
+  systemMonitor: SystemMonitorSnapshot | null,
+  fallbackState?: boolean,
+): boolean {
+  const p = step.params as any
+  const onSteps: ActionStep[] = Array.isArray(p?.onSteps) ? p.onSteps : []
+
+  if (obs && obs.status === 'connected') {
+    let testable = 0
+    let active = 0
+    for (const s of onSteps) {
+      if (s.type === 'obs.audio.mute') {
+        const input = s.params?.input
+        if (!input) continue
+        const audio = obs.audioInputs.find((a) => a.name === input)
+        if (!audio) continue
+        testable++
+        const mode = s.params?.mode ?? 'toggle'
+        const matches = mode === 'off' ? !audio.muted : mode === 'on' ? audio.muted : !audio.muted
+        if (matches) active++
+      } else if (s.type === 'obs.source.visibility') {
+        const sceneName = s.params?.scene
+        const sourceName = s.params?.source
+        if (!sceneName || !sourceName) continue
+        const sc = obs.scenes.find((x) => x.name === sceneName)
+        const item = sc?.items.find((i) => i.sourceName === sourceName)
+        if (!item) continue
+        testable++
+        const mode = s.params?.mode ?? 'toggle'
+        const matches = mode === 'off' ? !item.enabled : item.enabled
+        if (matches) active++
+      } else if (s.type === 'obs.stream') {
+        testable++
+        const mode = s.params?.mode ?? 'toggle'
+        const matches = mode === 'off' ? !obs.streaming : obs.streaming
+        if (matches) active++
+      } else if (s.type === 'obs.record') {
+        testable++
+        const mode = s.params?.mode ?? 'toggle'
+        const matches = mode === 'off' ? !obs.recording : obs.recording
+        if (matches) active++
+      }
+    }
+    if (testable > 0) {
+      return active === testable
+    }
+  }
+
+  const muteStep = onSteps.find((x) => x.type === 'system.mute')
+  if (muteStep) {
+    const muted = systemMuteState(muteStep, systemMonitor)
+    if (muted != null) {
+      const mode = muteStep.params?.mode ?? 'toggle'
+      return mode === 'off' ? !muted : mode === 'on' ? muted : !muted
+    }
+  }
+
+  return fallbackState ?? false
+}
+
+/**
  * Ob eine Taste "leuchtet": abgeleitet aus dem ersten Aktionsschritt und dem Live-Zustand -
  * z.B. leuchtet "Szene wechseln: Pause", solange "Pause" live ist.
  */
-export function isButtonActive(button: ButtonModel, obs: ObsSnapshot | null, automations: AutomationState[] = [], systemMonitor: SystemMonitorSnapshot | null = null): boolean {
+export function isButtonActive(
+  button: ButtonModel,
+  obs: ObsSnapshot | null,
+  automations: AutomationState[] = [],
+  systemMonitor: SystemMonitorSnapshot | null = null,
+  switchStates: Record<number, boolean> = {},
+): boolean {
   const step = button.actions[0]
   if (!step) return false
+  if (step.type === 'deck.multiSwitch') {
+    return isMultiSwitchActive(step, obs, systemMonitor, switchStates[button.id])
+  }
   const p = step.params ?? {}
   if (step.type === 'automation.toggle') return automations.find((a) => a.id === Number(p.automation))?.enabled ?? false
   // Systemlautstaerke ist kein OBS-Zustand - unabhaengig vom OBS-Verbindungsstatus pruefen, sonst
   // wuerde die LED faelschlich immer aus sein, wenn OBS gerade nicht verbunden ist.
-  if (step.type === 'system.mute') return systemMonitor?.volumeMuted === true
+  if (step.type === 'system.mute') return systemMuteState(step, systemMonitor) === true
   if (!obs || obs.status !== 'connected') return false
   switch (step.type) {
     case 'obs.scene.switch':
@@ -127,7 +229,14 @@ export function buttonLevel(button: ButtonModel, obs: ObsSnapshot | null, system
   const step = button.actions[0]
   if (!step) return null
   // Systemlautstaerke ist kein OBS-Zustand - unabhaengig vom OBS-Verbindungsstatus pruefen.
-  if (step.type === 'system.mute') return systemMonitor?.volumePercent != null ? systemMonitor.volumePercent / 100 : null
+  if (step.type === 'system.mute') {
+    const id = stepDeviceId(step)
+    if (id) {
+      const device = getState().audioDevices.find((d) => d.id === id)
+      return device ? device.percent / 100 : null
+    }
+    return systemMonitor?.volumePercent != null ? systemMonitor.volumePercent / 100 : null
+  }
   if (!obs || obs.status !== 'connected') return null
   if (step.type !== 'obs.audio.mute') return null
   const input = obs.audioInputs.find((a) => a.name === step.params?.input)
@@ -152,6 +261,11 @@ export function buttonMeter(button: ButtonModel, obs: ObsSnapshot | null, system
   const step = button.actions[0]
   if (!step || !METER_ACTION_TYPES.has(step.type)) return null
   if (step.type === 'system.mute') {
+    const id = stepDeviceId(step)
+    if (id) {
+      const device = getState().audioDevices.find((d) => d.id === id)
+      return device ? { key: `win:${id}`, muted: device.muted } : null
+    }
     return systemMonitor?.volumePercent != null ? { key: 'system', muted: systemMonitor.volumeMuted === true } : null
   }
   if (!obs || obs.status !== 'connected') return null
@@ -159,14 +273,30 @@ export function buttonMeter(button: ButtonModel, obs: ObsSnapshot | null, system
   return input ? { key: `obs:${input.name}`, muted: input.muted } : null
 }
 
-/** Fuer Mute-Tasten ein passenderes Icon im aktiven (stummen) Zustand. */
+/** Fuer Mute-Tasten und Multi-Aktionsschalter ein passenderes Icon im aktiven bzw. inaktiven Zustand. */
 export function activeIcon(button: ButtonModel, active: boolean): string | null {
+  if (button.actions[0]?.type === 'deck.multiSwitch') {
+    const p = button.actions[0].params as any
+    if (!active && p?.iconOff) return p.iconOff
+    if (active && p?.iconOn) return p.iconOn
+    return button.icon
+  }
   if (!active) return button.icon
   const type = button.actions[0]?.type
   if (type === 'obs.audio.mute' && button.icon === 'tabler:microphone') return 'tabler:microphone-off'
   if (type === 'obs.audio.mute' && button.icon === 'tabler:volume') return 'tabler:volume-off'
   if (type === 'obs.media' && button.icon === 'tabler:player-play') return 'tabler:player-pause'
   return button.icon
+}
+
+/** Beschriftung einer Taste - Multi-Aktionsschalter können im Aus-Zustand eine abweichende Beschriftung zeigen. */
+export function activeLabel(button: ButtonModel, active: boolean): string {
+  if (button.actions[0]?.type === 'deck.multiSwitch') {
+    const p = button.actions[0].params as any
+    if (!active && p?.labelOff) return p.labelOff
+    if (active && p?.labelOn) return p.labelOn
+  }
+  return button.label
 }
 
 /**
@@ -210,6 +340,53 @@ export function isMonitorLoadMetric(metric: string): boolean {
 /** Erklaerender Hinweis, wenn Live-Systemwerte grundsaetzlich nicht verfuegbar sind (z.B. im Docker-Dev-Container). */
 const MONITOR_UNAVAILABLE_HINT = 'Nur verfügbar, wenn der Dienst nativ unter Windows läuft (nicht im Docker-Container)'
 
+const TWITCH_META: Record<string, { label: string; icon: string }> = {
+  twitchViewers: { label: 'Zuschauer', icon: 'tabler:eye' },
+  twitchFollowers: { label: 'Follower', icon: 'tabler:heart' },
+  twitchSubs: { label: 'Subs', icon: 'tabler:star' },
+  twitchUptime: { label: 'Live seit', icon: 'tabler:clock' },
+}
+
+export function isTwitchMetric(metric: string): boolean {
+  return metric in TWITCH_META
+}
+
+/** 4321 -> "4.321", 12345 -> "12,3k" - kurz genug fuer eine Kachel. */
+export function formatCount(n: number): string {
+  return n >= 10000 ? `${(n / 1000).toLocaleString('de-DE', { maximumFractionDigits: 1 })}k` : n.toLocaleString('de-DE')
+}
+
+/**
+ * Anzeigedaten einer Twitch-Kachel (gleiche Form wie monitorDisplay). Stream-Zeit: bevorzugt der Start des OBS-Streams,
+ * sonst - bei einem Twitch-Stream ohne OBS - dessen Start laut Twitch.
+ */
+export function twitchDisplay(
+  metric: string,
+  twitch: TwitchSnapshot | null,
+  obsStreamStartedAt: string | null,
+  now: number,
+): { label: string; icon: string; value: string; raw: number | null; unavailable: boolean; hint: string | null } {
+  const meta = TWITCH_META[metric] ?? { label: metric, icon: 'tabler:brand-twitch' }
+  const unavailable = (hint: string) => ({ label: meta.label, icon: meta.icon, value: '–', raw: null, unavailable: true, hint })
+  const ok = (value: string, raw: number | null = null) => ({ label: meta.label, icon: meta.icon, value, raw, unavailable: false, hint: null })
+  if (!twitch?.configured || !twitch.connected) return unavailable('Twitch ist nicht verbunden – Einstellungen > Twitch.')
+  switch (metric) {
+    case 'twitchViewers':
+      return twitch.live ? ok(formatCount(twitch.viewers), twitch.viewers) : unavailable('Dein Kanal ist gerade nicht live auf Twitch.')
+    case 'twitchFollowers':
+      return twitch.followers != null ? ok(formatCount(twitch.followers), twitch.followers) : unavailable(twitch.error ?? 'Follower werden geladen …')
+    case 'twitchSubs':
+      if (!twitch.subsAvailable) return unavailable('Subs gibt es nur für Twitch-Affiliates und -Partner.')
+      return twitch.subs != null ? ok(formatCount(twitch.subs), twitch.subs) : unavailable(twitch.error ?? 'Subs werden geladen …')
+    case 'twitchUptime': {
+      const since = obsStreamStartedAt ?? (twitch.live ? twitch.startedAt : null)
+      return since ? ok(formatDuration(since, now)) : unavailable('Gerade wird nicht gestreamt.')
+    }
+    default:
+      return unavailable('Unbekannter Twitch-Kennwert.')
+  }
+}
+
 /** Anzeigedaten fuer eine Live-Systemwert-Kachel: Label/Icon fuer den Kennwert plus formatierter und roher Wert. */
 export function monitorDisplay(
   metric: string,
@@ -219,7 +396,13 @@ export function monitorDisplay(
   if (!snapshot || !snapshot.available) return { label: meta.label, icon: meta.icon, value: '–', raw: null, unavailable: true, hint: MONITOR_UNAVAILABLE_HINT }
   const key = MONITOR_METRIC_KEYS.find((k) => k === metric)
   const raw = key ? snapshot[key] : null
-  if (raw == null) return { label: meta.label, icon: meta.icon, value: '–', raw: null, unavailable: true, hint: MONITOR_UNAVAILABLE_HINT }
+  const isTemp = metric.endsWith('Temp')
+  if (raw == null || (isTemp && raw <= 0)) {
+    const hint = metric === 'cpuTemp'
+      ? 'CPU-Temperatur nicht verfügbar. Unter Windows sind für CPU-Sensoren in der Regel Administratorrechte erforderlich. Bei manchen Prozessorgenerationen (z.B. AMD Ryzen 9000 / Zen 5) wird die interne Sensortabelle derzeit noch nicht unterstützt.'
+      : 'Sensorwert nicht verfügbar'
+    return { label: meta.label, icon: meta.icon, value: '–', raw: null, unavailable: true, hint }
+  }
   return { label: meta.label, icon: meta.icon, value: `${Math.round(raw)}${meta.unit}`, raw, unavailable: false, hint: null }
 }
 

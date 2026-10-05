@@ -84,3 +84,18 @@ export function errorMessage(e: unknown): string {
   if (e instanceof Error) return e.message
   return String(e)
 }
+
+/** Bild/Datei mit dem Geraete-Token laden (ein img-Tag kann keinen Authorization-Header senden). */
+export async function apiBlob(path: string): Promise<Blob> {
+  const headers: Record<string, string> = {}
+  const token = getToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+  let res: Response
+  try {
+    res = await fetch(path, { headers })
+  } catch {
+    throw new ApiError(0, 'Keine Verbindung zum Dienst.')
+  }
+  if (!res.ok) throw new ApiError(res.status, await readError(res))
+  return res.blob()
+}

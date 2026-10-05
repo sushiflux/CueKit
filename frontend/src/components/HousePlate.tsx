@@ -1,6 +1,9 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { HOUSE_PLATE_FRAME_PAD, HOUSE_PLATE_PRESETS, HOUSE_PLATE_WELL_PAD } from '../lib/housePlates'
 import { useStore } from '../state/store'
+import { HeaderNowPlaying, HeaderNowPlayingLarge, NowPlayingProgress } from './HeaderNowPlaying'
+import { HeaderTelemetry } from './HeaderTelemetry'
+import { HeaderStreamChip, HeaderStreamLarge, useStreamInfo } from './HeaderStream'
 
 interface Props {
   /** Preset-Key ("house:<key>") oder leer/unbekannt - dann kein Gehaeuse, nur die App-Flaeche. */
@@ -8,8 +11,32 @@ interface Props {
   children: ReactNode
   className?: string
   deckName?: string
+  pageName?: string
   keyCount?: number
   preview?: boolean
+  /** Grosses oberes OLED (Cover + Titel/Interpret/Album untereinander) statt der einen Zeile - nur SushiFlux-Plates, nicht in der Vorschau. */
+  oledLarge?: boolean
+}
+
+/** Haupt-Zone des grossen OLED: Wiedergabe und/oder Stream. Laufen beide, zieht sich die Wiedergabe zusammen und der Stream steht daneben. */
+function HeaderMainLarge() {
+  const playing = useStore((s) => !!s.nowPlaying)
+  const stream = useStreamInfo()
+  if (!playing && !stream.kind) return <HeaderNowPlayingLarge /> // Platzhalter "Keine Wiedergabe"
+  return (
+    <div className="relative z-10 flex min-w-0 flex-1 items-stretch gap-5">
+      {playing && (
+        <div className={`flex min-w-0 ${stream.kind ? 'flex-[1.1]' : 'flex-1'}`}>
+          <HeaderNowPlayingLarge compact={!!stream.kind} />
+        </div>
+      )}
+      {stream.kind && (
+        <div className={`flex min-w-0 ${playing ? 'flex-1' : 'flex-1'}`}>
+          <HeaderStreamLarge info={stream} bordered={playing} />
+        </div>
+      )}
+    </div>
+  )
 }
 
 /**
@@ -17,7 +44,7 @@ interface Props {
  * Unterstuetzt sowohl klassische Metall-Plates als auch das "CueDeck Studio Pro"-Enclosure aus dem
  * offiziellen Marketing-Video inklusive Status-LED, Eckschrauben und RGB-Underglow.
  */
-export function HousePlate({ plateKey, children, className, deckName, keyCount, preview }: Props) {
+export function HousePlate({ plateKey, children, className, deckName, pageName, keyCount, preview, oledLarge }: Props) {
   const appearance = useStore((s) => s.appearance)
   const preset = plateKey ? HOUSE_PLATE_PRESETS.find((p) => p.key === plateKey) : undefined
 
@@ -125,15 +152,74 @@ export function HousePlate({ plateKey, children, className, deckName, keyCount, 
             style={{ background: preset.surface }}
           />
 
-          {/* Header */}
-          <div className={`flex items-center justify-center ${preview ? 'mb-2' : 'mb-4'} select-none pointer-events-none z-10 w-full`}>
-             <span className={`${preview ? 'text-[11px]' : 'text-sm'} font-black tracking-[0.2em] text-transparent bg-clip-text ${getLedClass('r')} ${isSnow ? 'drop-shadow-[0_0_8px_rgba(251,146,60,0.2)]' : 'drop-shadow-[0_0_8px_rgba(251,146,60,0.4)]'}`} style={getLedStyle('right', 0)}>
+          {/* Grosses OLED: schmale Kopfzeile (Seite links, Marke rechts), darunter links Wiedergabe mit Cover, rechts die Hardwarewerte */}
+          {oledLarge && !preview && (
+            <div className={`relative mx-auto mb-3.5 flex h-[108px] w-full flex-col gap-1.5 rounded-xl bg-[#07090e] px-4 py-2 ${isSnow ? 'border border-slate-300/80 shadow-[inset_0_2px_8px_rgba(0,0,0,0.7),0_2px_4px_rgba(0,0,0,0.06)]' : 'border border-white/10 shadow-[inset_0_2px_10px_rgba(0,0,0,0.9),0_0_12px_rgba(0,0,0,0.5)]'} pointer-events-none z-20 select-none overflow-hidden`}>
+              <div className="absolute inset-0 bg-gradient-to-b from-white/[0.08] to-transparent pointer-events-none" />
+              <div className="relative z-10 flex h-4 shrink-0 items-center justify-between">
+                <span className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.2em] text-slate-500">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#22d3ee]" />
+                  Seite // <span className="font-bold text-cyan-300">{pageName ? pageName.toUpperCase() : 'STANDARD'}</span>
+                </span>
+                <span className={`text-[11px] font-black tracking-[0.25em] text-transparent bg-clip-text ${getLedClass('r')}`} style={getLedStyle('right', 0)}>
+                  SUSHIFLUX
+                </span>
+              </div>
+              <div className="relative z-10 flex min-h-0 flex-1 items-center gap-6">
+                <HeaderMainLarge />
+                <HeaderTelemetry tiles />
+              </div>
+            </div>
+          )}
+
+          {/* OLED / LED Display Bar */}
+          <div className={`${oledLarge && !preview ? 'hidden ' : ''}relative flex items-center justify-between mx-auto w-full ${preview ? 'h-7 px-2.5 mb-2 rounded-lg' : 'h-10 px-4 mb-3.5 rounded-xl'} bg-[#07090e] border ${isSnow ? 'border-slate-300/80 shadow-[inset_0_2px_8px_rgba(0,0,0,0.7),0_2px_4px_rgba(0,0,0,0.06)]' : 'border-white/10 shadow-[inset_0_2px_10px_rgba(0,0,0,0.9),0_0_12px_rgba(0,0,0,0.5)]'} select-none pointer-events-none z-20 overflow-hidden`}>
+            {!preview && <NowPlayingProgress />}
+            {/* Subtle OLED Glass Sheen & Scanlines */}
+            <div className="absolute inset-0 bg-gradient-to-b from-white/[0.08] to-transparent pointer-events-none" />
+            <div className="absolute inset-0 opacity-[0.035] pointer-events-none bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:3px_3px]" />
+
+            {/* Left: Active Page Indicator & Name */}
+            <div className="relative flex items-center gap-2 min-w-0 z-10">
+              <span className="flex h-2 w-2 relative shrink-0">
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${isSnow ? 'bg-sky-400 opacity-75' : 'bg-cyan-400 opacity-75'}`} />
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${isSnow ? 'bg-sky-500 shadow-[0_0_6px_#0ea5e9]' : 'bg-cyan-400 shadow-[0_0_6px_#22d3ee]'}`} />
+              </span>
+              <div className="flex items-baseline gap-1.5 min-w-0">
+                <span className={`${preview ? 'text-[7px]' : 'text-[9px]'} font-mono uppercase tracking-widest text-slate-400/90 shrink-0`}>
+                  SEITE //
+                </span>
+                <span className={`${preview ? 'text-[9px]' : 'text-[11px]'} font-mono font-bold tracking-wider truncate ${isSnow ? 'text-slate-100 drop-shadow-[0_0_6px_rgba(56,189,248,0.5)]' : 'text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]'}`}>
+                  {pageName ? pageName.toUpperCase() : 'STANDARD'}
+                </span>
+              </div>
+            </div>
+
+            {/* Mitte: Live-Hardwarewerte (CPU/GPU/RAM, Auslastung + Temperatur); in der Vorschau nur dekorative Punkte */}
+            {preview ? (
+              <div className="hidden min-[420px]:flex items-center gap-1 opacity-30 px-2">
+                <div className="h-1 w-1 rounded-full bg-slate-400" />
+                <div className="h-1 w-1 rounded-full bg-slate-400" />
+                <div className="h-1 w-1 rounded-full bg-slate-400" />
+              </div>
+            ) : (
+              <>
+                <HeaderNowPlaying />
+                <HeaderStreamChip />
+                <HeaderTelemetry />
+              </>
+            )}
+
+            {/* Right: SUSHIFLUX illuminated brand name */}
+            <div className="relative flex items-center shrink-0 z-10">
+              <span className={`${preview ? 'text-[9px]' : 'text-xs'} font-black tracking-[0.25em] text-transparent bg-clip-text ${getLedClass('r')} ${isSnow ? 'drop-shadow-[0_0_8px_rgba(251,146,60,0.4)]' : 'drop-shadow-[0_0_10px_rgba(251,146,60,0.5)]'}`} style={getLedStyle('right', 0)}>
                 SUSHIFLUX
-             </span>
+              </span>
+            </div>
           </div>
 
-          {/* Recessed Area */}
-          <div className={`flex-1 z-10 rounded-xl ${isSnow ? 'bg-slate-900/90 shadow-[inset_0_5px_30px_rgba(0,0,0,0.5)] ring-1 ring-slate-950/20' : 'bg-black/80 shadow-[inset_0_5px_30px_rgba(0,0,0,1)] ring-1 ring-white/5'} backdrop-blur-md ${preview ? 'p-2' : 'p-4'}`}>
+          {/* Recessed Area with Visible Plate Frame Between Buttons */}
+          <div className={`flex-1 z-10 rounded-2xl ${isSnow ? 'bg-slate-900/10 shadow-[inset_0_4px_16px_rgba(0,0,0,0.22)] border border-slate-300/80 ring-1 ring-white/40' : 'bg-black/35 shadow-[inset_0_5px_24px_rgba(0,0,0,0.8)] border border-white/10 ring-1 ring-white/5'} backdrop-blur-sm ${preview ? 'p-1.5' : 'p-3'}`}>
             {children}
           </div>
 
@@ -148,6 +234,85 @@ export function HousePlate({ plateKey, children, className, deckName, keyCount, 
               style={typeof preset.hardware.underglow !== 'string' ? getLedStyle('left', -2) : undefined}
             />
           )}
+        </div>
+      )
+    }
+
+    if (model === 'notch') {
+      const isSnow = preset.key.includes('snow')
+      
+      return (
+        <div
+          className={`relative flex flex-col rounded-2xl select-none ${
+            preview ? 'p-3' : 'px-6 pt-5 pb-5'
+          } ${className ?? ''} isolate`}
+          style={{ background: preset.surface }}
+        >
+          {/* Outer Chassis Shadow */}
+          <div className={`absolute inset-0 rounded-2xl ${isSnow ? 'shadow-[0_25px_70px_rgba(0,0,0,0.18)] border border-slate-300' : 'shadow-[0_35px_90px_rgba(0,0,0,0.85)] border border-white/10'} pointer-events-none -z-20`} />
+
+          {/* 1. TOP ASYMMETRICAL NOTCH-LEISTE (Variable thickness 2.5mm to 8mm with angled cuts) */}
+          <div className="relative w-full mb-3 pointer-events-none z-10 flex items-center justify-between">
+            {/* Left part: thin 2.5mm notch rail */}
+            <div className={`h-[3px] w-12 rounded-full ${isSnow ? 'bg-slate-400/80' : 'bg-amber-500/70 shadow-[0_0_8px_rgba(245,158,11,0.5)]'}`} />
+            
+            {/* Center-left: Angled stepped notch cutout with status LED & tactile ribs */}
+            <div className={`flex items-center gap-2 px-3 py-1 rounded-lg ${isSnow ? 'bg-slate-200/90 border border-slate-300 text-slate-800' : 'bg-black/70 border border-amber-500/40 text-amber-300'} shadow-inner`}>
+              <div className={`w-2 h-2 rounded-full animate-pulse ${isSnow ? 'bg-sky-500 shadow-[0_0_6px_#0ea5e9]' : 'bg-amber-400 shadow-[0_0_8px_#f59e0b]'}`} />
+              <span className="text-[10px] font-mono font-black tracking-widest uppercase">
+                APEX // {keyCount ? `${keyCount}K` : 'TAC'}
+              </span>
+              <span className="text-[9px] font-mono opacity-60">
+                [ {pageName ? pageName.toUpperCase() : (deckName ? deckName.toUpperCase() : 'STANDARD')} ]
+              </span>
+            </div>
+
+            {/* Right part: thick 7mm stepped notch rail tapering to 3mm */}
+            <div className="flex items-center gap-1">
+              <div className={`h-[7px] w-10 rounded-sm ${isSnow ? 'bg-slate-400/90' : 'bg-gradient-to-r from-amber-500 to-orange-500 shadow-[0_0_10px_rgba(245,158,11,0.6)]'}`} />
+              <div className={`h-[3px] w-6 rounded-full ${isSnow ? 'bg-slate-300' : 'bg-amber-500/50'}`} />
+            </div>
+          </div>
+
+          {/* 2. LEFT ASYMMETRICAL NOTCH-LEISTE (Tactical grip notch, expanding from 2.5mm to 8mm) */}
+          <div className="absolute left-0 top-1/3 -translate-y-1/2 flex flex-col items-start pointer-events-none z-20">
+            {/* Thin entry 2.5mm */}
+            <div className={`w-[2.5px] h-4 ${isSnow ? 'bg-slate-400' : 'bg-amber-500/60'}`} />
+            {/* Expanded 8mm tactical grip notch with segmented cutouts */}
+            <div className={`w-2.5 h-16 rounded-r-md ${isSnow ? 'bg-slate-700 border-y border-r border-slate-400' : 'bg-zinc-900 border-y border-r border-amber-500/50 shadow-[0_0_12px_rgba(245,158,11,0.4)]'} flex flex-col justify-around py-1 px-[2px]`}>
+              <div className={`h-[2px] w-full rounded-sm ${isSnow ? 'bg-sky-400' : 'bg-amber-400'}`} />
+              <div className={`h-[2px] w-full rounded-sm ${isSnow ? 'bg-sky-400' : 'bg-amber-400'}`} />
+              <div className={`h-[2px] w-full rounded-sm ${isSnow ? 'bg-sky-400' : 'bg-amber-400'}`} />
+            </div>
+            {/* Tapering 3mm */}
+            <div className={`w-[3px] h-6 ${isSnow ? 'bg-slate-400' : 'bg-amber-500/40'}`} />
+          </div>
+
+          {/* 3. RIGHT ASYMMETRICAL NOTCH-LEISTE (Offset lower-middle accent slot 3mm to 7mm) */}
+          <div className="absolute right-0 top-2/3 -translate-y-1/2 flex flex-col items-end pointer-events-none z-20">
+            <div className={`w-[3px] h-8 ${isSnow ? 'bg-slate-400' : 'bg-amber-500/40'}`} />
+            {/* Glowing notch runner */}
+            <div className={`w-2 h-14 rounded-l-md ${isSnow ? 'bg-sky-500 shadow-[0_0_12px_#0ea5e9]' : 'bg-gradient-to-b from-amber-400 to-orange-500 shadow-[0_0_14px_rgba(245,158,11,0.8)]'}`} />
+            <div className={`w-[2px] h-6 ${isSnow ? 'bg-slate-300' : 'bg-amber-500/30'}`} />
+          </div>
+
+          {/* 4. KEY GRID WELL (Faceplate surface visible between keys for tactile frame) */}
+          <div className={`flex-1 z-10 rounded-xl ${isSnow ? 'bg-slate-900/10 shadow-[inset_0_4px_16px_rgba(0,0,0,0.18)] border border-slate-300/80 ring-1 ring-white/50' : 'bg-black/35 shadow-[inset_0_5px_22px_rgba(0,0,0,0.8)] border border-white/10 ring-1 ring-white/5'} backdrop-blur-sm ${preview ? 'p-1.5' : 'p-3'}`}>
+            {children}
+          </div>
+
+          {/* 5. BOTTOM ASYMMETRICAL NOTCH-LEISTE (Variable thickness 2mm to 9mm with ribbed ventilation) */}
+          <div className="relative w-full mt-3 pointer-events-none z-10 flex items-center justify-between">
+            {/* Left: 7mm ribbed notch bar */}
+            <div className="flex items-center gap-1.5">
+              <div className={`h-[7px] w-8 rounded-sm ${isSnow ? 'bg-slate-700' : 'bg-zinc-800 border border-amber-500/40'}`} />
+              <div className={`h-[5px] w-4 rounded-sm ${isSnow ? 'bg-slate-400' : 'bg-amber-500/60'}`} />
+              <div className={`h-[3px] w-12 rounded-full ${isSnow ? 'bg-slate-300' : 'bg-amber-500/30'}`} />
+            </div>
+
+            {/* Right: 3mm thin rail transitioning into accent underglow */}
+            <div className={`h-[3px] w-20 rounded-full ${isSnow ? 'bg-slate-400' : 'bg-gradient-to-r from-amber-500/30 to-orange-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]'}`} />
+          </div>
         </div>
       )
     }
@@ -205,6 +370,7 @@ export function HousePlate({ plateKey, children, className, deckName, keyCount, 
                 CueDeck {keyCount ? `· ${keyCount} Keys` : '· Studio'}
               </span>
             </div>
+            {!preview && <HeaderTelemetry />}
             <div className={`${preview ? 'text-[9px]' : 'text-[11px]'} font-bold ${preset.hardware.textColor || 'text-slate-400'} tracking-wider uppercase`}>
               PROFILE: <span className={`${preset.hardware.accentColor || 'text-cyan-400'} font-black`}>{deckName ? deckName.toUpperCase() : 'STREAMING'}</span>
             </div>

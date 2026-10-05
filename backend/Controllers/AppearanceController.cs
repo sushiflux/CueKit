@@ -6,9 +6,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Deck.Server.Controllers;
 
-public record AppearanceDto(string PressBehavior, string VolumeIndicator, string Plate, string StateStyle, bool DisplayMesh, string[] LedColors, string LedEffect, int LedSpeed);
+public record AppearanceDto(string PressBehavior, string VolumeIndicator, string Plate, string StateStyle, bool DisplayMesh, string[] LedColors, string LedEffect, int LedSpeed, string KeySurface);
 
-public record AppearanceInput(string PressBehavior, string VolumeIndicator, string? Plate, string? StateStyle = null, bool? DisplayMesh = null, string[]? LedColors = null, string? LedEffect = null, int? LedSpeed = null);
+public record AppearanceInput(string PressBehavior, string VolumeIndicator, string? Plate, string? StateStyle = null, bool? DisplayMesh = null, string[]? LedColors = null, string? LedEffect = null, int? LedSpeed = null, string? KeySurface = null);
 
 /// <summary>
 /// App-weite (nicht Pro-Deck) Aussehen-Einstellungen: Tastendruckverhalten, Lautstaerkeanzeige und
@@ -28,7 +28,7 @@ public class AppearanceController(SettingsService settings, HubNotifier notifier
     public AppearanceDto Get() => ToDto();
 
     private AppearanceDto ToDto() =>
-        new(settings.AppearancePressBehavior, settings.AppearanceVolumeIndicator, settings.AppearancePlate, settings.AppearanceStateStyle, settings.AppearanceDisplayMesh, settings.AppearanceLedColors.Split(','), settings.AppearanceLedEffect, settings.AppearanceLedSpeed);
+        new(settings.AppearancePressBehavior, settings.AppearanceVolumeIndicator, settings.AppearancePlate, settings.AppearanceStateStyle, settings.AppearanceDisplayMesh, settings.AppearanceLedColors.Split(','), settings.AppearanceLedEffect, settings.AppearanceLedSpeed, settings.AppearanceKeySurface);
 
     [HttpPut]
     [Authorize(AuthenticationSchemes = DeviceAuth.Scheme, Policy = DeviceAuth.OwnerPolicy)]
@@ -49,7 +49,11 @@ public class AppearanceController(SettingsService settings, HubNotifier notifier
         if (!plate.StartsWith("house:", StringComparison.Ordinal))
             return BadRequest(new { error = "Ungültige Gehäuse-Plate." });
 
-        var displayMesh = input.DisplayMesh ?? settings.AppearanceDisplayMesh;
+        // Tastenoberflaeche: neu "keySurface"; aeltere Clients senden nur den Mesh-Schalter. displayMesh bleibt als abgeleiteter Wert erhalten.
+        var keySurface = input.KeySurface ?? (input.DisplayMesh is { } mesh ? (mesh ? "mesh" : "smooth") : settings.AppearanceKeySurface);
+        if (keySurface is not ("smooth" or "mesh" or "oled"))
+            return BadRequest(new { error = $"Ungültige Tastenoberfläche '{keySurface}' – erlaubt sind „smooth“, „mesh“ und „oled“." });
+        var displayMesh = keySurface == "mesh";
 
         await settings.SetManyAsync(new Dictionary<string, string>
         {
@@ -58,6 +62,7 @@ public class AppearanceController(SettingsService settings, HubNotifier notifier
             [SettingKeys.AppearancePlate] = plate,
             [SettingKeys.AppearanceStateStyle] = stateStyle,
             [SettingKeys.AppearanceDisplayMesh] = displayMesh ? "true" : "false",
+            [SettingKeys.AppearanceKeySurface] = keySurface,
             [SettingKeys.AppearanceLedColors] = input.LedColors is not null ? string.Join(",", input.LedColors.Take(4)) : settings.AppearanceLedColors, // Max 4 colors
             [SettingKeys.AppearanceLedEffect] = input.LedEffect ?? settings.AppearanceLedEffect,
             [SettingKeys.AppearanceLedSpeed] = (input.LedSpeed ?? settings.AppearanceLedSpeed).ToString(),

@@ -1,4 +1,11 @@
-export type Params = Record<string, string | number | boolean | null | undefined>
+export type Params = Record<string, string | number | boolean | null | undefined | ActionStep[] | unknown>
+
+export interface MultiSwitchParams {
+  onSteps: ActionStep[]
+  offSteps: ActionStep[]
+  labelOff?: string
+  iconOff?: string
+}
 
 export interface ActionStep {
   type: string
@@ -25,6 +32,76 @@ export interface PageModel {
   buttons: ButtonModel[]
 }
 
+/** Oeffentlicher Twitch-Stand (keine Zugangsdaten): Live-Zahlen des verbundenen Kanals. */
+export interface TwitchSnapshot {
+  configured: boolean
+  connected: boolean
+  login: string | null
+  live: boolean
+  viewers: number
+  startedAt: string | null
+  title: string | null
+  game: string | null
+  followers: number | null
+  subs: number | null
+  /** false, solange der Kanal kein Abo-Programm hat (kein Twitch-Affiliate/-Partner). */
+  subsAvailable: boolean
+  error: string | null
+  /** Was im oberen OLED angezeigt wird - jede Angabe ist einzeln abschaltbar (Einstellungen > Twitch). */
+  showViewers: boolean
+  showSubs: boolean
+  showCategory: boolean
+  showTitle: boolean
+  updatedAt: string
+}
+
+export interface TwitchDeviceFlow {
+  userCode: string
+  verificationUri: string
+  expiresAt: string
+}
+
+/** Status fuer die Einstellungen (nur Besitzer): laufende Anmeldung + Hinweis auf die gespeicherte Client-ID (nie vollstaendig). */
+export interface TwitchStatus {
+  snapshot: TwitchSnapshot
+  flow: TwitchDeviceFlow | null
+  clientIdHint: string | null
+}
+
+/** Laufende Wiedergabe (Spotify als App oder im Browser, andere Player) aus der Windows-Mediensteuerung. */
+export interface NowPlaying {
+  /** Anzeigename des Players, z.B. "Spotify", "Edge". */
+  app: string
+  title: string
+  artist: string
+  album: string | null
+  playing: boolean
+  /** Position zum Empfangszeitpunkt (der Server rechnet vor dem Senden auf "jetzt" hoch); 0 = Anfang. */
+  positionSeconds: number
+  /** 0 = unbekannt (Livestream). */
+  durationSeconds: number
+  /** Aendert sich mit dem Cover-Bild; null = kein Cover (Bild: GET /api/now-playing/cover). */
+  coverId?: string | null
+}
+
+/** Aktives Windows-Audiogeraet: Wiedergabe ("output") oder Aufnahme/Mikrofon ("input"). */
+export interface AudioDevice {
+  id: string
+  name: string
+  kind: 'output' | 'input'
+  isDefault: boolean
+  percent: number
+  muted: boolean
+}
+
+/** Seitliches OLED-Display neben dem Tastenraster. source: "system", "obs:<Eingangsname>" oder "win:<Windows-Geraete-ID>". */
+export interface SideDisplay {
+  id: string
+  side: 'left' | 'right'
+  source: string
+  label?: string | null
+}
+
 export interface DeckModel {
   id: number
   name: string
@@ -32,6 +109,9 @@ export interface DeckModel {
   columns: number
   sortOrder: number
   pages: PageModel[]
+  sideDisplays: SideDisplay[]
+  /** Groesse des oberen OLED-Displays der Plate: eine Zeile oder gross (Cover + Titel/Interpret/Album). */
+  oledSize: 'normal' | 'large'
 }
 
 export type ObsConnectionStatus = 'disconnected' | 'connecting' | 'connected'
@@ -85,8 +165,10 @@ export interface AppearanceSettings {
   stateStyle: 'fill' | 'glow' | 'corner' | 'led' | 'level' | 'icon'
   /** Gewaehlte Gehaeuse-Plate-Fassung um das Tastenraster ("house:<key>", siehe lib/housePlates.ts). */
   plate: string
-  /** Optisches Subpixel-Mesh ueber alle Tasten (LCD Stream-Deck Matrix). */
+  /** Optisches Subpixel-Mesh ueber alle Tasten (LCD CueDeck Matrix). */
   displayMesh: boolean
+  /** Tastenoberflaeche: glatt, Subpixel-Matrix oder flache OLED-Displays (ohne Tastenhub, ohne Druckverhalten). */
+  keySurface?: 'smooth' | 'mesh' | 'oled'
   ledColors?: string[]
   ledEffect?: string
   ledSpeed?: number
@@ -96,6 +178,7 @@ export type FieldKind =
   | 'scene'
   | 'sceneItem'
   | 'audioInput'
+  | 'audioDevice'
   | 'page'
   | 'source'
   | 'filter'

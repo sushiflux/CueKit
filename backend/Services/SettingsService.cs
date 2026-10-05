@@ -10,6 +10,18 @@ public static class SettingKeys
     public const string ObsHost = "obs.host";
     public const string ObsPort = "obs.port";
     public const string ObsPassword = "obs.password";          // verschluesselt (DataProtection)
+    // Twitch: die Client-ID ist oeffentlich (Anwendungstyp "Public", es gibt kein Client-Secret); Token liegen verschluesselt.
+    public const string TwitchClientId = "twitch.clientId";
+    public const string TwitchAccessToken = "twitch.accessToken";       // verschluesselt (DataProtection)
+    public const string TwitchRefreshToken = "twitch.refreshToken";     // verschluesselt (DataProtection)
+    public const string TwitchTokenExpiresAt = "twitch.tokenExpiresAt"; // ISO-8601 (UTC)
+    public const string TwitchUserId = "twitch.userId";
+    public const string TwitchLogin = "twitch.login";
+    // Was von Twitch im oberen OLED angezeigt wird (jeweils einzeln abschaltbar, Standard: an).
+    public const string TwitchShowViewers = "twitch.show.viewers";
+    public const string TwitchShowSubs = "twitch.show.subs";
+    public const string TwitchShowCategory = "twitch.show.category";
+    public const string TwitchShowTitle = "twitch.show.title";
     public const string PluginKey = "plugins.key";             // Schluessel fuer lokale Plugin-Prozesse
     public const string PublicHost = "network.publicHost";     // optionaler Override fuer QR-Code-URLs
 
@@ -21,8 +33,9 @@ public static class SettingKeys
     /// <summary>Gewaehlte Gehaeuse-Plate-Fassung um das Tastenraster ("house:&lt;key&gt;", siehe
     /// frontend lib/housePlates.ts) - es bleibt immer ein Gehaeuse aktiv.</summary>
     public const string AppearancePlate = "appearance.plate";
-    /// <summary>Optisches Subpixel-Mesh ueber alle Tasten (LCD Stream-Deck Matrix).</summary>
+    /// <summary>Optisches Subpixel-Mesh ueber alle Tasten (LCD CueDeck Matrix).</summary>
     public const string AppearanceDisplayMesh = "appearance.displayMesh";
+    public const string AppearanceKeySurface = "appearance.keySurface";
     public const string AppearanceLedColors = "appearance.ledColors";
     public const string AppearanceLedSpeed = "appearance.ledSpeed";
     public const string AppearanceLedEffect = "appearance.ledEffect";
@@ -79,12 +92,24 @@ public class SettingsService(IServiceScopeFactory scopes, IDataProtectionProvide
     /// <summary>Gewaehlte Gehaeuse-Plate ("house:&lt;key&gt;") - es bleibt immer ein Gehaeuse gewaehlt.</summary>
     public string AppearancePlate => Get(SettingKeys.AppearancePlate) is { Length: > 0 } p ? p : "house:studiopro";
 
-    /// <summary>Optisches Subpixel-Mesh ueber alle Tasten (LCD Stream-Deck Look).</summary>
+    /// <summary>Optisches Subpixel-Mesh ueber alle Tasten (LCD CueDeck Look).</summary>
     public bool AppearanceDisplayMesh => Get(SettingKeys.AppearanceDisplayMesh) == "true";
+
+    private static readonly HashSet<string> ValidKeySurfaces = ["smooth", "mesh", "oled"];
+
+    /// <summary>Tastenoberflaeche: "smooth" (glatte Kappen), "mesh" (Subpixel-Matrix) oder "oled" (flache OLED-Displays, kein Tastenhub).
+    /// Aeltere Staende kannten nur den Mesh-Schalter - dann wird daraus abgeleitet.</summary>
+    public string AppearanceKeySurface => Get(SettingKeys.AppearanceKeySurface) is { } v && ValidKeySurfaces.Contains(v) ? v : (AppearanceDisplayMesh ? "mesh" : "smooth");
 
     public string AppearanceLedColors => Get(SettingKeys.AppearanceLedColors) ?? "#a78bfa,#f472b6,#7dd3fc";
     public int AppearanceLedSpeed => int.TryParse(Get(SettingKeys.AppearanceLedSpeed), out var s) ? s : 4;
     public string AppearanceLedEffect => Get(SettingKeys.AppearanceLedEffect) ?? "sweep";
+
+    /// <summary>Verschluesselt einen sensiblen Wert fuers Speichern (DataProtection, Schluesselring des Dienstes).</summary>
+    public string Protect(string plain) => _protector.Protect(plain);
+
+    /// <summary>Entschluesselt einen mit <see cref="Protect"/> gespeicherten Wert; wirft, wenn der Schluesselring fehlt.</summary>
+    public string Unprotect(string protectedValue) => _protector.Unprotect(protectedValue);
 
     public string? ObsPassword
     {

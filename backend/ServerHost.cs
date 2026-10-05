@@ -8,12 +8,15 @@ using Deck.Server.Data;
 using Deck.Server.Hardware;
 using Deck.Server.Hotkeys;
 using Deck.Server.Hubs;
+using Deck.Server.Media;
 using Deck.Server.Obs;
 using Deck.Server.Plugins;
+using Deck.Server.Twitch;
 using Deck.Server.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Deck.Server;
 
@@ -65,6 +68,7 @@ public static class ServerHost
         builder.Services.AddSingleton<ActionExecutor>();
         builder.Services.AddSingleton<ObsDiscovery>();
         builder.Services.AddSingleton(new DataPaths(dataDir));
+        builder.Services.AddSingleton<SwitchStateService>();
         builder.Services.AddSingleton<PluginCatalog>();
         builder.Services.AddHttpClient("catalog", c =>
         {
@@ -104,6 +108,14 @@ public static class ServerHost
         AddHostedSingleton<SystemMonitorBroadcaster>(builder.Services);
         builder.Services.AddSingleton<MeterSubscribers>();
         AddHostedSingleton<MeterBroadcaster>(builder.Services);
+
+        // Laufende Wiedergabe (Spotify o.a.): die Windows-Quelle liefert die Desktop-Huelle ueber `configure`; sonst keine.
+        builder.Services.TryAddSingleton<INowPlayingProvider, NoNowPlaying>();
+        AddHostedSingleton<NowPlayingBroadcaster>(builder.Services);
+
+        // Twitch: Live-Zahlen + Aktionen; Anmeldung pro Nutzer ueber den Device-Code-Ablauf (kein Client-Secret in der App).
+        builder.Services.AddHttpClient("twitch", c => { c.Timeout = TimeSpan.FromSeconds(15); c.DefaultRequestHeaders.UserAgent.ParseAdd("CueKit"); });
+        AddHostedSingleton<TwitchService>(builder.Services);
 
         AddHostedSingleton<ObsService>(builder.Services);
         AddHostedSingleton<AutomationEngine>(builder.Services);

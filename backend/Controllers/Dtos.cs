@@ -9,7 +9,18 @@ public record ButtonDto(int Id, int PageId, int Row, int Column, string Label, s
 
 public record PageDto(int Id, int? ParentPageId, string Name, IReadOnlyList<ButtonDto> Buttons);
 
-public record DeckDto(int Id, string Name, int Rows, int Columns, int SortOrder, IReadOnlyList<PageDto> Pages);
+/// <summary>Seitliches OLED-Display. Source: "system" (Windows-Master) oder "obs:Eingangsname". Side: "left" | "right".</summary>
+public record SideDisplayDto(
+    [Required, StringLength(40, MinimumLength = 1)] string Id,
+    [Required] string Side,
+    [Required, StringLength(210, MinimumLength = 1)] string Source,
+    [StringLength(40)] string? Label = null);
+
+public record SideDisplaysInput([Required] List<SideDisplayDto> Displays);
+
+public record OledInput([Required] string Size);
+
+public record DeckDto(int Id, string Name, int Rows, int Columns, int SortOrder, IReadOnlyList<PageDto> Pages, IReadOnlyList<SideDisplayDto> SideDisplays, string OledSize = "normal");
 
 public record DeckInput(
     [Required, StringLength(80, MinimumLength = 1)] string Name,

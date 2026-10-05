@@ -1,9 +1,13 @@
 import { DndContext, DragOverlay, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core'
-import { IconCheck, IconClick, IconDownload, IconLayoutGrid, IconPlus, IconRoute, IconSparkles } from '@tabler/icons-react'
+import { IconCheck, IconClick, IconMusic, IconDownload, IconLayoutGrid, IconPlus, IconRoute, IconSparkles } from '@tabler/icons-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api, errorMessage } from '../api/client'
-import type { ButtonModel, DeckModel, PageModel } from '../api/types'
-import { DeckGrid } from '../components/DeckGrid'
+import { reloadAudioDevices } from '../state/realtime'
+import type { ButtonModel, DeckModel, PageModel, SideDisplay as SideDisplayModel } from '../api/types'
+import { DeckGrid, type SideSlot } from '../components/DeckGrid'
+import { SideDisplay, sideDisplayInfo } from '../components/SideDisplay'
+import { SideDisplayModal } from './SideDisplayModal'
+import { MAX_SIDE_DISPLAYS_PER_SIDE, saveSideDisplays } from './sideSlots'
 import { DeckKey } from '../components/DeckKey'
 import { Modal } from '../components/Modal'
 import { toast } from '../components/Toasts'
@@ -13,11 +17,11 @@ import { Inspector } from '../editor/Inspector'
 import { buildPalette, Palette, type PaletteItem } from '../editor/Palette'
 import { TileMenu, type MenuItem } from '../editor/TileMenu'
 import { downloadExport } from '../lib/backup'
-import { buttonLevel, displayMetric, isButtonActive } from '../lib/buttonState'
+import { buttonLevel, displayMetric, isButtonActive, isButtonUnavailable } from '../lib/buttonState'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { useStore } from '../state/store'
 import { GridModal, NewDeckModal } from './DeckModals'
-import { automationIdOf, deleteTile, folderTargetOf, isMulti } from './tileOps'
+import { automationIdOf, deleteTile, folderTargetOf, isMulti, isMultiSwitch } from './tileOps'
 
 type Slot = { row: number; column: number }
 type Menu = { x: number; y: number; slot: Slot; button?: ButtonModel }
@@ -26,6 +30,7 @@ type InspectorTab = 'action' | 'automation'
 const NEW_TILE_MENU: MenuItem[] = [
   { id: 'single', label: 'Einzelne Aktion …', hint: 'Szene, Audio, Stream, Plugin …', icon: 'tabler:click' },
   { id: 'multi', label: 'Multifunktion', hint: 'Mehrere Aktionen nacheinander', icon: 'tabler:stack-3' },
+  { id: 'multi-switch', label: 'Multi-Aktionsschalter', hint: 'Zwei Zustände mit eigenen Aktionen', icon: 'tabler:toggle-right' },
   { id: 'folder', label: 'Ordner', hint: 'Weitere Tasten dahinter', icon: 'tabler:folder-plus' },
 ]
 
@@ -60,7 +65,9 @@ function EditKey({ button, size, selected, onSelect, onOpen }: { button: ButtonM
   const automations = useStore((s) => s.automations)
   const catalog = useStore((s) => s.catalog)
   const systemMonitor = useStore((s) => s.systemMonitor)
+  useStore((s) => s.audioDevices) // Stumm-/Pegel-Zustand von Geraete-Tasten (siehe lib/buttonState.ts)
   const appearance = useStore((s) => s.appearance)
+  const switchStates = useStore((s) => s.switchStates)
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `key:${button.id}`, data: { button } })
   return (
     <div ref={setNodeRef} {...attributes} {...listeners} className={`h-full w-full touch-none ${isDragging ? 'opacity-30' : ''}`} onDoubleClick={onOpen}>
@@ -68,9 +75,13 @@ function EditKey({ button, size, selected, onSelect, onOpen }: { button: ButtonM
         button={button}
         size={size}
         selected={selected}
-        active={isButtonActive(button, obs, automations, systemMonitor)}
+        active={isButtonActive(button, obs, automations, systemMonitor, switchStates)}
         level={buttonLevel(button, obs, systemMonitor)}
         monitorMetric={displayMetric(button, catalog)}
+        systemMonitor={systemMonitor}
+        unavailable={isButtonUnavailable(button, obs)}
+        displayMesh={appearance?.displayMesh}
+        keySurface={appearance?.keySurface}
         pressBehavior={appearance?.pressBehavior}
         stateStyle={appearance?.stateStyle}
         onPress={onSelect}
@@ -103,8 +114,80 @@ export function DeckEditor({ deck, page, onOpenFolder, onDeckCreated, onDone, in
   const [dragItem, setDragItem] = useState<{ label: string; icon: string | null; color: string } | null>(null)
   const [gridOpen, setGridOpen] = useState(false)
   const [newDeckOpen, setNewDeckOpen] = useState(false)
+  const [sideEdit, setSideEdit] = useState<{ side: 'left' | 'right'; display: SideDisplayModel | null } | null>(null)
 
-  const groups = useMemo(() => buildPalette(obs, catalog), [obs, catalog])
+  const toggleOled = async () => {
+    const next = deck.oledSize === 'large' ? 'normal' : 'large'
+    try {
+      await api(`/api/decks/${deck.id}/oled`, { method: 'PUT', body: { size: next } })
+    } catch (e) {
+      toast(`OLED-Größe konnte nicht gespeichert werden: ${errorMessage(e)}`, 'error')
+    }
+  }
+
+  const writeSideDisplays = async (next: SideDisplayModel[]) => {
+    try {
+      await saveSideDisplays(deck.id, next)
+    } catch (e) {
+      toast(`Displays konnten nicht gespeichert werden: ${errorMessage(e)}`, 'error')
+    }
+  }
+  const saveSide = (v: { source: string; label: string }) => {
+    if (!sideEdit) return
+    const all = deck.sideDisplays ?? []
+    const next = sideEdit.display
+      ? all.map((d) => (d.id === sideEdit.display!.id ? { ...d, source: v.source, label: v.label || null } : d))
+      : [...all, { id: crypto.randomUUID(), side: sideEdit.side, source: v.source, label: v.label || null }]
+    setSideEdit(null)
+    void writeSideDisplays(next)
+  }
+  const removeSide = () => {
+    if (!sideEdit?.display) return
+    const id = sideEdit.display.id
+    setSideEdit(null)
+    void writeSideDisplays((deck.sideDisplays ?? []).filter((d) => d.id !== id))
+  }
+  /** Bestehende Displays (anklickbar zum Bearbeiten) plus am aeusseren Ende eine Plus-Kachel, solange Platz ist. */
+  const editSideSlots = (side: 'left' | 'right'): SideSlot[] => {
+    const mine = (deck.sideDisplays ?? []).filter((d) => d.side === side)
+    const slots: SideSlot[] = mine.map((d) => ({
+      key: d.id,
+      render: ({ orientation, width, height }) => (
+        <SideDisplay
+          display={d}
+          info={{ ...sideDisplayInfo(d.source, obs, null, audioDevices), muted: false, available: true }}
+          orientation={orientation}
+          width={width}
+          height={height}
+          onPress={() => setSideEdit({ side, display: d })}
+        />
+      ),
+    }))
+    if (mine.length < MAX_SIDE_DISPLAYS_PER_SIDE) {
+      slots.push({
+        key: `add-${side}`,
+        render: ({ width, height }) => (
+          <button
+            type="button"
+            className="oled-add"
+            style={{ width, height }}
+            onClick={() => setSideEdit({ side, display: null })}
+            title={`OLED-Display ${side === 'left' ? 'links' : 'rechts'} hinzufügen`}
+            aria-label={`OLED-Display ${side === 'left' ? 'links' : 'rechts'} hinzufügen`}
+          >
+            <IconPlus size={Math.max(16, Math.min(28, Math.round(width * 0.4)))} />
+          </button>
+        ),
+      })
+    }
+    return slots
+  }
+
+  const audioDevices = useStore((s) => s.audioDevices)
+  // Beim Oeffnen des Editors die Geraeteliste frisch holen (Geraete koennen seit dem App-Start dazugekommen sein).
+  useEffect(() => void reloadAudioDevices().catch(() => {}), [])
+  const audioDevicesError = useStore((s) => s.audioDevicesError)
+  const groups = useMemo(() => buildPalette(obs, catalog, audioDevices, audioDevicesError), [obs, catalog, audioDevices, audioDevicesError])
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
   // Andere Taste gewaehlt -> zurueck auf den Aktion-Tab, statt den zuletzt betrachteten Automation-Tab zu behalten.
@@ -122,7 +205,14 @@ export function DeckEditor({ deck, page, onOpenFolder, onDeckCreated, onDone, in
       item.kind === 'folder'
         ? await api<ButtonModel>(`/api/pages/${page.id}/folders`, { body: { name: 'Ordner', row: slot.row, column: slot.column } })
         : await api<ButtonModel>(`/api/pages/${page.id}/buttons`, {
-            body: { row: slot.row, column: slot.column, label: item.kind === 'multi' ? 'Multi' : item.label, icon: item.icon, color: item.color, actions: item.actions },
+            body: {
+              row: slot.row,
+              column: slot.column,
+              label: item.kind === 'multi' ? 'Multi' : item.kind === 'multi-switch' ? 'Schalter' : item.label,
+              icon: item.icon,
+              color: item.color,
+              actions: item.actions,
+            },
           })
     setSelectedId(created.id)
   }
@@ -132,9 +222,11 @@ export function DeckEditor({ deck, page, onOpenFolder, onDeckCreated, onDone, in
     const target = at(slot.row, slot.column)
     try {
       if (!target) return await createAt(item, slot)
-      if (item.kind) return toast('Ordner und Multifunktionen bitte auf eine leere Taste ziehen.', 'error')
+      if (item.kind) return toast('Ordner, Multifunktionen und Schalter bitte auf eine leere Taste ziehen.', 'error')
       if (automationIdOf(target) != null || isFolder(target))
         return toast('Ordner- und Automations-Tasten lassen sich nicht überschreiben – zieh die Aktion auf eine leere Taste.', 'error')
+      if (isMultiSwitch(target))
+        return toast('Multi-Aktionsschalter bitte im Editor rechts konfigurieren (Zustand 1 / Zustand 2).', 'info')
       if (isMulti(target)) {
         await api(`/api/buttons/${target.id}`, {
           method: 'PUT',
@@ -281,6 +373,13 @@ export function DeckEditor({ deck, page, onOpenFolder, onDeckCreated, onDone, in
             >
               <IconDownload size={15} /> Exportieren
             </button>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => void toggleOled()}
+              title="Größe des oberen OLED-Displays der SushiFlux-Gehäuse: eine Zeile oder groß mit Cover, Titel, Interpret und Album"
+            >
+              <IconMusic size={15} /> Oberes OLED: {deck.oledSize === 'large' ? 'Groß' : 'Normal'}
+            </button>
             <button className="btn btn-ghost btn-sm" onClick={() => setNewDeckOpen(true)}>
               <IconPlus size={15} /> Neues Deck
             </button>
@@ -296,6 +395,8 @@ export function DeckEditor({ deck, page, onOpenFolder, onDeckCreated, onDone, in
               rows={deck.rows}
               columns={deck.columns}
               maxKeySize={170}
+              sideLeft={editSideSlots('left')}
+              sideRight={editSideSlots('right')}
               renderSlot={(row, column, size) => {
                 const b = at(row, column)
                 const slot = { row, column }
@@ -378,6 +479,7 @@ export function DeckEditor({ deck, page, onOpenFolder, onDeckCreated, onDone, in
         )}
       </DragOverlay>
 
+      <SideDisplayModal audioDevices={audioDevices} open={!!sideEdit} initial={sideEdit?.display ?? null} side={sideEdit?.side ?? 'left'} obs={obs} onClose={() => setSideEdit(null)} onSave={saveSide} onRemove={removeSide} />
       <GridModal open={gridOpen} deck={deck} onClose={() => setGridOpen(false)} />
       <NewDeckModal open={newDeckOpen} onClose={() => setNewDeckOpen(false)} onCreated={onDeckCreated} />
     </DndContext>

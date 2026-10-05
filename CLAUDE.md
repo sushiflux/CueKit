@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-**CueKit** – a free (closed-source freeware) Stream Deck alternative for OBS: phones/tablets/browsers
+**CueKit** – a free (closed-source freeware) CueDeck for OBS: phones/tablets/browsers
 become a button deck, the PC runs a service that talks to OBS via obs-websocket v5. The product name
 lives **only** in `branding.json` (read by backend `AppInfo`, frontend `config/branding.ts`, the
 `index.html` title plugin in `vite.config.ts`, `start.ps1`, the notices generator). Technical names
@@ -17,13 +17,14 @@ PNG-in-ICO) is generated from the logo and embedded by the desktop shell – reg
 
 ## Commands
 
-Dev stack (Docker Desktop, Windows PowerShell 5.1 compatible):
+Dev stack - **no Docker for the app itself**, everything runs natively (Windows PowerShell 5.1 compatible):
 
 ```powershell
-.\start.ps1                      # dev: backend (dotnet watch) :5201 + Vite :5200 (UI at http://localhost:5200)
-.\start.ps1 -Env prod            # "live" profile: built image, UI+API on :5202, separate data volume
-.\start.ps1 -Action stop|restart|status|logs [-Env prod] [-NoBuild]
+.\start.ps1        # Vite :5200 + desktop shell with embedded backend (dotnet watch) :5201, one window; any key / Ctrl+C stops all process trees
+.\start-admin.ps1  # same, but self-elevates (UAC) - needed for hardware sensors (LibreHardwareMonitor / WinRing0), e.g. CPU temperature
 ```
+
+UI at http://localhost:5200. Native `taskkill` calls in the scripts go through `cmd /c "... >nul 2>&1"` – under `$ErrorActionPreference='Stop'` PowerShell 5.1 turns any native stderr into a terminating error.
 
 Ports are fixed from `C:\Users\Flux\.claude\ports.json` (key `cuekit`); the script fails loudly on
 conflicts instead of picking other ports.
@@ -37,7 +38,7 @@ Desktop app (Windows shell, see Architecture):
 dotnet run --project desktop\Deck.Desktop -- --Deck:Port=5215 --Deck:DataDir=<scratch dir>   # dev run of the shell (needs frontend\dist, else --dev-url=http://localhost:5200 with Vite)
 ```
 
-The installed app's default port is 5202 (the same as the Docker "live" stack) – running both needs `--Deck:Port`.
+The installed app's default port is 5202 – running it next to the dev stack needs `--Deck:Port`.
 A fresh data dir auto-adopts the local OBS connection (`ObsDiscovery`), so **never press OBS keys in tests** without
 first pointing `PUT /api/settings/obs` at an unreachable port.
 
@@ -60,8 +61,7 @@ cd backend; $env:ASPNETCORE_ENVIRONMENT='Development'; $env:Deck__DataDir='<scra
 cd frontend; $env:DECK_BACKEND_URL='http://localhost:5211'; npx vite --port 5210 --strictPort
 ```
 
-Browser verification uses the Playwright Docker image on demand (`mcr.microsoft.com/playwright:v1.63.0-noble`,
-target `http://host.docker.internal:<port>`); a fresh data dir allows the first-run "Einrichten"
+Browser verification runs natively (no Docker): `playwright-core` with the installed Edge (`chromium.launch({ channel: 'msedge' })`, installed in a scratch dir) against `http://localhost:<port>`; the device token goes into localStorage key `deck.deviceToken` (get one via `POST /api/auth/bootstrap` from loopback). A fresh data dir allows the first-run "Einrichten"
 (bootstrap) flow. Never press live deck keys in automated tests against a real OBS.
 
 Android app (client only, see "Platforms and stack choice" below): `.\scripts\android-build.ps1` builds the APK in a Gradle container
@@ -149,6 +149,10 @@ better than React Native/Capacitor (no cleartext/navigation workarounds, tiny AP
   classes (`.btn-create/-confirm/-danger/-ghost`, `.field`, `.chip-select`, `.switch`, `.deck-key`) in
   `@layer components` so Tailwind utilities can still override them. `.deck-key > *` has
   `pointer-events: none` on purpose (icon SVG re-renders otherwise swallow click/dblclick).
+- **Side OLED displays**: per deck (`DeckEntity.SideDisplaysJson`, `PUT /api/decks/{id}/side-displays`, max 3 per side), shown left/right of the grid at full grid height (`components/SideDisplay.tsx`, slots in `DeckGrid` `sideLeft/sideRight`, helpers in `deck/sideSlots.tsx`); portrait-transposed grids put them above/below. Each shows source name, live level and mute (source `system`, `obs:<input>` or `win:<Windows device id>`); a click toggles mute (`POST .../side-displays/{id}/mute`). Edit mode shows a + tile per side.
+- **Windows audio devices**: `ISystemVolume.ListDevices()` (hand-written Core Audio COM in `Hardware/SystemVolumeService.cs`) lists all active outputs and inputs (mics); `system.mute`/`system.volume` take an optional `device` param (empty = default output). `GET /api/audio-devices` + SignalR `audioDevices` (only while a mute key/display is visible, via the system-monitor subscription), per-device peaks in the `meters` payload (`win`). Palette: System > Audioquellen · Ausgabe/Eingang.
+- **Now playing** (upper OLED of the SushiFlux plates): `Media/NowPlaying.cs` (`INowPlayingProvider`, `GET /api/now-playing`, SignalR `nowPlaying`, positions normalised to "now" by `AtNow()`) is fed by `desktop/Deck.Desktop/Media/WindowsNowPlayingProvider.cs` (Windows media transport controls = Spotify app *and* browser, no login; needs TFM `net10.0-windows10.0.19041.0`; registered via the `ServerHost.Build` configure hook, so headless/Docker has none). Prefers a playing Spotify session, then any playing one. Chromium puts the *album* into the Artist field when an album is set, so browser tracks may show the album instead of the artist. Frontend: `components/HeaderNowPlaying.tsx`.
+- **Twitch** (`backend/Twitch/TwitchService.cs`, `Controllers/TwitchController.cs`, UI `components/TwitchCard.tsx` in Einstellungen): sign-in via the OAuth **device code flow with a public client** - the app has **no client secret**, every user signs in with their own Twitch account (the Client-ID of a self-registered public app is entered in the UI; never commit one). Tokens are DataProtection-encrypted in the settings table, never logged, never sent to clients; the public `GET /api/twitch` snapshot has no tokens/user id, owner-only `/status` shows only a masked Client-ID hint. Polls Helix every 30 s (stream) / 90 s (followers, subs); actions `twitch.clip`/`twitch.marker`, display tiles `twitch.display` (metrics `twitchViewers|Followers|Subs|Uptime`, `twitchDisplay()` in `lib/buttonState.ts`). Server URLs are overridable (`Deck:Twitch:AuthUrl`/`ApiUrl`) for tests against a local mock. Scopes: moderator:read:followers, channel:read:subscriptions, clips:edit, channel:manage:broadcast. Also `twitch.category` (searches the category by name, then PATCH /channels) and `twitch.title`. **OLED stream zone** (`components/HeaderStream.tsx`, `useStreamInfo`): the time comes from **OBS** (stream wins over recording; record-only shows REC / PAUSE); category, title, viewers and subs come from Twitch, only while OBS streams and the channel is live; each of those four is individually switchable (`twitch.show.*` settings, `PUT /api/twitch/display`, switches in Einstellungen > Twitch). With music playing the Spotify block compresses and the stream block sits next to it.
 - The "made with" credit is `components/MadeWith.tsx` ("Mit ♥ gemacht" / "Made with ♥", green heart).
 
 ## Repo conventions

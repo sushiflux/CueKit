@@ -3,6 +3,7 @@ using Deck.Server.Data;
 using Deck.Server.Hubs;
 using Deck.Server.Obs;
 using Deck.Server.Plugins;
+using Deck.Server.Twitch;
 using Microsoft.EntityFrameworkCore;
 using SystemVolume = Deck.Server.Hardware.ISystemVolume;
 
@@ -217,6 +218,26 @@ public class ActionExecutor(ObsService obs, PluginHost plugins, SystemVolume sys
                 await Task.Delay(Math.Clamp(step.Int("ms") ?? 1000, 0, 600_000), ct);
                 break;
 
+            case "twitch.clip":
+                try { await services.GetRequiredService<TwitchService>().CreateClipAsync(ct); }
+                catch (TwitchException ex) { throw new ActionExecutionException(ex.Message, ex); }
+                break;
+
+            case "twitch.category":
+                try { await services.GetRequiredService<TwitchService>().SetCategoryAsync(step.Str("category"), ct); }
+                catch (TwitchException ex) { throw new ActionExecutionException(ex.Message, ex); }
+                break;
+
+            case "twitch.title":
+                try { await services.GetRequiredService<TwitchService>().SetTitleAsync(step.Str("title"), ct); }
+                catch (TwitchException ex) { throw new ActionExecutionException(ex.Message, ex); }
+                break;
+
+            case "twitch.marker":
+                try { await services.GetRequiredService<TwitchService>().CreateMarkerAsync(step.Str("description"), ct); }
+                catch (TwitchException ex) { throw new ActionExecutionException(ex.Message, ex); }
+                break;
+
             case "system.volume":
                 ExecuteSystemVolume(step);
                 break;
@@ -285,6 +306,9 @@ public class ActionExecutor(ObsService obs, PluginHost plugins, SystemVolume sys
     private static string Required(ActionStep step, string key) =>
         step.Str(key) is { Length: > 0 } v ? v : throw new ActionExecutionException($"Pflichtfeld '{key}' ist nicht gesetzt.");
 
+    /// <summary>Gewaehltes Windows-Audiogeraet; leer = Standard-Ausgabe.</summary>
+    private static string? DeviceId(ActionStep step) => step.Str("device") is { Length: > 0 } d ? d : null;
+
     private void ExecuteSystemVolume(ActionStep step)
     {
         try
@@ -293,13 +317,13 @@ public class ActionExecutor(ObsService obs, PluginHost plugins, SystemVolume sys
             {
                 case "set":
                     var value = step.Int("value") ?? throw new ActionExecutionException("Zielwert in % fehlt.");
-                    systemVolume.SetPercent(value);
+                    systemVolume.SetPercentDevice(DeviceId(step), value);
                     break;
                 case "down":
-                    systemVolume.Adjust(-Math.Abs(step.Int("step") ?? 5));
+                    systemVolume.AdjustDevice(DeviceId(step), -Math.Abs(step.Int("step") ?? 5));
                     break;
                 default:
-                    systemVolume.Adjust(Math.Abs(step.Int("step") ?? 5));
+                    systemVolume.AdjustDevice(DeviceId(step), Math.Abs(step.Int("step") ?? 5));
                     break;
             }
         }
@@ -312,9 +336,9 @@ public class ActionExecutor(ObsService obs, PluginHost plugins, SystemVolume sys
         {
             switch (step.Mode)
             {
-                case "on": systemVolume.SetMuted(true); break;
-                case "off": systemVolume.SetMuted(false); break;
-                default: systemVolume.ToggleMuted(); break;
+                case "on": systemVolume.SetMutedDevice(DeviceId(step), true); break;
+                case "off": systemVolume.SetMutedDevice(DeviceId(step), false); break;
+                default: systemVolume.ToggleMutedDevice(DeviceId(step)); break;
             }
         }
         catch (InvalidOperationException ex) { throw new ActionExecutionException(ex.Message, ex); }

@@ -66,6 +66,7 @@ public sealed class SystemMonitorBroadcaster(
     private async Task WatchVolumeAsync(CancellationToken stoppingToken)
     {
         (bool Available, int Percent, bool Muted)? last = null;
+        IReadOnlyList<AudioDeviceInfo>? lastDevices = null;
         while (!stoppingToken.IsCancellationRequested)
         {
             try
@@ -80,8 +81,14 @@ public sealed class SystemMonitorBroadcaster(
                         await hub.Clients.All.SendAsync("systemState", monitor.Current, stoppingToken);
                     }
                     last = now;
+
+                    // Alle Windows-Audiogeraete (auch Mikrofone): nur bei Aenderung (Geraet an/ab, Stumm, Lautstaerke) senden.
+                    var devices = volume.ListDevices();
+                    if (lastDevices is not null && !devices.SequenceEqual(lastDevices))
+                        await hub.Clients.All.SendAsync("audioDevices", devices, stoppingToken);
+                    lastDevices = devices;
                 }
-                else last = null; // beim naechsten Zuschauer neu ansetzen, ohne alten Stand zu vergleichen
+                else { last = null; lastDevices = null; } // beim naechsten Zuschauer neu ansetzen, ohne alten Stand zu vergleichen
 
                 await Task.Delay(subscribers.Any ? VolumeInterval : IdleInterval, stoppingToken);
             }

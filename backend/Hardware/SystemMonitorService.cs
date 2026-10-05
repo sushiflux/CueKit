@@ -97,29 +97,78 @@ public sealed class SystemMonitorService : ISystemMonitor, IDisposable
                 }
                 if (_computer is null)
                 {
-                    _computer = new Computer { IsCpuEnabled = true, IsGpuEnabled = true, IsMemoryEnabled = true };
+                    _computer = new Computer
+                    {
+                        IsCpuEnabled = true,
+                        IsGpuEnabled = true,
+                        IsMemoryEnabled = true,
+                        IsMotherboardEnabled = true,
+                        IsControllerEnabled = true,
+                    };
                     _computer.Open();
                 }
 
                 double? cpuLoad = null, cpuTemp = null, gpuLoad = null, gpuTemp = null, ramLoad = null;
-                foreach (var hardware in _computer.Hardware)
-                {
-                    hardware.Update();
-                    var isCpu = hardware.HardwareType == HardwareType.Cpu;
-                    var isGpu = hardware.HardwareType is HardwareType.GpuNvidia or HardwareType.GpuAmd or HardwareType.GpuIntel;
-                    var isMemory = hardware.HardwareType == HardwareType.Memory;
-                    if (!isCpu && !isGpu && !isMemory) continue;
 
-                    foreach (var sensor in hardware.Sensors)
+                void ScanHardware(IHardware hw)
+                {
+                    hw.Update();
+                    foreach (var sub in hw.SubHardware)
+                    {
+                        ScanHardware(sub);
+                    }
+
+                    var isCpu = hw.HardwareType == HardwareType.Cpu;
+                    var isGpu = hw.HardwareType is HardwareType.GpuNvidia or HardwareType.GpuAmd or HardwareType.GpuIntel;
+                    var isMemory = hw.HardwareType == HardwareType.Memory;
+                    var isMobo = hw.HardwareType is HardwareType.Motherboard or HardwareType.SuperIO;
+
+                    foreach (var sensor in hw.Sensors)
                     {
                         if (sensor.Value is not { } value || !double.IsFinite(value)) continue;
-                        if (isCpu && sensor.SensorType == SensorType.Load && sensor.Name is "CPU Total") cpuLoad = value;
-                        else if (isCpu && sensor.SensorType == SensorType.Temperature && (cpuTemp is null || sensor.Name.Contains("Package", StringComparison.OrdinalIgnoreCase))) cpuTemp = value;
-                        else if (isGpu && sensor.SensorType == SensorType.Load && sensor.Name is "GPU Core") gpuLoad = value;
-                        else if (isGpu && sensor.SensorType == SensorType.Temperature && (gpuTemp is null || sensor.Name.Contains("Core", StringComparison.OrdinalIgnoreCase))) gpuTemp = value;
-                        else if (isMemory && sensor.SensorType == SensorType.Load && sensor.Name is "Memory") ramLoad = value;
+
+                        if (isCpu && sensor.SensorType == SensorType.Load && sensor.Name is "CPU Total")
+                        {
+                            cpuLoad = value;
+                        }
+                        else if (isCpu && sensor.SensorType == SensorType.Temperature && value > 0 && value < 125)
+                        {
+                            var isPreferred = sensor.Name.Contains("Package", StringComparison.OrdinalIgnoreCase)
+                                           || sensor.Name.Contains("Tctl", StringComparison.OrdinalIgnoreCase)
+                                           || sensor.Name.Contains("Tdie", StringComparison.OrdinalIgnoreCase);
+                            if (cpuTemp is null || isPreferred) cpuTemp = value;
+                        }
+                        else if (isMobo && sensor.SensorType == SensorType.Temperature && value > 0 && value < 125)
+                        {
+                            // Motherboard / Super I/O Fallback für neuere CPUs (z.B. AMD Zen 5 Granite Ridge),
+                            // falls der CPU-Treiber noch keine SMU PM-Table unterstützt.
+                            var name = sensor.Name;
+                            var isCpuSensor = name.Contains("CPU", StringComparison.OrdinalIgnoreCase)
+                                           || name.Contains("Tctl", StringComparison.OrdinalIgnoreCase)
+                                           || name.Contains("Tdie", StringComparison.OrdinalIgnoreCase)
+                                           || name.Contains("Socket", StringComparison.OrdinalIgnoreCase);
+                            if (isCpuSensor && cpuTemp is null) cpuTemp = value;
+                        }
+                        else if (isGpu && sensor.SensorType == SensorType.Load && sensor.Name is "GPU Core")
+                        {
+                            gpuLoad = value;
+                        }
+                        else if (isGpu && sensor.SensorType == SensorType.Temperature && value > 0 && (gpuTemp is null || sensor.Name.Contains("Core", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            gpuTemp = value;
+                        }
+                        else if (isMemory && sensor.SensorType == SensorType.Load && sensor.Name is "Memory")
+                        {
+                            ramLoad = value;
+                        }
                     }
                 }
+
+                foreach (var hardware in _computer.Hardware)
+                {
+                    ScanHardware(hardware);
+                }
+
                 _current = new SystemMonitorSnapshot(true, cpuLoad, cpuTemp, gpuLoad, gpuTemp, ramLoad, null,
                     volume.Available ? volume.Percent : null, volume.Available ? volume.Muted : null);
             }

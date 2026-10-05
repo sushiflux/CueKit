@@ -62,3 +62,16 @@ Wo Informationen für dieses Projekt nachgeschlagen wurden.
 |---|---|---|
 | Elgato Stream Deck SDK | https://docs.elgato.com/streamdeck/sdk/introduction/getting-started | Plugins als eigene Prozesse per WebSocket – Vorbild für `docs/PLUGIN_PROTOCOL.md` |
 | Touch Portal | https://www.touch-portal.com/ | Vergleich Funktionsumfang/Design |
+
+## Windows-Audiogeraete (Core Audio)
+
+- Microsoft Learn: IMMDeviceEnumerator / IMMDeviceCollection / IMMDevice (`EnumAudioEndpoints`, `GetDevice`, `GetId`, `OpenPropertyStore`) - https://learn.microsoft.com/windows/win32/coreaudio/device-properties - Vtable-Reihenfolge fuer das handgeschriebene COM-Interop in `backend/Hardware/SystemVolumeService.cs`; Anzeigename = `PKEY_Device_FriendlyName` ({A45C254E-DF1C-4EFD-8020-67D146A850E0}, pid 14).
+
+## Laufende Wiedergabe (Windows-Mediensteuerung)
+
+- Microsoft Learn: Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager - https://learn.microsoft.com/uwp/api/windows.media.control.globalsystemmediatransportcontrolssessionmanager - Quelle fuer Titel/Interpret/Position/Wiedergabestatus aller Player (Spotify App + Browser); in `WindowsNowPlayingProvider.cs`. Per Test bestaetigt: Edge liefert Sitzung "MSEdge", setzt aber bei gesetztem Album den Albumnamen ins Feld Artist.
+
+## Twitch
+
+- Twitch Developer Docs: Authentication > Device code grant flow - https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/#device-code-grant-flow - Anmeldung ohne Client-Secret (Public-Client); `POST /oauth2/device`, `POST /oauth2/token`, `GET /oauth2/validate`, `POST /oauth2/revoke` in `TwitchService.cs`.
+- Twitch Helix Reference - https://dev.twitch.tv/docs/api/reference/ - `Get Streams`, `Get Channel Followers` (moderator:read:followers), `Get Broadcaster Subscriptions` (channel:read:subscriptions, nur Affiliate/Partner), `Create Clip` (clips:edit), `Create Stream Marker` (channel:manage:broadcast). Hinweis: Die Einzelheiten sind aus dem Gedaechtnis umgesetzt und nur gegen einen lokalen Mock getestet - vor dem ersten echten Einsatz mit echtem Twitch-Konto pruefen.

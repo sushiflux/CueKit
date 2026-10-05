@@ -5,6 +5,7 @@ using System.Text.Json;
 using Deck.Server.Actions;
 using Deck.Server.Data;
 using Deck.Server.Hubs;
+using Deck.Server.Services;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
@@ -38,6 +39,7 @@ public sealed class GlobalHotkeyService(
     ActionExecutor executor,
     HubNotifier notifier,
     IHubContext<DeckHub> hub,
+    SwitchStateService switchStates,
     ILogger<GlobalHotkeyService> log) : BackgroundService, IGlobalHotkeys
 {
     private const uint ModAlt = 0x1, ModControl = 0x2, ModShift = 0x4, ModWin = 0x8, ModNoRepeat = 0x4000;
@@ -131,8 +133,16 @@ public sealed class GlobalHotkeyService(
             var button = await db.Buttons.AsNoTracking().FirstOrDefaultAsync(b => b.Id == buttonId);
             if (button is null) return;
             var steps = JsonSerializer.Deserialize<List<ActionStep>>(button.ActionsJson, JsonSerializerOptions.Web) ?? [];
-            // Deck-Navigation (Ordner/Zurueck) hat ohne sichtbares Deck keine Bedeutung.
-            await executor.ExecuteAsync(steps.Where(s => !ActionCatalog.IsClientSide(s.Type)).ToList(), $"Tastenkürzel '{button.Label}'");
+            if (steps.Count == 1 && steps[0].Type == "deck.multiSwitch")
+            {
+                var result = await switchStates.ExecuteSwitchPressAsync(button, steps[0], executor, CancellationToken.None);
+                if (!result.Ok) error = result.Error;
+            }
+            else
+            {
+                // Deck-Navigation (Ordner/Zurueck) hat ohne sichtbares Deck keine Bedeutung.
+                await executor.ExecuteAsync(steps.Where(s => !ActionCatalog.IsClientSide(s.Type)).ToList(), $"Tastenkürzel '{button.Label}'");
+            }
         }
         catch (ActionExecutionException ex) { error = ex.Message; }
         catch (Exception ex) { error = ex.Message; log.LogWarning(ex, "Tastenkuerzel fehlgeschlagen."); }

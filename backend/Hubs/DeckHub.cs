@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
+using Deck.Server.Services;
+
 namespace Deck.Server.Hubs;
 
 /// <summary>Notice: Hinweis trotz Erfolg, z.B. wenn OBS-Schritte mangels OBS-Verbindung uebersprungen wurden.</summary>
@@ -18,13 +20,14 @@ public record PressResult(bool Ok, string? Error, string? Notice = null);
 /// "catalogChanged", "automationsChanged", "systemState". Client -> Server: Press, SetSystemMonitor.
 /// </summary>
 [Authorize(AuthenticationSchemes = DeviceAuth.Scheme)]
-public class DeckHub(AppDbContext db, ActionExecutor executor, ObsService obs, SystemMonitorSubscribers systemMonitor, MeterSubscribers meters) : Hub
+public class DeckHub(AppDbContext db, ActionExecutor executor, ObsService obs, SystemMonitorSubscribers systemMonitor, MeterSubscribers meters, SwitchStateService switchStates) : Hub
 {
     public const string MetersGroup = "meters";
 
     public override async Task OnConnectedAsync()
     {
         await Clients.Caller.SendAsync("obsState", obs.State);
+        await Clients.Caller.SendAsync("switchStates", switchStates.GetAll());
         await base.OnConnectedAsync();
     }
 
@@ -61,6 +64,11 @@ public class DeckHub(AppDbContext db, ActionExecutor executor, ObsService obs, S
         catch (JsonException) { return new PressResult(false, $"Die Aktionen von '{button.Label}' sind beschädigt gespeichert. Bitte im Editor neu zuweisen."); }
 
         if (steps.Count == 0) return new PressResult(false, $"'{button.Label}' hat noch keine Aktion. Weise im Editor eine zu.");
+
+        if (steps.Count == 1 && steps[0].Type == "deck.multiSwitch")
+        {
+            return await switchStates.ExecuteSwitchPressAsync(button, steps[0], executor, Context.ConnectionAborted);
+        }
 
         try
         {

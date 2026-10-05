@@ -7,16 +7,33 @@ release lives in `CHANGELOG.md`.
 
 # English
 
-## v2026.10.15-dev – 2026-10-04 23:20:00
+## v2026.10.16 - 2026-10-05 21:00
+
+Side OLED displays, Windows audio devices, now-playing + stream info in the top OLED, Twitch integration, an OLED key surface, keys that sit inside the plate openings, plus the multi-action switch / hardware-monitor / start-script work that was still uncommitted.
+
+- **Side OLED displays** (`DeckEntity.SideDisplaysJson` + migration `SideDisplays`, `PUT /api/decks/{id}/side-displays`, `POST …/{displayId}/mute`, `components/SideDisplay.tsx`, `deck/SideDisplayModal.tsx`, `deck/sideSlots.tsx`, `DeckGrid` `sideLeft/sideRight`): up to 3 per side, as tall as the grid (above/below the transposed grid on portrait phones). Level bar (continuous, hard edge, rAF-smoothed attack/release), a narrower volume bar next to it, dB readout and a single-line name below. Sources: `system`, `obs:<input>`, `win:<device>`. Edit mode shows a + tile per side; a click mutes the source.
+- **Windows audio devices** (`SystemVolumeService` COM: `IMMDeviceCollection`, `IPropertyStore`; `ISystemVolume.ListDevices/…Device`; `GET /api/audio-devices`; SignalR `audioDevices`; `meters` payload `win`): all active outputs and inputs (mics) with mute, volume and peak. `system.mute`/`system.volume` got a `device` param (`FieldKind.AudioDevice`), the palette shows System > Audioquellen · Ausgabe/Eingang. Load errors are shown with the concrete cause instead of a generic hint.
+- **Now playing** (`Media/NowPlaying.cs`, `Deck.Desktop/Media/WindowsNowPlayingProvider.cs`, `GET /api/now-playing`, `/cover`, SignalR `nowPlaying`): reads the Windows media transport controls (Spotify app and browser, other players; no login). Desktop project now targets `net10.0-windows10.0.19041.0`; registered through the `ServerHost.Build` configure hook. Cover is re-read on every refresh and a cover identical to the previous track's is ignored for 8 s after a track change (fixes the browser case where the old cover stuck).
+- **Top OLED of the SushiFlux plates** (`HousePlate.tsx`, `HeaderNowPlaying.tsx`, `HeaderTelemetry.tsx`, `HeaderStream.tsx`, `DeckEntity.OledSize` + migration `OledSize`, `PUT /api/decks/{id}/oled`, edit-mode toggle "Oberes OLED: Normal/Groß", `DeckGrid.frameExtraTop`): live CPU/GPU/RAM load and temperature; large variant with cover, title/artist/album, progress and a 3-column telemetry block. Music and stream block share the space (music compresses when both are shown).
+- **Twitch** (`Twitch/TwitchService.cs`, `Controllers/TwitchController.cs`, `components/TwitchCard.tsx`): OAuth device-code flow with a public client (no client secret in the app, every user signs in with their own account), encrypted tokens (DataProtection, never logged / never sent to clients), automatic refresh, polling of stream/followers/subs. Actions `twitch.clip`, `twitch.marker`, `twitch.category`, `twitch.title`; display tiles `twitch.display` (viewers, followers, subs, uptime). OLED shows the stream time from **OBS** (stream wins over recording, record-only shows REC/PAUSE) plus Twitch category/title/viewers/subs while live; each of those four is individually switchable (`twitch.show.*`, `PUT /api/twitch/display`). Server URLs overridable via `Deck:Twitch:AuthUrl/ApiUrl` (tested against a local mock).
+- **Key surface "OLED"** (`appearance.keySurface`: smooth | mesh | oled, replaces the mesh toggle; `displayMesh` stays derived): flat black displays with a thin bezel, no key travel, state shown as colored ring + tinted fill, press = short flash. The press-behaviour setting is disabled for OLED.
+- **Keys sit inside the plate openings** (`.house-plate-slot`, `DeckGrid.KEY_LIP`): flush with the black ring left/right/top, the key travel edge ends inside the opening (overflow clipped).
+- **Plates**: removed Space-Grau, Mattes Carbon, Helles Silber, Akzent-Violett, Gunmetal and Gebürstetes Kupfer (`lib/housePlates.ts`); a stored removed key falls back to the default plate (`resolvePlateKey`).
+- **Naming**: "Stream Deck" replaced by "CueDeck" in UI texts, README, changelogs, CLAUDE.md, comments and marketing files (references to Elgato's SDK in `PluginHost.cs`, `docs/PLUGIN_PROTOCOL.md` and `QUELLEN.md` stay).
+- **Fixes**: page switches no longer flash a scrollbar (`AppShell` root `overflow-hidden`; the entrance animation briefly overflowed by 4 px). `start.ps1`/`start-admin.ps1`: `taskkill` via `cmd /c` (PowerShell 5.1 turned its stderr into a terminating error), `start.ps1 -Detached` for non-interactive restarts, orphaned `dotnet watch` processes are cleaned up. The post-commit hook writes ASCII headings (`## vX - YYYY-MM-DD HH:MM`); `version.txt` files are ASCII again (the previous commit had UTF-16).
+- **Housekeeping**: `docs/COMMUNITY_CREATOR_GUIDE.html` and `docs/community_led_demo.html` moved into `docs/`; third-party license mapping for HidSharp (Apache-2.0) and Mono.Posix (MIT) in `scripts/generate-third-party-notices.ts`; `QUELLEN.md` and `CLAUDE.md` updated.
+- **Previously uncommitted work** (from the earlier session): multi-action switch (`SwitchStateService`, `deck.multiSwitch`, inspector editor with state 1/2, live OBS state detection, hotkeys), `start-admin.ps1` + `app.manifest` (`asInvoker`), AMD Zen 5 temperature fallbacks in `SystemMonitorService` (values ≤ 0 ignored, Super I/O sensors), `RingGauge` as one continuous arc with green→red gradient, mesh layering fixes and sharper key content, warning-badge tooltip placement, OBS palette entries available while OBS is offline.
+
+## v2026.10.15 - 2026-10-04 23:20
 
 Architected the Community Plate JSON format and refined the LED appearance settings.
 
-- **Community Plate Architecture**: Designed the JSON schema for custom plates and `ledZones`. Added a comprehensive `COMMUNITY_CREATOR_GUIDE.html` Wiki to the repository detailing the visual builder, coordinate system, and the React Z-Index rendering layers (overlay/underlay).
+- **Community Plate Architecture**: Designed the JSON schema for custom plates and `ledZones`. Added a comprehensive `docs/COMMUNITY_CREATOR_GUIDE.html` Wiki to the repository detailing the visual builder, coordinate system, and the React Z-Index rendering layers (overlay/underlay).
 - **Appearance Settings Refactoring** (`AppearancePage.tsx`): Renamed "LED-Hardware Streifen" to "Gehäuse-Beleuchtung". Added dynamic validation to prevent selecting 1 color for sweeping effects.
 - **New Rainbow Effect** (`HousePlate.tsx`): Implemented a new `rainbow` LED effect that cycles through a hardcoded hue spectrum using `linear-gradient` animations. Color pickers are automatically hidden when this effect is active.
 - **CSS Filter Bugfix** (`index.css`): Removed `filter: saturate()` from the `sf-breathe` animation keyframes. Previously, this CSS keyframe filter was overriding and destroying Tailwind's `blur-[32px]` filter, causing the neon left/right edge glows to lose their softness.
 
-## v2026.10.14-dev – 2026-10-04 10:14:33
+## v2026.10.14 - 2026-10-04 10:14
 
 Fixes and adjustments for the SushiFlux Limited Edition and the local dev environment.
 
@@ -24,25 +41,25 @@ Fixes and adjustments for the SushiFlux Limited Edition and the local dev enviro
 - **Backend Array serialization fix** (`AppearanceController.cs`): Fixed a compilation error where `settings.AppearanceSushiFluxColors` was accessed as a string instead of being split into `string[]` for the `AppearanceDto`.
 - **Start script improvements** (`start.ps1`): The PowerShell dev script now runs Vite and the .NET backend in the background of the same terminal window. Pressing any key cleanly terminates the process trees (`taskkill /T /F`) to prevent lingering zombie nodes that block port 5200.
 
-## v2026.10.13-dev – 2026-10-04 10:07:58
+## v2026.10.13 - 2026-10-04 10:07
 
 SushiFlux Limited Edition (Dark & Snow), animated desk reflections, and curved LED strips without blinking.
 
 - **SushiFlux Limited Edition Enclosures** (`HousePlate.tsx`, `housePlates.ts`, `index.css`): Added exclusive "SushiFlux Limited Edition" (`sushiflux`) and "SushiFlux Limited Edition Snow" (`sushiflux_snow`) as selectable physical chassis variants in the Appearance > Chassis settings.
   - **Dark Edition**: Obsidian-black chassis (`#020617`) with a `bg-black/80` keybed and orange (`#fb923c`) sheen.
   - **Snow Edition**: Bright white chassis (`#f1f5f9`) with a heavily contrasting dark keybed (`bg-slate-900/90`) and crisp shadows.
-  - **Dynamic Underglow (Desk Reflection)**: Both variants cast a massive, soft `-inset-3` glow (`blur-2xl`) onto the desk behind the Stream Deck. Direct side LED strips were completely removed, leaving only the indirect shining effect ("Underglow").
+  - **Dynamic Underglow (Desk Reflection)**: Both variants cast a massive, soft `-inset-3` glow (`blur-2xl`) onto the desk behind the CueDeck. Direct side LED strips were completely removed, leaving only the indirect shining effect ("Underglow").
   - **Curved Bottom LED Strip**: The hardware light bar at the bottom edge was rebuilt so the glow perfectly follows the rounded bottom corners of the deck (via `WebkitMask` with `linear-gradient` border clipping on `rounded-b-3xl`).
 - **Non-blinking Gradient Animations** (`index.css`, `HousePlate.tsx`): All SushiFlux-specific lighting effects (header text, desk underglow, bottom LED curve) now use the newly added, fluid `animate-sf-gradient` CSS animation (background gradient shift from orange to rose to cyan via `background-position`), while the disruptive blinking (`animate-sf-pulse`) has been entirely removed.
 - **Backend Prep for SushiFlux Custom Colors** (`SettingsService.cs`, `AppearanceController.cs`, `api/types.ts`): Extended `AppearanceSettings` / `AppearanceDto` with a new `SushiFluxColors` string array field to prepare for the upcoming UI color customizer.
 
-## v2026.10.12-dev – 2026-10-03 01:35:58
+## v2026.10.12 - 2026-10-03 01:35
 
 Symmetrical corner LED and under-key diffusor backlight indicators, CueDeck Studio Pro physical chassis enclosure, and 4K 60fps marketing video pipeline with dedicated showcase scene.
 
 - **Toggle indicator styles** (`frontend/src/components/DeckKey.tsx`, `frontend/src/index.css`, `frontend/src/pages/AppearancePage.tsx`, `frontend/src/api/types.ts`, `backend/Controllers/AppearanceController.cs`, `backend/Services/SettingsService.cs`): Extended `volumeIndicator` (`'led' | 'level' | 'corner' | 'glow'`) to 4 selectable hardware-inspired options in Appearance > "Zustandsdarstellung":
   - **Option 3: Eck-LED (`corner`)**: Rounded corner indicator positioned in the top-right corner of toggle keys. Designed with exact symmetrical radii (`border-top-right-radius: inherit; border-bottom-left-radius: var(--radius-key); border-top-left-radius: 0; border-bottom-right-radius: 0;`), multi-stop lens illumination, brushed chrome rim, glare specular highlight, and saturated LED diode core.
-  - **Option 4: Diffusor-LED (`glow`)**: Stream Deck style under-key backlight diffusion with an intense central diode hotspot beneath the keycap, smooth radial falloff/vignette toward the edges (`radial-gradient`), and keycap edge bloom.
+  - **Option 4: Diffusor-LED (`glow`)**: CueDeck style under-key backlight diffusion with an intense central diode hotspot beneath the keycap, smooth radial falloff/vignette toward the edges (`radial-gradient`), and keycap edge bloom.
   - Backend validation in `SettingsService.ValidVolumeIndicators` and `AppearanceController.ValidVolumeIndicators` updated to accept `"corner"` and `"glow"`.
 - **CueDeck Studio Pro enclosure plate** (`HousePlate.tsx`, `housePlates.ts`, `index.css`, `DeckPage.tsx`): Added CNC-milled physical desk chassis enclosure selectable under Appearance > Gehäuse (`studio-pro`). Features chamfered edge highlights, 4 hex corner screws, recessed key-well bed with brushed metal texture, dynamic status display bar (pulsing green power LED, current profile name, active key count), and subtle ambient RGB desk underglow.
 - **4K marketing video pipeline** (`frontend/src/pages/MarketingVideo.tsx`, `frontend/src/App.tsx`, `marketing/video/`): Dedicated `/showcase` route and Node.js/FFmpeg automation pipeline (`render.mjs`, `render.ps1`, `soundtrack.mjs`) for deterministic 4K UHD (3840×2160) 60fps video capture via Chrome DevTools Protocol and hardware-accelerated NVIDIA NVENC encoding.
@@ -244,7 +261,7 @@ Closed-source licensing, OBS auto-setup, editor/automations merged into the deck
 
 ## v2026.9.1 - 2026-09-28 16:29
 
-Initial scaffold of Baton - a free, community-extensible Stream Deck alternative for OBS.
+Initial scaffold of Baton - a free, community-extensible CueDeck for OBS.
 
 - **Backend (`backend/`, `Deck.Server`, .NET 10, SQLite via EF Core 10):** `ServerHost.Build()` /
   `InitializeAsync()` so the service can run headless (Docker) or later embedded in the Windows
@@ -287,16 +304,33 @@ Initial scaffold of Baton - a free, community-extensible Stream Deck alternative
 
 # Deutsch
 
-## v2026.10.15-dev – 2026-10-04 23:20:00
+## v2026.10.16 - 2026-10-05 21:00
+
+Seitliche OLED-Displays, Windows-Audiogeräte, Wiedergabe und Stream-Infos im oberen OLED, Twitch-Anbindung, eine OLED-Tastenoberfläche, Tasten, die in den Gehäuse-Aussparungen sitzen, sowie die noch nicht committeten Arbeiten zu Multi-Aktionsschalter, Hardware-Monitor und Startskripten.
+
+- **Seitliche OLED-Displays** (`DeckEntity.SideDisplaysJson` + Migration `SideDisplays`, `PUT /api/decks/{id}/side-displays`, `POST …/{displayId}/mute`, `components/SideDisplay.tsx`, `deck/SideDisplayModal.tsx`, `deck/sideSlots.tsx`, `DeckGrid` `sideLeft/sideRight`): bis zu 3 pro Seite, so hoch wie das Raster (am Handy im Hochformat über/unter dem gedrehten Raster). Durchgehender Pegelbalken (harte Kante, per rAF geglättet mit schnellem Anstieg/langsamem Abklingen), daneben ein schmalerer Lautstärke-Balken, dB-Wert und einzeiliger Name darunter. Quellen: `system`, `obs:<Eingang>`, `win:<Gerät>`. Im Bearbeitungsmodus je Seite eine +-Kachel; ein Klick schaltet die Quelle stumm.
+- **Windows-Audiogeräte** (`SystemVolumeService`-COM: `IMMDeviceCollection`, `IPropertyStore`; `ISystemVolume.ListDevices/…Device`; `GET /api/audio-devices`; SignalR `audioDevices`; `meters`-Payload `win`): alle aktiven Ausgaben und Eingänge (Mikrofone) mit Stumm, Lautstärke und Pegel. `system.mute`/`system.volume` haben einen `device`-Parameter (`FieldKind.AudioDevice`), die Palette zeigt System > Audioquellen · Ausgabe/Eingang. Ladefehler erscheinen mit konkreter Ursache statt eines allgemeinen Hinweises.
+- **Laufende Wiedergabe** (`Media/NowPlaying.cs`, `Deck.Desktop/Media/WindowsNowPlayingProvider.cs`, `GET /api/now-playing`, `/cover`, SignalR `nowPlaying`): liest die Windows-Mediensteuerung (Spotify-App und Browser, weitere Player; ohne Anmeldung). Das Desktop-Projekt zielt jetzt auf `net10.0-windows10.0.19041.0`; Anbindung über den `ServerHost.Build`-Configure-Hook. Das Cover wird bei jeder Aktualisierung neu gelesen, und ein Cover, das dem des vorigen Titels gleicht, wird nach einem Titelwechsel 8 s lang ignoriert (behebt das Hängenbleiben des alten Covers bei Spotify im Browser).
+- **Oberes OLED der SushiFlux-Gehäuse** (`HousePlate.tsx`, `HeaderNowPlaying.tsx`, `HeaderTelemetry.tsx`, `HeaderStream.tsx`, `DeckEntity.OledSize` + Migration `OledSize`, `PUT /api/decks/{id}/oled`, Umschalter im Editor „Oberes OLED: Normal/Groß“, `DeckGrid.frameExtraTop`): Live-Auslastung und Temperatur von CPU/GPU/RAM; große Variante mit Cover, Titel/Interpret/Album, Fortschritt und dreispaltigem Telemetrie-Block. Musik und Stream-Block teilen sich den Platz (die Musik zieht sich zusammen, wenn beides gezeigt wird).
+- **Twitch** (`Twitch/TwitchService.cs`, `Controllers/TwitchController.cs`, `components/TwitchCard.tsx`): OAuth-Device-Code-Ablauf mit öffentlichem Client (kein Client-Secret in der App, jeder meldet sich mit seinem eigenen Konto an), verschlüsselte Token (DataProtection, nie geloggt, nie an Clients gesendet), automatische Erneuerung, Abfrage von Stream/Followern/Subs. Aktionen `twitch.clip`, `twitch.marker`, `twitch.category`, `twitch.title`; Anzeige-Kacheln `twitch.display` (Zuschauer, Follower, Subs, Stream-Zeit). Das OLED zeigt die Stream-Zeit aus **OBS** (Stream hat Vorrang vor Aufnahme, nur Aufnahme zeigt REC/PAUSE) und dazu Twitch-Kategorie/Titel/Zuschauer/Subs, solange live; jede dieser vier Angaben ist einzeln abschaltbar (`twitch.show.*`, `PUT /api/twitch/display`). Server-Adressen über `Deck:Twitch:AuthUrl/ApiUrl` überschreibbar (gegen eine lokale Attrappe getestet).
+- **Tastenoberfläche „OLED“** (`appearance.keySurface`: smooth | mesh | oled, ersetzt den Mesh-Schalter; `displayMesh` bleibt abgeleitet): flache schwarze Displays mit dünner Fassung, ohne Tastenhub, Zustand als Farbring + getönte Fläche, Druck = kurzes Aufleuchten. Das Tastendruckverhalten ist bei OLED gesperrt.
+- **Tasten sitzen in den Gehäuse-Aussparungen** (`.house-plate-slot`, `DeckGrid.KEY_LIP`): links, rechts und oben bündig am schwarzen Ring, die Hubkante endet innerhalb der Öffnung (Überstand abgeschnitten).
+- **Gehäuse**: Space-Grau, Mattes Carbon, Helles Silber, Akzent-Violett, Gunmetal und Gebürstetes Kupfer entfernt (`lib/housePlates.ts`); ein gespeicherter, entfernter Schlüssel fällt auf das Standard-Gehäuse zurück (`resolvePlateKey`).
+- **Benennung**: „Stream Deck“ durch „CueDeck“ ersetzt in UI-Texten, README, Changelogs, CLAUDE.md, Kommentaren und Marketing-Dateien (Verweise auf Elgatos SDK in `PluginHost.cs`, `docs/PLUGIN_PROTOCOL.md` und `QUELLEN.md` bleiben).
+- **Korrekturen**: Beim Seitenwechsel blitzt keine Scrollleiste mehr auf (`AppShell`-Wurzel `overflow-hidden`; die Einblend-Animation ragte kurz 4 px über). `start.ps1`/`start-admin.ps1`: `taskkill` über `cmd /c` (PowerShell 5.1 machte aus dessen stderr einen Abbruchfehler), `start.ps1 -Detached` für nicht interaktive Neustarts, übrig gebliebene `dotnet watch`-Prozesse werden aufgeräumt. Der Post-Commit-Hook schreibt ASCII-Überschriften (`## vX - YYYY-MM-DD HH:MM`); die `version.txt`-Dateien sind wieder ASCII (der vorige Commit hatte UTF-16).
+- **Aufräumen**: `docs/COMMUNITY_CREATOR_GUIDE.html` und `docs/community_led_demo.html` nach `docs/` verschoben; Lizenzzuordnung für HidSharp (Apache-2.0) und Mono.Posix (MIT) in `scripts/generate-third-party-notices.ts`; `QUELLEN.md` und `CLAUDE.md` ergänzt.
+- **Zuvor nicht committete Arbeiten** (aus der früheren Sitzung): Multi-Aktionsschalter (`SwitchStateService`, `deck.multiSwitch`, Inspector-Editor mit Zustand 1/2, Live-OBS-Zustandserkennung, Tastenkürzel), `start-admin.ps1` + `app.manifest` (`asInvoker`), AMD-Zen-5-Temperatur-Fallbacks im `SystemMonitorService` (Werte ≤ 0 ignoriert, Super-I/O-Sensoren), `RingGauge` als ein durchgehender Bogen mit Grün→Rot-Verlauf, Mesh-Schichtung und schärfere Tasteninhalte, Platzierung des Warnhinweis-Tooltips, OBS-Palette auch bei nicht laufendem OBS nutzbar.
+
+## v2026.10.15 - 2026-10-04 23:20
 
 Architektur für das Community-Gehäuse-System und Verbesserungen der LED-Gehäuse-Einstellungen.
 
-- **Community Plate Architektur**: Das JSON-Schema für Custom Plates und `ledZones` konzipiert. Einen detaillierten `COMMUNITY_CREATOR_GUIDE.html` Wiki-Leitfaden in das Repository integriert, der den Visual Builder, das Koordinatensystem und die Z-Index Schichten (Overlay/Underlay) erklärt.
+- **Community Plate Architektur**: Das JSON-Schema für Custom Plates und `ledZones` konzipiert. Einen detaillierten `docs/COMMUNITY_CREATOR_GUIDE.html` Wiki-Leitfaden in das Repository integriert, der den Visual Builder, das Koordinatensystem und die Z-Index Schichten (Overlay/Underlay) erklärt.
 - **Refactoring der Appearance-Einstellungen** (`AppearancePage.tsx`): Bereich in "Gehäuse-Beleuchtung" umbenannt. Dynamische Validierung hinzugefügt, damit Nutzer nicht versehentlich 1 Farbe bei Zirkulations-Effekten (Welle) auswählen können.
 - **Neuer Regenbogen-Effekt** (`HousePlate.tsx`): Einen `rainbow` LED-Effekt eingebaut, der über Farbverlauf-Animationen das RGB-Spektrum durchläuft. Die Farbauswahl wird in der UI automatisch ausgeblendet, sobald dieser Effekt aktiv ist.
 - **CSS Filter-Bug behoben** (`index.css`): Die Eigenschaft `filter: saturate()` aus dem `sf-breathe` (Atmen) Keyframe entfernt. Zuvor hat diese Eigenschaft den Tailwind-Filter `blur-[32px]` überschrieben und damit den Weichzeichner der seitlichen Neon-Glows zerstört.
 
-## v2026.10.14-dev – 2026-10-04 10:14:33
+## v2026.10.14 - 2026-10-04 10:14
 
 Korrekturen und Feinschliff für die SushiFlux Limited Edition und die Entwicklerumgebung.
 
@@ -304,25 +338,25 @@ Korrekturen und Feinschliff für die SushiFlux Limited Edition und die Entwickle
 - **Backend Array-Konvertierungs-Fix** (`AppearanceController.cs`): Behebt einen C#-Kompilierfehler, bei dem `settings.AppearanceSushiFluxColors` als String an das `AppearanceDto` (welches ein `string[]` erwartet) übergeben wurde, ohne `.Split(',')` zu nutzen.
 - **Start-Skript Verbesserungen** (`start.ps1`): Das Dev-Skript öffnet nun keine separaten Fenster mehr. Vite und das Backend laufen im selben Terminal. Ein Tastendruck beendet die Prozessbäume restlos (`taskkill /T /F`), um "Port already in use" Fehler durch verwaiste Node-Prozesse zu verhindern.
 
-## v2026.10.13-dev – 2026-10-04 10:07:58
+## v2026.10.13 - 2026-10-04 10:07
 
 SushiFlux Limited Edition (Dark & Snow), animierte Tisch-Reflektionen und geschwungene LED-Streifen ohne Blinken.
 
 - **SushiFlux Limited Edition Gehäuse** (`HousePlate.tsx`, `housePlates.ts`, `index.css`): Zusätzliche exklusive "SushiFlux Limited Edition" (Modell `sushiflux`) und "SushiFlux Limited Edition Snow" (Modell `sushiflux_snow`) als wählbare physische Gehäuse unter Aussehen > Gehäuse integriert.
   - **Dark Edition**: Tiefschwarzes Gehäuse (`#020617`) mit `bg-black/80` Tastenwanne und orangenem (`#fb923c`) Glanzlicht.
   - **Snow Edition**: Helles, weißes Gehäuse (`#f1f5f9`) mit stark kontrastierendem dunklen Tastenbett (`bg-slate-900/90`) und eisigen, dezenten Schatten.
-  - **Dynamisches Underglow (Tisch-Reflektion)**: Beide Varianten werfen einen massiven, weichen `-inset-3` Glow (`blur-2xl`) auf den Tisch hinter dem Stream Deck. Seitliche direkte LED-Leisten wurden komplett entfernt, sodass nur noch der indirekte Shining-Effekt ("Unterbodenbeleuchtung") sichtbar bleibt.
+  - **Dynamisches Underglow (Tisch-Reflektion)**: Beide Varianten werfen einen massiven, weichen `-inset-3` Glow (`blur-2xl`) auf den Tisch hinter dem CueDeck. Seitliche direkte LED-Leisten wurden komplett entfernt, sodass nur noch der indirekte Shining-Effekt ("Unterbodenbeleuchtung") sichtbar bleibt.
   - **Geschwungener unterer LED-Streifen**: Die Hardware-Leiste am unteren Rand des Decks wurde so umgebaut, dass der Leuchtstreifen exakt der Abrundung der unteren Ecken des Decks folgt (`WebkitMask` mit `linear-gradient` border clipping auf `rounded-b-3xl`).
 - **Nicht-blinkende Verlauf-Animationen** (`index.css`, `HousePlate.tsx`): Alle SushiFlux-spezifischen Lichteffekte (Header-Text, Tisch-Underglow, untere LED-Leiste) nutzen jetzt die neu hinzugefügte, flüssige `animate-sf-gradient` CSS-Animation (Hintergrund-Farbverlauf von Orange über Rosa zu Cyan, animiert über `background-position`), das als störend empfundene Blinken (`animate-sf-pulse`) wurde restlos entfernt.
 - **Backend Vorbereitung für SushiFlux Custom Colors** (`SettingsService.cs`, `AppearanceController.cs`, `api/types.ts`): Die Datenstruktur `AppearanceSettings` / `AppearanceDto` wurde um ein neues Feld `SushiFluxColors` (String-Array) erweitert, um den Nutzern später im UI die Farbgestaltung des SushiFlux-Farbverlaufs zu ermöglichen.
 
-## v2026.10.12-dev – 2026-10-03 01:35:58
+## v2026.10.12 - 2026-10-03 01:35
 
 Symmetrische Eck-LED und Diffusor-Tastenhintergrundbeleuchtung, physisches CueDeck Studio Pro Chassis-Gehäuse sowie 4K-60fps-Marketing-Videopipeline mit dedizierter Showcase-Szene.
 
 - **Umschalt-Zustandsindikatoren** (`frontend/src/components/DeckKey.tsx`, `frontend/src/index.css`, `frontend/src/pages/AppearancePage.tsx`, `frontend/src/api/types.ts`, `backend/Controllers/AppearanceController.cs`, `backend/Services/SettingsService.cs`): Einstellung `volumeIndicator` (`'led' | 'level' | 'corner' | 'glow'`) unter Aussehen > „Zustandsdarstellung“ auf 4 hardware-inspirierte Optionen erweitert:
   - **Option 3: Eck-LED (`corner`)**: Abgerundeter Ecken-Indikator in der oberen rechten Ecke von Umschalt-Tasten. Besitzt exakt symmetrische Radien (`border-top-right-radius: inherit; border-bottom-left-radius: var(--radius-key); border-top-left-radius: 0; border-bottom-right-radius: 0;`), mehrstufige Linsen-Ausleuchtung, gebürstete Chrom-Einfassung, Glanzlicht-Reflexion und eine gesättigte LED-Kerndiode.
-  - **Option 4: Diffusor-LED (`glow`)**: Tasten-Hintergrundbeleuchtung im Stream-Deck-Stil mit intensivem zentralem Dioden-Hotspot unter der Tastenkappe, weichem radialem Helligkeitsabfall zu den Rändern (`radial-gradient`) und Kappen-Innenbloom.
+  - **Option 4: Diffusor-LED (`glow`)**: Tasten-Hintergrundbeleuchtung im CueDeck-Stil mit intensivem zentralem Dioden-Hotspot unter der Tastenkappe, weichem radialem Helligkeitsabfall zu den Rändern (`radial-gradient`) und Kappen-Innenbloom.
   - Backend-Validierung in `SettingsService.ValidVolumeIndicators` und `AppearanceController.ValidVolumeIndicators` um `"corner"` und `"glow"` erweitert.
 - **CueDeck Studio Pro Gehäuse** (`HousePlate.tsx`, `housePlates.ts`, `index.css`, `DeckPage.tsx`): Neues physisches Desk-Chassis unter Aussehen > Gehäuse (`studio-pro`) wählbar. Mit CNC-Aluminium-Fasen, 4 Sechskantschrauben in den Ecken, versenkter Tastenwanne in gebürstetem Metall, dynamischer Statusleiste (pulsierende grüne Betriebs-LED, Profilname, Tastenanzahl) und dezentem RGB-Unterbodenlicht.
 - **4K-Marketing-Videopipeline** (`frontend/src/pages/MarketingVideo.tsx`, `frontend/src/App.tsx`, `marketing/video/`): Eigene `/showcase`-Route und Node.js/FFmpeg-Automationspipeline (`render.mjs`, `render.ps1`, `soundtrack.mjs`) für bildgenaue 4K-UHD-Aufzeichnung (3840×2160 bei 60 fps) über Chrome DevTools Protocol und hardwarebeschleunigtes NVIDIA NVENC Encoding.
@@ -543,7 +577,7 @@ Closed-Source-Lizenz, automatische OBS-Einrichtung, Editor/Automationen im Deck,
 
 ## v2026.9.1 - 2026-09-28 16:29
 
-Erstes Grundgerüst von Baton – kostenlose, per Community erweiterbare Stream-Deck-Alternative für OBS.
+Erstes Grundgerüst von Baton – kostenloses, per Community erweiterbares CueDeck für OBS.
 
 - **Backend (`backend/`, `Deck.Server`, .NET 10, SQLite über EF Core 10):** `ServerHost.Build()` /
   `InitializeAsync()`, damit der Dienst headless (Docker) oder später eingebettet in der

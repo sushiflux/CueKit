@@ -6,7 +6,7 @@
 
 ## v2026.9.9-rc1 (release candidate, not public)
 
-The first installable version of CueKit – a free Stream Deck alternative for OBS. Phones, tablets and browsers become your button deck; the PC runs the service. For testing only.
+The first installable version of CueKit – a free CueDeck for OBS. Phones, tablets and browsers become your button deck; the PC runs the service. For testing only.
 
 ### ✨ Everything that is in it
 
@@ -58,7 +58,7 @@ The first installable version of CueKit – a free Stream Deck alternative for O
 
 ## v2026.9.9-rc1 (Release-Kandidat, nicht öffentlich)
 
-Die erste installierbare Version von CueKit – eine kostenlose Stream-Deck-Alternative für OBS. Handys, Tablets und Browser werden zu deinem Tastenfeld, der PC führt den Dienst aus. Nur zum Testen.
+Die erste installierbare Version von CueKit – ein kostenloses CueDeck für OBS. Handys, Tablets und Browser werden zu deinem Tastenfeld, der PC führt den Dienst aus. Nur zum Testen.
 
 ### ✨ Alles, was drin ist
 

@@ -39,6 +39,9 @@ public sealed class MeterBroadcaster(
         var subscribed = false;
         IReadOnlyDictionary<string, ObsMeterLevel> lastObs = NoLevels;
         double? lastSystem = null;
+        Dictionary<string, double> lastWin = [];
+        IReadOnlyList<AudioDeviceInfo> devices = [];
+        var devicesRefreshedTicks = 0L;
         try
         {
             while (!stoppingToken.IsCancellationRequested)
@@ -51,6 +54,7 @@ public sealed class MeterBroadcaster(
                     if (!any) _obsLevels = NoLevels;
                     lastObs = NoLevels;
                     lastSystem = null;
+                    lastWin = [];
                 }
 
                 if (any)
@@ -58,12 +62,23 @@ public sealed class MeterBroadcaster(
                     try
                     {
                         var system = systemVolume is NoSystemVolume ? null : systemVolume.ReadPeakDb();
+                        // Pegel aller aktiven Windows-Geraete (Ausgaben + Mikrofone); die Geraeteliste nur alle 3 s neu lesen.
+                        if (systemVolume is not NoSystemVolume && Environment.TickCount64 - devicesRefreshedTicks > 3000)
+                        {
+                            devices = systemVolume.ListDevices();
+                            devicesRefreshedTicks = Environment.TickCount64;
+                        }
+                        var win = new Dictionary<string, double>();
+                        foreach (var device in devices)
+                            if (systemVolume.ReadPeakDbDevice(device.Id) is { } db) win[device.Id] = db;
+
                         var levels = _obsLevels;
-                        if (system != lastSystem || !Same(levels, lastObs))
+                        if (system != lastSystem || !Same(levels, lastObs) || !SameWin(win, lastWin))
                         {
                             lastObs = levels;
                             lastSystem = system;
-                            await hub.Clients.Group(DeckHub.MetersGroup).SendAsync("meters", new { obs = levels, system }, stoppingToken);
+                            lastWin = win;
+                            await hub.Clients.Group(DeckHub.MetersGroup).SendAsync("meters", new { obs = levels, system, win }, stoppingToken);
                         }
                     }
                     catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
@@ -85,6 +100,14 @@ public sealed class MeterBroadcaster(
     }
 
     private void OnObsMeters(IReadOnlyDictionary<string, ObsMeterLevel> levels) => _obsLevels = levels;
+
+    private static bool SameWin(Dictionary<string, double> a, Dictionary<string, double> b)
+    {
+        if (a.Count != b.Count) return false;
+        foreach (var (key, value) in a)
+            if (!b.TryGetValue(key, out var other) || other != value) return false;
+        return true;
+    }
 
     private static bool Same(IReadOnlyDictionary<string, ObsMeterLevel> a, IReadOnlyDictionary<string, ObsMeterLevel> b)
     {

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { api, errorMessage } from '../api/client'
 import { AboutCard } from '../components/AboutCard'
 import { BackupCard } from '../components/BackupCard'
+import { TwitchCard } from '../components/TwitchCard'
 import { AppShell } from '../components/AppShell'
 import { KeyIcon } from '../components/KeyIcon'
 import { toast } from '../components/Toasts'
@@ -314,6 +315,7 @@ export function SettingsPage() {
     <AppShell title="Einstellungen">
       <div className="mx-auto max-w-3xl space-y-6 p-4 lg:p-8">
         <StreamingSoftwareCard />
+        <TwitchCard />
         <GeneralCard />
         <BackupCard />
         <AboutCard />

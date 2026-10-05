@@ -25,7 +25,13 @@ internal sealed class ServiceHost : IAsyncDisposable
         // Auf dem Threadpool: Datenbank-Migration und erster Verbindungsversuch sollen die Oberflaeche nicht einfrieren.
         var app = await Task.Run(async () =>
         {
-            var built = ServerHost.Build(args);
+            var built = ServerHost.Build(args, builder =>
+            {
+                // Laufende Wiedergabe (Spotify/Browser) aus der Windows-Mediensteuerung - nur in der Desktop-Huelle.
+                builder.Services.AddSingleton<Deck.Desktop.Media.WindowsNowPlayingProvider>();
+                builder.Services.AddSingleton<Deck.Server.Media.INowPlayingProvider>(sp => sp.GetRequiredService<Deck.Desktop.Media.WindowsNowPlayingProvider>());
+                builder.Services.AddHostedService(sp => sp.GetRequiredService<Deck.Desktop.Media.WindowsNowPlayingProvider>());
+            });
             try
             {
                 await ServerHost.InitializeAsync(built.Services);

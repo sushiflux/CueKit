@@ -20,6 +20,7 @@ public static class ActionCatalog
     public const string Automation = "Automation";
     public const string Flow = "Ablauf";
     public const string System = "System";
+    public const string Twitch = "Twitch";
 
     private static readonly FieldOption[] ToggleModes =
     [
@@ -64,6 +65,15 @@ public static class ActionCatalog
         new(SystemMetric.GpuLoad, "GPU-Auslastung"),
         new(SystemMetric.GpuTemp, "GPU-Temperatur"),
         new(SystemMetric.RamLoad, "RAM-Auslastung"),
+    ];
+
+    /// <summary>Kennwerte der Twitch-Anzeige-Kacheln (Schluessel siehe frontend lib/buttonState.ts, twitchDisplay).</summary>
+    private static readonly IReadOnlyList<FieldOption> TwitchMetrics =
+    [
+        new("twitchViewers", "Live-Zuschauer"),
+        new("twitchFollowers", "Follower"),
+        new("twitchSubs", "Abonnenten (Subs)"),
+        new("twitchUptime", "Stream-Zeit"),
     ];
 
     public static readonly IReadOnlyList<ActionDefinition> BuiltIn =
@@ -139,8 +149,11 @@ public static class ActionCatalog
         // --- Deck-Navigation (wird im Client ausgefuehrt) ---
         new("deck.openPage", Deck, "Ordner öffnen", "Öffnet einen Ordner bzw. eine andere Seite.", "tabler:folder",
             [new("page", "Seite", FieldKind.Page)], "amber"),
+        new("deck.nextPage", Deck, "Nächste Seite", "Wechselt zur nächsten Seite des Decks.", "tabler:arrow-right", [], "slate"),
+        new("deck.prevPage", Deck, "Vorherige Seite", "Wechselt zur vorherigen Seite des Decks.", "tabler:arrow-left", [], "slate"),
         new("deck.back", Deck, "Zurück", "Geht eine Ordner-Ebene zurück.", "tabler:arrow-back-up", [], "slate"),
         new("deck.home", Deck, "Startseite", "Springt zur Startseite des Decks.", "tabler:home", [], "slate"),
+        new("deck.multiSwitch", Deck, "Multi-Aktionsschalter", "Schaltet zwischen zwei Zuständen mit jeweils eigenen Aktionen um.", "tabler:toggle-right", [], "indigo"),
 
         // --- Automation ---
         new("automation.toggle", Automation, "Automation an/aus", "Schaltet eine Automation ein oder aus.", "tabler:route",
@@ -152,12 +165,14 @@ public static class ActionCatalog
             [new("ms", "Millisekunden", FieldKind.Number, Default: "1000")], "slate"),
 
         // --- System (nur nativ unter Windows - siehe Hardware/SystemVolumeService.cs, Hardware/SystemMonitorService.cs) ---
-        new("system.volume", System, "Systemlautstärke", "Windows-Master-Lautstärke lauter, leiser oder auf einen festen Wert (nicht die OBS-Audioquellen).", "tabler:volume",
-            [new("mode", "Modus", FieldKind.Select, Options: VolumeModes, Default: "up"),
+        new("system.volume", System, "Systemlautstärke", "Lautstärke eines Windows-Audiogeräts (Standard: aktuelle Ausgabe) lauter, leiser oder auf einen festen Wert - nicht die OBS-Audioquellen.", "tabler:volume",
+            [new("device", "Audiogerät (leer = Standard-Ausgabe)", FieldKind.AudioDevice, Required: false),
+             new("mode", "Modus", FieldKind.Select, Options: VolumeModes, Default: "up"),
              new("step", "Schritt in % (lauter/leiser)", FieldKind.Number, Required: false, Default: "5"),
              new("value", "Zielwert in % (0-100)", FieldKind.Number, Required: false, Default: "50")], "cyan"),
-        new("system.mute", System, "Systemlautstärke stumm", "Schaltet die Windows-Master-Lautstärke stumm oder laut.", "tabler:volume-3",
-            [new("mode", "Modus", FieldKind.Select, Options: MuteModes, Default: "toggle")], "cyan"),
+        new("system.mute", System, "Systemlautstärke stumm", "Schaltet ein Windows-Audiogerät (Standard: aktuelle Ausgabe, auch Mikrofone) stumm oder laut.", "tabler:volume-3",
+            [new("device", "Audiogerät (leer = Standard-Ausgabe)", FieldKind.AudioDevice, Required: false),
+             new("mode", "Modus", FieldKind.Select, Options: MuteModes, Default: "toggle")], "cyan"),
         new("system.browser.open", System, "Browser öffnen", "Öffnet eine fest hinterlegte Adresse im Standardbrowser.", "tabler:world",
             [new("url", "Adresse (http/https)", FieldKind.Url)], "cyan"),
         new("system.program.open", System, "Programm öffnen", "Startet ein Programm (.exe, .bat, .cmd, .lnk) auf dem PC, optional mit Startparametern.", "tabler:app-window",
@@ -169,10 +184,21 @@ public static class ActionCatalog
             [new("mode", "Art", FieldKind.Select, Options: ShutdownModes, Default: "normal")], "red"),
         new("system.monitor.display", System, "System-Wert anzeigen", "Zeigt einen Live-Systemwert auf der Kachel an (kein Auslöser).", "tabler:activity",
             [new("metric", "Kennwert", FieldKind.Select, Options: SystemMonitorMetrics, Default: SystemMetric.CpuLoad)], "cyan", DisplayOnly: true),
+
+        // --- Twitch (Anmeldung unter Einstellungen > Twitch; siehe Twitch/TwitchService.cs) ---
+        new("twitch.display", Twitch, "Twitch-Wert anzeigen", "Zeigt Live-Zuschauer, Follower, Subs oder die Stream-Zeit auf der Kachel an (kein Auslöser).", "tabler:brand-twitch",
+            [new("metric", "Kennwert", FieldKind.Select, Options: TwitchMetrics, Default: "twitchViewers")], "violet", DisplayOnly: true),
+        new("twitch.clip", Twitch, "Clip erstellen", "Erstellt einen Twitch-Clip der letzten Sekunden des laufenden Streams.", "tabler:movie", [], "violet"),
+        new("twitch.category", Twitch, "Kategorie setzen", "Ändert die Twitch-Kategorie (Spiel) deines Streams auf den eingetragenen Namen.", "tabler:category",
+            [new("category", "Kategorie (Spielname, wie bei Twitch)", FieldKind.Text)], "violet"),
+        new("twitch.title", Twitch, "Titel setzen", "Ändert den Twitch-Stream-Titel auf den eingetragenen Text (max. 140 Zeichen).", "tabler:letter-case",
+            [new("title", "Stream-Titel", FieldKind.Text)], "violet"),
+        new("twitch.marker", Twitch, "Stream-Marker setzen", "Setzt ein Lesezeichen im Stream (im Video-Archiv wiederzufinden), optional mit Beschreibung.", "tabler:bookmark",
+            [new("description", "Beschreibung (optional, max. 140 Zeichen)", FieldKind.Text, Required: false)], "violet"),
     ];
 
     /// <summary>Aktionen, die nur im Client (Navigation) wirken und serverseitig ignoriert werden.</summary>
-    public static bool IsClientSide(string type) => type.StartsWith("deck.", StringComparison.Ordinal);
+    public static bool IsClientSide(string type) => type.StartsWith("deck.", StringComparison.Ordinal) && type != "deck.multiSwitch";
 
     /// <summary>Reine Anzeige-Kacheln ohne Ausloese-Verhalten - der Client rendert einen Live-Wert
     /// statt eines Klick-Buttons; serverseitig gibt es dafuer nichts auszufuehren. Liest das

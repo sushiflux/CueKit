@@ -58,6 +58,18 @@ public class CatalogController(PluginHost plugins, Hotkeys.IGlobalHotkeys global
     };
 }
 
+/// <summary>Alle aktiven Windows-Audiogeraete (Wiedergabe + Aufnahme/Mikrofone) mit Lautstaerke und Stumm-Zustand -
+/// fuer die Palette, die Geraete-Auswahl und die seitlichen Displays. Lesen duerfen alle gekoppelten Geraete;
+/// laufende Aenderungen kommen per SignalR-Event "audioDevices" (siehe SystemMonitorBroadcaster).</summary>
+[ApiController]
+[Route("api/audio-devices")]
+[Authorize(AuthenticationSchemes = DeviceAuth.Scheme)]
+public class AudioDevicesController(ISystemVolume volume) : ControllerBase
+{
+    [HttpGet]
+    public IReadOnlyList<AudioDeviceInfo> Get() => volume.ListDevices();
+}
+
 /// <summary>Windows-Systemlautstaerke (Master, nicht OBS-Audio) + Live-Sensoren (CPU/GPU/RAM) - nur
 /// nativ unter Windows verfuegbar, siehe Hardware/SystemVolumeService.cs und Hardware/SystemMonitorService.cs.
 /// Systemweite Aenderungen bleiben Owner vorbehalten, wie die uebrigen Settings-Endpunkte.</summary>

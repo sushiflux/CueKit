@@ -17,7 +17,7 @@ import { AppShell } from '../components/AppShell'
 import { DeckKey } from '../components/DeckKey'
 import { HousePlate } from '../components/HousePlate'
 import { toast } from '../components/Toasts'
-import { HOUSE_PLATE_PRESETS } from '../lib/housePlates'
+import { HOUSE_PLATE_PRESETS, resolvePlateKey } from '../lib/housePlates'
 import { useStore } from '../state/store'
 
 function toInput(a: AppearanceSettings, patch: Partial<AppearanceSettings> = {}) {
@@ -33,12 +33,15 @@ function toInput(a: AppearanceSettings, patch: Partial<AppearanceSettings> = {})
       ? 'level'
       : 'none'
 
+  const nextKeySurface: 'smooth' | 'mesh' | 'oled' = patch.keySurface ?? (patch.displayMesh !== undefined ? (patch.displayMesh ? 'mesh' : 'smooth') : (a.keySurface ?? (a.displayMesh ? 'mesh' : 'smooth')))
+
   return {
     pressBehavior: patch.pressBehavior ?? a.pressBehavior,
     volumeIndicator: patch.volumeIndicator ?? nextIndicator,
     plate: patch.plate ?? a.plate ?? 'house:studiopro',
     stateStyle: nextStateStyle,
-    displayMesh: patch.displayMesh ?? a.displayMesh ?? false,
+    keySurface: nextKeySurface,
+    displayMesh: nextKeySurface === 'mesh',
     ledColors: patch.ledColors ?? a.ledColors,
     ledEffect: patch.ledEffect ?? a.ledEffect,
     ledSpeed: patch.ledSpeed ?? a.ledSpeed,
@@ -126,7 +129,7 @@ function LiveDeckPreview({
   appearance: AppearanceSettings
 }) {
   const [previewTheme, setPreviewTheme] = useState<'dark' | 'light'>('dark')
-  const currentPlate = appearance.plate || 'house:studiopro'
+  const currentPlate = resolvePlateKey(appearance.plate)
 
   return (
     <AppearanceCard
@@ -168,6 +171,7 @@ function LiveDeckPreview({
           className="w-full max-w-[480px]"
           preview
           deckName="Streaming"
+          pageName="Standard"
           keyCount={6}
         >
           <div className="grid grid-cols-3 gap-3">
@@ -181,6 +185,7 @@ function LiveDeckPreview({
                   stateStyle={appearance.stateStyle}
                   volumeIndicator={appearance.volumeIndicator}
                   displayMesh={appearance.displayMesh}
+                  keySurface={appearance.keySurface}
                   pressBehavior={appearance.pressBehavior}
                 />
               </div>
@@ -201,6 +206,7 @@ function KeyOpticsSection({
   onSaved: (a: AppearanceSettings) => void
 }) {
   const [saving, setSaving] = useState(false)
+  const keySurface = appearance.keySurface ?? (appearance.displayMesh ? 'mesh' : 'smooth')
 
   const update = async (patch: Partial<AppearanceSettings>, label: string) => {
     setSaving(true)
@@ -297,38 +303,38 @@ function KeyOpticsSection({
 
       {/* 2. Display-Mesh & 3. Tastendruckverhalten nebeneinander */}
       <div className="grid grid-cols-1 gap-6 border-t border-line/60 pt-4 sm:grid-cols-2">
-        {/* Display-Mesh auf allen Tasten */}
+        {/* Tastenoberflaeche: glatt / Subpixel-Matrix / OLED */}
         <div>
           <div className="mb-2 flex items-center gap-2">
             <IconGridDots size={16} className="text-brand" />
-            <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">
-              Display-Mesh (Tastenoberfläche)
-            </span>
+            <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">Tastenoberfläche</span>
           </div>
           <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={saving}
-              aria-pressed={!appearance.displayMesh}
-              onClick={() => void update({ displayMesh: false }, 'Display-Mesh')}
-              className="btn btn-ghost flex-1 py-2.5 text-center text-xs font-semibold aria-pressed:border-select aria-pressed:bg-select-soft aria-pressed:text-select"
-            >
-              Glatt (Standard)
-            </button>
-            <button
-              type="button"
-              disabled={saving}
-              aria-pressed={appearance.displayMesh}
-              onClick={() => void update({ displayMesh: true }, 'Display-Mesh')}
-              className="btn btn-ghost flex-1 py-2.5 text-center text-xs font-semibold aria-pressed:border-select aria-pressed:bg-select-soft aria-pressed:text-select"
-            >
-              Subpixel-Matrix
-            </button>
+            {(
+              [
+                ['smooth', 'Glatt (Standard)'],
+                ['mesh', 'Subpixel-Matrix'],
+                ['oled', 'OLED'],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                disabled={saving}
+                aria-pressed={keySurface === value}
+                onClick={() => void update({ keySurface: value }, 'Tastenoberfläche')}
+                className="btn btn-ghost flex-1 py-2.5 text-center text-xs font-semibold aria-pressed:border-select aria-pressed:bg-select-soft aria-pressed:text-select"
+              >
+                {label}
+              </button>
+            ))}
           </div>
           <p className="mt-1.5 text-[11px] text-ink-faint">
-            {appearance.displayMesh
-              ? 'Subpixel-Matrix auf allen Tasten für den authentischen Stream-Deck LCD-Look.'
-              : 'Glatte, unstrukturierte Tastenkappen ohne Punktraster.'}
+            {keySurface === 'oled'
+              ? 'Flache OLED-Displays: reines Schwarz, scharfe Inhalte, kein Tastenhub – ein Druck lässt die Taste nur kurz aufleuchten.'
+              : keySurface === 'mesh'
+                ? 'Subpixel-Matrix auf allen Tasten für den authentischen CueDeck LCD-Look.'
+                : 'Glatte, unstrukturierte Tastenkappen ohne Punktraster.'}
           </p>
         </div>
 
@@ -343,7 +349,7 @@ function KeyOpticsSection({
           <div className="flex gap-2">
             <button
               type="button"
-              disabled={saving}
+              disabled={saving || keySurface === 'oled'}
               aria-pressed={appearance.pressBehavior === 'spring'}
               onClick={() => void update({ pressBehavior: 'spring' }, 'Tastendruckverhalten')}
               className="btn btn-ghost flex-1 py-2.5 text-center text-xs font-semibold aria-pressed:border-select aria-pressed:bg-select-soft aria-pressed:text-select"
@@ -352,7 +358,7 @@ function KeyOpticsSection({
             </button>
             <button
               type="button"
-              disabled={saving}
+              disabled={saving || keySurface === 'oled'}
               aria-pressed={appearance.pressBehavior === 'stay'}
               onClick={() => void update({ pressBehavior: 'stay' }, 'Tastendruckverhalten')}
               className="btn btn-ghost flex-1 py-2.5 text-center text-xs font-semibold aria-pressed:border-select aria-pressed:bg-select-soft aria-pressed:text-select"
@@ -361,9 +367,11 @@ function KeyOpticsSection({
             </button>
           </div>
           <p className="mt-1.5 text-[11px] text-ink-faint">
-            {appearance.pressBehavior === 'stay'
-              ? 'Tasten mit echtem Zustand bleiben im An-Zustand optisch gedrückt.'
-              : 'Taste federt sofort nach dem Antippen wieder in ihre Ursprungshöhe zurück.'}
+            {keySurface === 'oled'
+              ? 'Entfällt bei OLED – die Tasten sind Displays ohne beweglichen Tastenhub.'
+              : appearance.pressBehavior === 'stay'
+                ? 'Tasten mit echtem Zustand bleiben im An-Zustand optisch gedrückt.'
+                : 'Taste federt sofort nach dem Antippen wieder in ihre Ursprungshöhe zurück.'}
           </p>
         </div>
       </div>
@@ -380,7 +388,7 @@ function PlateSection({
   appearance: AppearanceSettings
   onSaved: (a: AppearanceSettings) => void
 }) {
-  const currentPlate = appearance.plate || 'house:studiopro'
+  const currentPlate = resolvePlateKey(appearance.plate)
   const [selected, setSelected] = useState(currentPlate)
   const [saving, setSaving] = useState(false)
 
@@ -463,7 +471,7 @@ function LedSettingsSection({
   appearance: AppearanceSettings
   onSaved: (a: AppearanceSettings) => void
 }) {
-  const selectedPreset = HOUSE_PLATE_PRESETS.find((p) => p.key === (appearance.plate || 'house:studiopro'))
+  const selectedPreset = HOUSE_PLATE_PRESETS.find((p) => p.key === (resolvePlateKey(appearance.plate)))
   const supportsRGB = !!selectedPreset?.hardware?.supportsRGB
 
   const [saving, setSaving] = useState(false)

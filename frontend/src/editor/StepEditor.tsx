@@ -36,6 +36,7 @@ const toOptions = (names: string[]) => names.map((n) => ({ value: n, label: n })
 function FieldInput({ field, params, deck, onChange }: { field: ActionField; params: Params; deck?: DeckModel; onChange: (value: string) => void }) {
   const obs = useStore((s) => s.obs)
   const automations = useStore((s) => s.automations)
+  const audioDevices = useStore((s) => s.audioDevices)
   const id = useId()
   const value = params[field.key] == null ? '' : String(params[field.key])
   const filters = useFilters(field.kind === 'filter' && params.source ? String(params.source) : undefined)
@@ -53,6 +54,9 @@ function FieldInput({ field, params, deck, onChange }: { field: ActionField; par
       break
     case 'audioInput':
       options = toOptions((obs?.audioInputs ?? []).map((a) => a.name))
+      break
+    case 'audioDevice':
+      options = audioDevices.map((d) => ({ value: d.id, label: `${d.kind === 'input' ? 'Eingang (Mikrofon)' : 'Ausgabe'} · ${d.name}${d.isDefault ? ' · Standard' : ''}` }))
       break
     case 'source':
       options = toOptions([...(obs?.scenes ?? []).map((s) => s.name), ...(obs?.inputs ?? []).map((i) => i.name)])
@@ -85,8 +89,8 @@ function FieldInput({ field, params, deck, onChange }: { field: ActionField; par
 
   // OBS offline: gespeicherten Wert trotzdem anzeigen/behalten, statt ihn stillschweigend zu verlieren.
   if (options && value && !options.some((o) => o.value === value)) {
-    const obsBound = field.kind !== 'select' && field.kind !== 'automation' && field.kind !== 'page'
-    const hint = obsBound && obs?.status !== 'connected' ? 'OBS nicht verbunden' : 'nicht gefunden'
+    const obsBound = field.kind !== 'select' && field.kind !== 'automation' && field.kind !== 'page' && field.kind !== 'audioDevice'
+    const hint = field.kind === 'audioDevice' ? 'nicht angeschlossen' : obsBound && obs?.status !== 'connected' ? 'OBS nicht verbunden' : 'nicht gefunden'
     options = [{ value, label: `${value} (${hint})` }, ...options]
   }
 
@@ -99,7 +103,9 @@ function FieldInput({ field, params, deck, onChange }: { field: ActionField; par
       {options ? (
         <select id={id} className="field" value={value} onChange={(e) => onChange(e.target.value)}>
           <option value="">
-            {options.length > 0
+            {field.kind === 'audioDevice'
+              ? 'Standard-Ausgabe (aktuelle Wiedergabe)'
+              : options.length > 0
               ? 'Bitte wählen …'
               : field.kind === 'page'
                 ? 'Noch keine Ordner'
@@ -138,10 +144,26 @@ interface Props {
   onChange: (steps: ActionStep[]) => void
   deck?: DeckModel
   addLabel?: string
+  allowTypeChange?: boolean
+  allowAdd?: boolean
+  allowReorder?: boolean
+  allowDelete?: boolean
+  showStepNumbers?: boolean
 }
 
 /** Liste von Aktionsschritten (Multi-Action): hinzufuegen, konfigurieren, umsortieren, entfernen. */
-export function StepEditor({ steps, definitions, onChange, deck, addLabel = 'Aktion hinzufügen' }: Props) {
+export function StepEditor({
+  steps,
+  definitions,
+  onChange,
+  deck,
+  addLabel = 'Aktion hinzufügen',
+  allowTypeChange = true,
+  allowAdd = true,
+  allowReorder = true,
+  allowDelete = true,
+  showStepNumbers,
+}: Props) {
   const byType = new Map(definitions.map((d) => [d.type, d]))
   const categories = [...new Set(definitions.map((d) => d.category))]
   // Pro Schritt-Index: Aktionstyp-Dropdown zeigt standardmaessig nur die Kategorie des aktuellen Typs,
@@ -163,6 +185,8 @@ export function StepEditor({ steps, definitions, onChange, deck, addLabel = 'Akt
     onChange(next)
   }
 
+  const showNumbers = showStepNumbers ?? steps.length > 1
+
   return (
     <div className="space-y-3">
       {steps.map((step, index) => {
@@ -176,11 +200,13 @@ export function StepEditor({ steps, definitions, onChange, deck, addLabel = 'Akt
         return (
           <div key={index} className="rounded-card border border-line bg-surface-2/60 p-3">
             <div className="mb-3 flex items-center gap-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-badge bg-surface-3 text-[11px] font-bold text-ink-muted">
-                {index + 1}
-              </span>
+              {showNumbers && (
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-badge bg-surface-3 text-[11px] font-bold text-ink-muted">
+                  {index + 1}
+                </span>
+              )}
               <KeyIcon name={def?.icon ?? 'tabler:help'} size={16} className="shrink-0 text-brand" />
-              {def && isDisplayOnly ? (
+              {def && (isDisplayOnly || !allowTypeChange) ? (
                 <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{def.name}</span>
               ) : (
                 <>
@@ -222,7 +248,7 @@ export function StepEditor({ steps, definitions, onChange, deck, addLabel = 'Akt
                 </>
               )}
               <div className="flex shrink-0">
-                {steps.length > 1 && (
+                {allowReorder && steps.length > 1 && (
                   <>
                     <button className="btn btn-sm btn-icon text-ink-muted hover:text-ink" disabled={index === 0} onClick={() => move(index, -1)} aria-label="Nach oben">
                       <IconArrowUp size={15} />
@@ -237,9 +263,11 @@ export function StepEditor({ steps, definitions, onChange, deck, addLabel = 'Akt
                     </button>
                   </>
                 )}
-                <button className="btn btn-sm btn-icon text-danger hover:bg-danger-soft" onClick={() => onChange(steps.filter((_, i) => i !== index))} aria-label="Schritt entfernen">
-                  <IconTrash size={15} />
-                </button>
+                {allowDelete && (
+                  <button className="btn btn-sm btn-icon text-danger hover:bg-danger-soft" onClick={() => onChange(steps.filter((_, i) => i !== index))} aria-label="Schritt entfernen">
+                    <IconTrash size={15} />
+                  </button>
+                )}
               </div>
             </div>
             {def && def.fields.length > 0 && !isDisplayOnly && (
@@ -266,26 +294,28 @@ export function StepEditor({ steps, definitions, onChange, deck, addLabel = 'Akt
         )
       })}
 
-      <select
-        className="field text-brand"
-        value=""
-        onChange={(e) => {
-          if (!e.target.value) return
-          onChange([...steps, { type: e.target.value, params: defaultParams(byType.get(e.target.value)) }])
-        }}
-        aria-label={addLabel}
-      >
-        <option value="">＋ {addLabel} …</option>
-        {categories.map((c) => (
-          <optgroup key={c} label={c}>
-            {definitions.filter((d) => d.category === c).map((d) => (
-              <option key={d.type} value={d.type}>
-                {d.name}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
+      {allowAdd && (
+        <select
+          className="field text-brand"
+          value=""
+          onChange={(e) => {
+            if (!e.target.value) return
+            onChange([...steps, { type: e.target.value, params: defaultParams(byType.get(e.target.value)) }])
+          }}
+          aria-label={addLabel}
+        >
+          <option value="">＋ {addLabel} …</option>
+          {categories.map((c) => (
+            <optgroup key={c} label={c}>
+              {definitions.filter((d) => d.category === c).map((d) => (
+                <option key={d.type} value={d.type}>
+                  {d.name}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      )}
     </div>
   )
 }

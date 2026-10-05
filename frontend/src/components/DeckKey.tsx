@@ -1,8 +1,10 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { createPortal } from 'react-dom'
 import type { ButtonModel, SystemMonitorSnapshot } from '../api/types'
-import { activeIcon, buttonHasToggleState, buttonStateKind, isMonitorLoadMetric, isMuteAction, monitorDisplay } from '../lib/buttonState'
+import { activeIcon, activeLabel, buttonHasToggleState, buttonStateKind, isMonitorLoadMetric, isMuteAction, isTwitchMetric, monitorDisplay, twitchDisplay } from '../lib/buttonState'
 import { hotkeyParts } from '../lib/hotkeys'
 import { INPUT_LEVEL_SUFFIX, useMeterDb } from '../state/meters'
+import { useStore } from '../state/store'
 import { KeyIcon } from './KeyIcon'
 import { RingGauge } from './RingGauge'
 
@@ -22,8 +24,10 @@ interface Props {
    * Status, kein Pegelwert. Gilt fuer ALLE Toggle-Tasten, nicht nur Lautstaerke-Tasten. */
   volumeIndicator?: 'led' | 'level' | 'corner' | 'glow' | 'none'
   stateStyle?: 'fill' | 'glow' | 'corner' | 'led' | 'level' | 'icon'
-  /** Optisches Subpixel-Mesh ueber alle Tasten (LCD Stream-Deck Look). */
+  /** Optisches Subpixel-Mesh ueber alle Tasten (LCD CueDeck Look). */
   displayMesh?: boolean
+  /** OLED: flaches Display statt Tastenkappe - kein Tastenhub, keine Bewegung beim Druck, Druck = kurzes Aufleuchten. */
+  keySurface?: 'smooth' | 'mesh' | 'oled'
   /** Live-Pegel unter dem Lautstaerke-Balken: Schluessel im Pegel-Store (siehe state/meters.ts) und ob die
    * Quelle stummgeschaltet ist (dann grau). Nur zusammen mit `level` sinnvoll. */
   meterKey?: string | null
@@ -109,6 +113,85 @@ function KeyMeter({ meterKey, muted }: { meterKey: string; muted: boolean }) {
   )
 }
 
+function WarnBadge({ hint, size }: { hint: string; size: number }) {
+  const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState<{ top: number; left: number; placeBelow: boolean } | null>(null)
+  const badgeRef = useRef<HTMLSpanElement>(null)
+
+  const updatePos = () => {
+    if (badgeRef.current) {
+      const btn = badgeRef.current.closest('button')
+      const bRect = btn ? btn.getBoundingClientRect() : badgeRef.current.getBoundingClientRect()
+      const tooltipHeight = 72
+      const tooltipWidth = 270
+
+      // Immer komplett außerhalb des Buttons platzieren, damit der Button selbst nie überdeckt wird!
+      const spaceBelow = window.innerHeight - bRect.bottom
+      const placeBelow = spaceBelow >= tooltipHeight + 14
+      const top = placeBelow ? bRect.bottom + 8 : bRect.top - 8
+      const left = Math.max(12, Math.min(window.innerWidth - tooltipWidth - 12, bRect.right - tooltipWidth + 8))
+      setPos({ top, left, placeBelow })
+    }
+  }
+
+  const show = () => {
+    updatePos()
+    setOpen(true)
+  }
+
+  const hide = () => setOpen(false)
+
+  return (
+    <>
+      <span
+        ref={badgeRef}
+        className="key-warn-badge absolute z-20 flex cursor-help items-center justify-center p-1 transition-transform hover:scale-110 active:scale-95"
+        style={{
+          bottom: Math.max(2, Math.round(size * 0.03)),
+          right: Math.max(2, Math.round(size * 0.03)),
+          minWidth: Math.max(18, Math.round(size * 0.2)),
+          minHeight: Math.max(18, Math.round(size * 0.2)),
+        }}
+        onMouseEnter={show}
+        onMouseLeave={hide}
+        onFocus={show}
+        onBlur={hide}
+        onClick={(e) => {
+          e.stopPropagation()
+          updatePos()
+          setOpen((prev) => !prev)
+        }}
+      >
+        <KeyIcon
+          name="tabler:alert-triangle"
+          size={Math.max(11, Math.round(size * 0.14))}
+          className="text-white/85 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] transition-colors hover:text-white"
+        />
+      </span>
+
+      {open && pos && typeof document !== 'undefined' && createPortal(
+        <div
+          className="pointer-events-none fixed z-[999999] transition-opacity duration-150 animate-in fade-in zoom-in-95"
+          style={{
+            top: pos.top,
+            left: pos.left,
+            transform: pos.placeBelow ? 'none' : 'translateY(-100%)',
+          }}
+        >
+          <div className="flex max-w-[270px] items-start gap-2.5 rounded-ctl border border-line-strong bg-surface-2/95 p-3 text-xs text-ink shadow-float backdrop-blur-md">
+            <KeyIcon name="tabler:alert-triangle" size={17} className="mt-0.5 shrink-0 text-amber-400" />
+            <div className="leading-snug">
+              <span className="block font-bold text-ink">Hinweis</span>
+              <span className="mt-0.5 block text-[11px] leading-relaxed text-ink-muted">{hint}</span>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  )
+}
+
 /**
  * Eine Taste, die sich wie eine echte anfuehlt: Koerper mit Glanzkante und Tastenhub, sinkt beim
  * Druecken ein, leuchtet im aktiven Zustand in ihrer Farbe (inkl. LED), schuettelt bei Fehlern.
@@ -122,6 +205,7 @@ export function DeckKey({
   volumeIndicator = 'led',
   stateStyle = 'fill',
   displayMesh = false,
+  keySurface = 'smooth',
   unavailable = false,
   meterKey = null,
   meterMuted = false,
@@ -136,13 +220,32 @@ export function DeckKey({
 }: Props) {
   const [pressed, setPressed] = useState(false)
   const icon = activeIcon(button, active)
-  const hasLabel = button.label.trim().length > 0
-  const labelRef = useFitLabel(button.label, size)
+  const label = activeLabel(button, active)
+  const hasLabel = label.trim().length > 0
+  const labelRef = useFitLabel(label, size)
   const iconSize = Math.round(size * (hasLabel ? 0.36 : 0.46))
   const fontSize = Math.max(10, Math.round(size * 0.115))
-  const monitor = monitorMetric ? monitorDisplay(monitorMetric, systemMonitor) : null
+  // Twitch-Kacheln (Zuschauer/Follower/Subs/Stream-Zeit) lesen den gemeinsamen Twitch-Stand; die Stream-Zeit tickt sekuendlich.
+  const twitch = useStore((s) => s.twitch)
+  const obsStreamStartedAt = useStore((s) => s.obs?.streamStartedAt ?? null)
+  const ticking = monitorMetric === 'twitchUptime'
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!ticking) return
+    const id = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [ticking])
+  const monitor = monitorMetric
+    ? isTwitchMetric(monitorMetric)
+      ? twitchDisplay(monitorMetric, twitch, obsStreamStartedAt, now)
+      : monitorDisplay(monitorMetric, systemMonitor)
+    : null
   const isRing = monitorMetric != null && isMonitorLoadMetric(monitorMetric)
-  const stays = pressBehavior === 'stay' && buttonHasToggleState(button)
+  // "stay": Taste bleibt eingedrueckt, WENN "stay" gewaehlt ist, die Taste einen echten Toggle-Zustand hat
+  // UND die Taste verfuegbar ist (nicht durch offline-OBS blockiert).
+  // Monitor-Tasten (CPU, GPU, RAM) und Einmal-Aktionen springen IMMER sofort wieder zurueck!
+  const oled = keySurface === 'oled'
+  const stays = !oled && pressBehavior === 'stay' && buttonHasToggleState(button) && !unavailable
   const mute = isMuteAction(button)
   const hasToggle = buttonHasToggleState(button)
   // Bei "bleibt gedrueckt" soll der GRUENE (gute) Zustand unten/eingedrueckt wirken - bei normalen
@@ -180,12 +283,23 @@ export function DeckKey({
   // Live-Pegel gehoert zum Lautstaerke-Balken: nur dort, wo dieser sichtbar ist.
   const showMeter = showLevel && meterKey != null
 
+  const isWarn = unavailable || (monitor?.unavailable ?? false) || error
+  const warnHint =
+    monitor?.unavailable
+      ? (monitor.hint ?? 'Sensorwert nicht verfügbar.')
+      : unavailable
+        ? 'OBS ist nicht verbunden – diese Taste hat gerade keine Funktion.'
+        : error
+          ? 'Fehler beim Ausführen dieser Aktion.'
+          : null
+
   const release = () => setPressed(false)
 
   return (
     <button
       type="button"
       className="deck-key"
+      data-surface={oled ? 'oled' : undefined}
       data-color={button.color}
       data-active={fillMode ? active : false}
       data-mute={(fillMode && mute && !unavailable) || undefined}
@@ -193,12 +307,11 @@ export function DeckKey({
       data-tone={fillMode ? undefined : tone}
       data-unavailable={unavailable || undefined}
       data-meter={showMeter || undefined}
-      data-pressed={!monitor && (stays ? visuallyOn : pressed || flash)}
+      data-pressed={stays ? visuallyOn : pressed || flash}
       data-error={error}
       aria-pressed={monitor ? undefined : active}
-      aria-label={monitor ? `${monitor.label}: ${monitor.unavailable ? 'nicht verfügbar' : monitor.value}` : button.label || 'Taste ohne Beschriftung'}
+      aria-label={monitor ? `${monitor.label}: ${monitor.unavailable ? 'nicht verfügbar' : monitor.value}` : label || 'Taste ohne Beschriftung'}
       aria-keyshortcuts={monitor ? undefined : (button.hotkey?.replace('Ctrl', 'Control') ?? undefined)}
-      title={monitor?.hint ?? (unavailable ? 'OBS ist nicht verbunden – diese Taste hat gerade keine Funktion.' : undefined)}
       style={{
         fontSize,
         outline: selected ? '2px solid var(--c-select)' : undefined,
@@ -208,12 +321,9 @@ export function DeckKey({
       }}
       onPointerDown={(e) => {
         if (e.button !== 0) return
-        // "stay": der eingedrueckte Look folgt dem echten Zustand (siehe data-pressed oben), nicht
-        // dem Zeiger-Zyklus - hier also nichts lokal setzen, sonst zuckt die Taste kurz "falsch herum".
-        if (!monitor && !stays) setPressed(true)
-        // Sofort beim Aufsetzen ausloesen (nicht erst beim Loslassen) - fuehlt sich direkter an.
+        if (!stays) setPressed(true)
         onPress?.()
-        if (!monitor && navigator.vibrate) navigator.vibrate(12)
+        if (navigator.vibrate) navigator.vibrate(12)
       }}
       onPointerUp={release}
       onPointerLeave={release}
@@ -225,19 +335,23 @@ export function DeckKey({
         }
       }}
     >
-      {displayMesh && <span className="key-mesh-overlay" aria-hidden="true" />}
+      {displayMesh && !oled && <span className="key-mesh-overlay" aria-hidden="true" />}
       {monitor && isRing ? (
         <span className="key-ring" style={{ width: Math.round(size * 0.82), height: Math.round(size * 0.82) }}>
           <RingGauge percent={monitor.raw} size={Math.round(size * 0.82)} />
           <span className="key-ring-center">
             <span className="key-ring-label">{monitor.label}</span>
-            <span className={`key-ring-value ${monitor.unavailable ? 'text-ink-faint' : ''}`}>{monitor.value}</span>
+            <span className={`key-ring-value ${monitor.unavailable ? 'text-ink-muted opacity-100' : ''}`}>{monitor.value}</span>
           </span>
         </span>
       ) : monitor ? (
         <>
-          <KeyIcon name={monitor.icon} size={Math.round(size * 0.3)} className={`key-icon ${monitor.unavailable ? 'opacity-40' : ''}`} />
-          <span className={`key-monitor-value ${monitor.unavailable ? 'text-ink-faint' : ''}`}>{monitor.value}</span>
+          <KeyIcon
+            name={monitor.icon}
+            size={Math.round(size * 0.3)}
+            className={`key-icon ${monitor.unavailable ? 'text-ink-muted opacity-100' : ''}`}
+          />
+          <span className={`key-monitor-value ${monitor.unavailable ? 'text-ink-muted opacity-100' : ''}`}>{monitor.value}</span>
           <span className="key-label">{monitor.label}</span>
         </>
       ) : (
@@ -250,7 +364,7 @@ export function DeckKey({
           {icon && <KeyIcon name={icon} size={iconSize} className="key-icon" />}
           {hasLabel && (
             <span ref={labelRef} className="key-label">
-              {button.label}
+              {label}
             </span>
           )}
           {showLevel && (
@@ -261,6 +375,7 @@ export function DeckKey({
           {showMeter && meterKey && <KeyMeter meterKey={meterKey} muted={meterMuted} />}
         </>
       )}
+      {isWarn && warnHint && <WarnBadge hint={warnHint} size={size} />}
     </button>
   )
 }

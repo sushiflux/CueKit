@@ -121,8 +121,16 @@ namespace Deck.Server.Data.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("OledSize")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Rows")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("SideDisplaysJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("INTEGER");

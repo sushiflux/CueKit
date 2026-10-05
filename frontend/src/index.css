@@ -620,14 +620,75 @@
   .deck-key[data-error='true'] {
     animation: key-shake 320ms ease-in-out;
   }
+  /* ---------- Tastenoberflaeche "OLED": flache Displays statt Tastenkappen ----------
+     Reines Schwarz, duenne Fassung, KEIN Tastenhub und keine Bewegung beim Druck (ein Druck laesst die Taste nur kurz
+     aufleuchten). Zustaende (an/aus/stumm) zeigen sich als Farbring + dunkel getoente Flaeche. !important, weil die
+     Zustandsregeln oben mit Theme-Praefix (z. B. [data-theme='dark'] .deck-key[data-active]) hoehere Spezifitaet haben. */
+  .deck-key[data-surface='oled'] {
+    --key-icon: var(--key-bright, #cfe0ff);
+    --oled-accent: var(--key-bright, #9db4ff);
+    color: #f2f6ff;
+    background: #000 !important;
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14) !important;
+    transform: none !important;
+  }
+  .deck-key[data-surface='oled']::before { display: none; }
+  .deck-key[data-surface='oled'] .key-icon { filter: none; }
+  /* Zustaende: Ring + getoente Flaeche in der Zustandsfarbe */
+  .deck-key[data-surface='oled'][data-active='true'],
+  .deck-key[data-surface='oled'][data-mute='true'],
+  .deck-key[data-surface='oled'][data-tone='on'] { --oled-accent: #22c55e; }
+  .deck-key[data-surface='oled'][data-mute='true'][data-active='true'],
+  .deck-key[data-surface='oled'][data-off='true'],
+  .deck-key[data-surface='oled'][data-tone='off'] { --oled-accent: #ff4d5e; }
+  .deck-key[data-surface='oled']:is([data-active='true'], [data-mute='true'], [data-off='true'], [data-tone]) {
+    --key-icon: #fff;
+    background: color-mix(in oklab, var(--oled-accent) 20%, #000) !important;
+    box-shadow: inset 0 0 0 2px var(--oled-accent) !important;
+  }
+  .deck-key[data-surface='oled'][data-tone] { --key-icon: var(--oled-accent); }
+  .deck-key[data-surface='oled'] .key-label { color: #f2f6ff; text-shadow: none; }
+  /* Druck: kurzes Aufleuchten statt Eindruecken */
+  .deck-key[data-surface='oled'][data-pressed='true'] {
+    filter: none;
+    background: color-mix(in oklab, var(--oled-accent) 32%, #000) !important;
+    box-shadow: inset 0 0 0 2px var(--oled-accent) !important;
+    transition: none;
+  }
+  /* In der Gehaeuse-Aussparung fuellt das Display die ganze Oeffnung (kein Platz fuer einen Tastenhub noetig) */
+  .house-plate-slot:has(.deck-key[data-surface='oled']) { padding: 0 !important; }
+
   /* Innenleben ignoriert Zeiger-Ereignisse: sonst ersetzt das Icon beim Neuzeichnen sein SVG
-     zwischen pointerdown und pointerup, und der Browser loest weder click noch dblclick aus. */
+     zwischen pointerdown und pointerup, und der Browser loest weder click noch dblclick aus.
+     WICHTIGE AUSNAHME: Das Warn-Badge (Infobox bei Hover/Klick) MUSS Maus-Events empfangen! */
   .deck-key > * {
     pointer-events: none;
   }
+  .deck-key > .key-warn-badge,
+  .deck-key .key-warn-badge {
+    pointer-events: auto !important;
+  }
+
+  /* Alle sichtbaren Inhalte auf der Display-Oberfläche liegen ÜBER dem LCD-Mesh (Layer 10+) */
+  .deck-key .key-icon,
+  .deck-key .key-label,
+  .deck-key .key-monitor-value,
+  .deck-key .key-ring,
+  .deck-key .key-ring-center,
+  .deck-key .key-ring-label,
+  .deck-key .key-ring-value,
+  .deck-key .key-hotkey,
+  .deck-key .key-level,
+  .deck-key .key-meter,
+  .deck-key .key-status-bar,
+  .deck-key .key-corner-indicator,
+  .deck-key .key-led {
+    position: relative;
+    z-index: 10 !important;
+  }
   .deck-key .key-icon {
     color: var(--key-icon);
-    filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.25));
+    filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.5));
   }
   .deck-key .key-label {
     max-width: 92%;
@@ -940,19 +1001,19 @@
   }
 
   /* Globales Subpixel-Mesh Overlay (displayMesh: true):
-     Authentische Mikro-Matrix (LCD Subpixel-Gitter) auf allen Tasten für Stream-Deck Hardware-Look */
+     Authentische Mikro-Matrix (LCD Subpixel-Gitter) auf dem Display-Hintergrund (Layer 1).
+     Liegt IMMER sauber hinter allen Icons, Labels, Prozentanzeigen und Ringen! */
   .deck-key .key-mesh-overlay {
     position: absolute;
     inset: 0;
     border-radius: inherit;
     pointer-events: none;
-    z-index: 3;
+    z-index: 1;
     background-image:
-      radial-gradient(circle at 1.5px 1.5px, rgb(255 255 255 / 0.18) 1px, transparent 1px),
+      radial-gradient(circle at 1.5px 1.5px, rgb(255 255 255 / 0.18) 1px, transparent 1.1px),
       linear-gradient(to right, rgb(255 255 255 / 0.05) 1px, transparent 1px),
       linear-gradient(to bottom, rgb(255 255 255 / 0.05) 1px, transparent 1px);
-    background-size: 3px 3px;
-    mix-blend-mode: overlay;
+    background-size: 3.5px 3.5px;
     opacity: 0.85;
   }
 
@@ -1056,6 +1117,137 @@
   .deck-key .key-meter[data-muted='true'] > span {
     background: #9aa3b2;
   }
+  /* Wiedergabe-Anzeige im oberen OLED: Mini-Equalizer */
+  @keyframes np-eq { 0%, 100% { height: 25%; } 50% { height: 100%; } }
+  .np-eq-bar { animation: np-eq 0.9s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) { .np-eq-bar { animation: none; height: 60%; } }
+
+  /* ---------- Seitliche OLED-Displays (Quellenname + Live-Pegel + Stumm) ----------
+     Bewusst OHNE Mesh/Weichzeichner: echtes OLED = reines Schwarz, harte Kanten, scharfer Text. */
+  .oled-display {
+    position: relative;
+    display: flex;
+    overflow: hidden;
+    box-sizing: border-box;
+    padding: 0.7em;
+    gap: 0.6em;
+    align-items: center;
+    color: #f2f6ff;
+    text-align: left;
+    cursor: pointer;
+    background: #000;
+    border-radius: var(--radius-key);
+    border: 1px solid #3a4152;
+    box-shadow: 0 0 0 2px #05070c, 0 3px 8px rgb(0 0 0 / 0.5);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
+    transition: border-color 120ms ease, transform 90ms ease;
+  }
+  .oled-display:disabled { cursor: default; }
+  .oled-display:not(:disabled):hover { border-color: #6f86c9; }
+  .oled-display:not(:disabled):active { transform: translateY(1px); }
+  .oled-display[data-orientation='vertical'] { flex-direction: column; }
+  .oled-display[data-orientation='horizontal'] { flex-direction: row; }
+  .oled-icon { display: flex; flex: none; color: #8fb4ff; }
+  .oled-name {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+  }
+  .oled-display[data-orientation='vertical'] {
+    align-items: stretch;
+    gap: 0.55em;
+  }
+  /* Immer genau eine Zeile (mit Ellipsis), damit der Pegelbalken bei allen Displays dieselbe Laenge hat. */
+  .oled-display[data-orientation='vertical'] .oled-name {
+    flex: none;
+    height: 1.2em;
+    text-align: center;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .oled-foot { display: flex; flex: none; height: 1.5em; align-items: center; justify-content: center; gap: 0.5em; }
+  .oled-display[data-orientation='horizontal'] .oled-name { flex: 1; }
+  /* Durchgehender Pegelbalken: fester Verlauf (Tuerkis -> Gelb -> Orange -> Rot), der Pegel schneidet ihn frei. */
+  .oled-meter {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    background: #0b1019;
+    border-radius: 2px;
+    overflow: hidden;
+    box-shadow: inset 0 0 0 1px #1a2233;
+  }
+  /* Pegel (breiter) + eingestellte Lautstaerke (schmaler) nebeneinander, mittig im Display */
+  .oled-bars { display: flex; flex: 1; min-height: 0; min-width: 0; gap: 0.45em; }
+  .oled-display[data-orientation='vertical'] .oled-bars { justify-content: center; }
+  .oled-display[data-orientation='horizontal'] .oled-bars { flex-direction: column; justify-content: center; gap: 0.3em; }
+  .oled-display[data-orientation='vertical'] .oled-meter { flex: 0 0 1.5em; }
+  .oled-display[data-orientation='horizontal'] .oled-meter { flex: 0 0 0.9em; }
+  .oled-volume {
+    position: relative;
+    flex: none;
+    background: #0b1019;
+    border-radius: 2px;
+    overflow: hidden;
+    box-shadow: inset 0 0 0 1px #1a2233;
+  }
+  .oled-display[data-orientation='vertical'] .oled-volume { width: 0.55em; }
+  .oled-display[data-orientation='horizontal'] .oled-volume { height: 0.4em; }
+  .oled-volume-fill { position: absolute; inset: 0; background: #6f9bff; }
+  .oled-display[data-orientation='vertical'] .oled-volume-fill { clip-path: inset(calc(100% - var(--vol)) 0 0 0); }
+  .oled-display[data-orientation='horizontal'] .oled-volume-fill { clip-path: inset(0 calc(100% - var(--vol)) 0 0); }
+  /* Lautstaerke gleitet weich auf den neuen Wert (registrierte Custom Property, siehe @property am Dateiende) */
+  .oled-volume { transition: --vol 160ms ease-out; }
+  .oled-display[data-muted] .oled-volume-fill { background: #5a6477; }
+  .oled-meter-fill {
+    position: absolute;
+    inset: 0;
+    --grad: #1ef2c2 0%, #46f08a 40%, #c8f03c 62%, #ffb52e 78%, #ff7a2e 90%, #ff3b5c 100%;
+  }
+  /* Harte, pixelgenaue Kante an der Spitze - keine Linie, kein Verlauf (wirkt auf OLED sonst unscharf) */
+  .oled-display[data-orientation='vertical'] .oled-meter-fill {
+    background: linear-gradient(to top, var(--grad));
+    clip-path: inset(calc(100% - var(--lvl)) 0 0 0);
+  }
+  .oled-display[data-orientation='horizontal'] .oled-meter-fill {
+    background: linear-gradient(to right, var(--grad));
+    clip-path: inset(0 calc(100% - var(--lvl)) 0 0);
+  }
+  .oled-display[data-muted] .oled-meter-fill { background: #7d8798 !important; }
+  .oled-display[data-muted] .oled-icon { color: #ff6b6b; }
+  .oled-display[data-muted] .oled-name { color: #9aa3b2; text-decoration: line-through; }
+  .oled-display[data-offline] { opacity: 0.55; }
+  .oled-readout {
+    flex: none;
+    min-width: 2.4em;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: 0.9em;
+    color: #dbe7ff;
+  }
+  .oled-display[data-muted] .oled-readout { color: #ff6b6b; font-size: 0.75em; letter-spacing: 0.08em; }
+
+  /* Platzhalter-Kachel im Editor: neues Display hinzufuegen (gleiche Optik wie leere Tasten) */
+  .oled-add {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-key);
+    border: 1.5px dashed var(--c-line-strong);
+    color: var(--c-ink-muted);
+    background: color-mix(in oklab, var(--c-surface) 40%, transparent);
+    transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+  }
+  .oled-add:hover { color: var(--c-brand); border-color: var(--c-brand); background: var(--c-brand-soft); }
+
   .deck-slot-empty {
     width: 100%;
     height: 100%;
@@ -1084,12 +1276,22 @@
   /* Aussparung pro Taste im Gehaeuse: dunkler Rand + feiner heller Saum um den Tastenkoerper, das
      Metall bleibt dazwischen sichtbar. Der Abstand zwischen den Tasten (DeckGrid) ist dafuer groesser. */
   .house-plate-slot {
+    /* Die Taste liegt links, rechts und oben direkt am dunklen Ring; unten bleibt Platz fuer die "Tastenhub"-Kante
+       (6 px hell / 9 px dunkel, siehe .deck-key). overflow:hidden schneidet Kante und Schatten am Ring ab - nichts
+       ragt mehr ueber den Rahmen hinaus. DeckGrid reicht die entsprechend kleinere Tastengroesse durch. */
+    box-sizing: border-box;
+    padding: 0 0 6px;
+    overflow: hidden;
     border-radius: calc(var(--radius-key) + 3px);
     box-shadow:
       0 0 0 5px rgb(6 8 12 / 0.78),
       0 0 0 6px rgb(255 255 255 / 0.13),
       0 3px 8px 6px rgb(0 0 0 / 0.28);
   }
+
+  [data-theme='dark'] .house-plate-slot { padding-bottom: 9px; }
+  /* Leere Felder (gestrichelter Platzhalter) fuellen die ganze Oeffnung */
+  .house-plate-slot:has(> .deck-slot-empty) { padding: 0; }
 
   @keyframes key-shake {
     0%,
@@ -1193,4 +1395,10 @@
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--c-line-strong) transparent;
+}
+
+@property --vol {
+  syntax: '<percentage>';
+  inherits: true;
+  initial-value: 0%;
 }

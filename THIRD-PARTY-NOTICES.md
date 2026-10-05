@@ -11,7 +11,7 @@ _Automatisch erzeugt von `scripts/generate-third-party-notices.ts` – nicht von
 | Desktop-App | Velopack | 1.2.161 | MIT |
 | Dienst | BlackSharp.Core | 1.0.7 | MPL-2.0 |
 | Dienst | DiskInfoToolkit | 1.1.2 | MPL-2.0 |
-| Dienst | HidSharp | 2.6.4 | Siehe Lizenzdatei (LICENSE.txt) |
+| Dienst | HidSharp | 2.6.4 | Apache-2.0 |
 | Dienst | LibreHardwareMonitorLib | 0.9.6 | MPL-2.0 |
 | Dienst | Microsoft.Data.Sqlite.Core | 10.0.12 | MIT |
 | Dienst | Microsoft.EntityFrameworkCore | 10.0.12 | MIT |
@@ -21,7 +21,7 @@ _Automatisch erzeugt von `scripts/generate-third-party-notices.ts` – nicht von
 | Dienst | Microsoft.EntityFrameworkCore.Sqlite | 10.0.12 | MIT |
 | Dienst | Microsoft.EntityFrameworkCore.Sqlite.Core | 10.0.12 | MIT |
 | Dienst | Microsoft.Extensions.DependencyModel | 10.0.12 | MIT |
-| Dienst | Mono.Posix.NETStandard | 1.0.0 | Siehe https://go.microsoft.com/fwlink/?linkid=869050 |
+| Dienst | Mono.Posix.NETStandard | 1.0.0 | MIT |
 | Dienst | Newtonsoft.Json | 13.0.4 | MIT |
 | Dienst | Node.js | 24.19.0 | MIT |
 | Dienst | RAMSPDToolkit-NDD | 1.4.2 | MPL-2.0 |

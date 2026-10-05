@@ -3,12 +3,14 @@ import { useSyncExternalStore } from 'react'
 /**
  * Live-Pegel (dB) - bewusst ein eigener kleiner Store statt Teil des globalen App-Stores: die Werte
  * kommen bis ~20x pro Sekunde, und nur die einzelnen Pegelbalken sollen dafuer neu zeichnen, nicht
- * das ganze Deck. Schluessel: "obs:<Eingangsname>" oder "system" - jeweils der Pegel nach Fader/Stumm; mit
+ * das ganze Deck. Schluessel: "obs:<Eingangsname>" oder "system" bzw. "win:<Geraete-ID>" - jeweils der Pegel nach Fader/Stumm; mit
  * Suffix ":in" der Eingangspegel VOR Fader/Stumm (zeigt bei stummgeschalteter Quelle weiter das Signal).
  */
 export interface MeterPayload {
   obs: Record<string, { peak: number; inputPeak: number }>
   system: number | null
+  /** Windows-Audiogeraete: Geraete-ID -> dB. */
+  win?: Record<string, number>
 }
 
 export const INPUT_LEVEL_SUFFIX = ':in'
@@ -21,6 +23,10 @@ export function setMeters(payload: MeterPayload) {
   for (const [name, level] of Object.entries(payload.obs ?? {})) {
     next[`obs:${name}`] = level.peak
     next[`obs:${name}${INPUT_LEVEL_SUFFIX}`] = level.inputPeak
+  }
+  for (const [id, db] of Object.entries(payload.win ?? {})) {
+    next[`win:${id}`] = db
+    next[`win:${id}${INPUT_LEVEL_SUFFIX}`] = db
   }
   if (payload.system != null) {
     next.system = payload.system

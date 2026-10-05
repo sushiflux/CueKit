@@ -1,8 +1,8 @@
 # CueKit
 
-**Das kostenlose Stream-Deck für OBS – auf jedem Gerät, das du schon besitzt.**
+**Das kostenlose CueDeck für OBS – auf jedem Gerät, das du schon besitzt.**
 
-CueKit verwandelt Handy, Tablet oder Browser in ein Stream Deck: echte Tasten-Optik, Live-Status
+CueKit verwandelt Handy, Tablet oder Browser in ein CueDeck: echte Tasten-Optik, Live-Status
 aus OBS, Ordner, Multi-Aktionen, Automationen und eine offene Plugin-Schnittstelle für die
 Community. Ohne Abo, ohne Tastenlimit.
 

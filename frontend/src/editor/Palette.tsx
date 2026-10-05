@@ -2,12 +2,12 @@ import { useDraggable } from '@dnd-kit/core'
 import { IconChevronRight, IconSearch } from '@tabler/icons-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useMemo, useState } from 'react'
-import type { ActionStep, Catalog, ObsSnapshot } from '../api/types'
+import type { ActionStep, AudioDevice, Catalog, ObsSnapshot } from '../api/types'
 import { KeyIcon } from '../components/KeyIcon'
 import { defaultParams } from './StepEditor'
 
 /** Sonderfaelle, die statt einer einfachen Taste etwas Besonderes anlegen. */
-export type TileKind = 'folder' | 'multi'
+export type TileKind = 'folder' | 'multi' | 'multi-switch'
 
 export interface PaletteItem {
   id: string
@@ -41,12 +41,157 @@ export interface PaletteGroup {
 const step = (type: string, params: ActionStep['params'] = {}): ActionStep[] => [{ type, params }]
 
 /** Baut die Palette aus dem Live-Zustand von OBS, dem Aktionskatalog und den Plugins. */
-export function buildPalette(obs: ObsSnapshot | null, catalog: Catalog | null): PaletteGroup[] {
-  const connected = obs?.status === 'connected'
-  const offlineHint = 'Erscheint automatisch, sobald OBS verbunden ist.'
+export function buildPalette(obs: ObsSnapshot | null, catalog: Catalog | null, audioDevices: AudioDevice[] = [], audioDevicesError: string | null = null): PaletteGroup[] {
   const def = (type: string) => defaultParams(catalog?.actions.find((a) => a.type === type))
 
   const browserInputs = new Set((obs?.inputs ?? []).filter((i) => i.kind === 'browser_source').map((i) => i.name))
+
+  const liveScenes: PaletteEntry[] = (obs?.scenes ?? []).map((s) => ({
+    id: `scene:${s.name}`,
+    label: s.name,
+    icon: 'tabler:layout-board',
+    color: 'violet',
+    actions: step('obs.scene.switch', { scene: s.name }),
+    variants: [{ id: `scene-preview:${s.name}`, short: 'Vorschau', label: `${s.name} (Vorschau)`, icon: 'tabler:eye', color: 'indigo', actions: step('obs.scene.preview', { scene: s.name }) }],
+  }))
+
+  const defaultSceneEntries: PaletteEntry[] = [
+    {
+      id: 'ctl:scene-switch',
+      label: 'Szene wechseln',
+      sublabel: 'Szene danach wählen',
+      icon: 'tabler:layout-board',
+      color: 'violet',
+      actions: step('obs.scene.switch', def('obs.scene.switch')),
+      variants: [{ id: 'ctl:scene-preview', short: 'Vorschau', label: 'Szene (Vorschau)', icon: 'tabler:eye', color: 'indigo', actions: step('obs.scene.preview', def('obs.scene.preview')) }],
+    },
+  ]
+
+  const liveSources: PaletteEntry[] = (obs?.scenes ?? []).flatMap((s) =>
+    s.items.map((i) => ({
+      id: `source:${s.name}:${i.id}`,
+      label: i.sourceName,
+      sublabel: s.name,
+      icon: i.isGroup ? 'tabler:folders' : browserInputs.has(i.sourceName) ? 'tabler:world' : 'tabler:photo',
+      color: 'sky',
+      actions: step('obs.source.visibility', { scene: s.name, source: i.sourceName, mode: 'toggle' }),
+      variants: browserInputs.has(i.sourceName)
+        ? [{ id: `refresh:${s.name}:${i.id}`, short: 'Neu laden', label: `${i.sourceName} neu laden`, icon: 'tabler:refresh', color: 'sky', actions: step('obs.source.refresh', { input: i.sourceName }) }]
+        : undefined,
+    })),
+  )
+
+  const defaultSourceEntries: PaletteEntry[] = [
+    {
+      id: 'ctl:source-visibility',
+      label: 'Quelle ein/aus',
+      sublabel: 'Quelle danach wählen',
+      icon: 'tabler:photo',
+      color: 'sky',
+      actions: step('obs.source.visibility', def('obs.source.visibility')),
+      variants: [{ id: 'ctl:source-refresh', short: 'Neu laden', label: 'Browserquelle neu laden', icon: 'tabler:refresh', color: 'sky', actions: step('obs.source.refresh', def('obs.source.refresh')) }],
+    },
+    {
+      id: 'ctl:source-refresh-direct',
+      label: 'Browserquelle neu laden',
+      sublabel: 'Browser-Quelle danach wählen',
+      icon: 'tabler:refresh',
+      color: 'sky',
+      actions: step('obs.source.refresh', def('obs.source.refresh')),
+    },
+  ]
+
+  const liveAudio: PaletteEntry[] = (obs?.audioInputs ?? []).map((a) => ({
+    id: `audio:${a.name}`,
+    label: a.name,
+    sublabel: 'Stumm / Ton an',
+    icon: /mic|mikro/i.test(a.name) ? 'tabler:microphone' : 'tabler:volume',
+    color: 'emerald',
+    actions: step('obs.audio.mute', { input: a.name, mode: 'toggle' }),
+    variants: [
+      { id: `vol-up:${a.name}`, short: 'Lauter', label: `${a.name} +`, icon: 'tabler:volume-2', color: 'emerald', actions: step('obs.audio.volume', { input: a.name, mode: 'up', step: 3 }) },
+      { id: `vol-down:${a.name}`, short: 'Leiser', label: `${a.name} −`, icon: 'tabler:volume-3', color: 'emerald', actions: step('obs.audio.volume', { input: a.name, mode: 'down', step: 3 }) },
+    ],
+  }))
+
+  const defaultAudioEntries: PaletteEntry[] = [
+    {
+      id: 'ctl:audio-mute',
+      label: 'Stumm / Ton an',
+      sublabel: 'Audioquelle danach wählen',
+      icon: 'tabler:microphone',
+      color: 'emerald',
+      actions: step('obs.audio.mute', def('obs.audio.mute')),
+      variants: [
+        { id: 'ctl:audio-vol-up', short: 'Lauter', label: 'Audioquelle +', icon: 'tabler:volume-2', color: 'emerald', actions: step('obs.audio.volume', { ...def('obs.audio.volume'), mode: 'up', step: 3 }) },
+        { id: 'ctl:audio-vol-down', short: 'Leiser', label: 'Audioquelle −', icon: 'tabler:volume-3', color: 'emerald', actions: step('obs.audio.volume', { ...def('obs.audio.volume'), mode: 'down', step: 3 }) },
+      ],
+    },
+    {
+      id: 'ctl:audio-volume',
+      label: 'Lautstärke ändern',
+      sublabel: 'Lauter, leiser oder Zielwert',
+      icon: 'tabler:volume',
+      color: 'emerald',
+      actions: step('obs.audio.volume', def('obs.audio.volume')),
+    },
+  ]
+
+  const liveMedia: PaletteEntry[] = (obs?.mediaInputs ?? []).map((m) => ({
+    id: `media:${m.name}`,
+    label: m.name,
+    sublabel: 'Abspielen / Pause',
+    icon: 'tabler:player-play',
+    color: 'pink',
+    actions: step('obs.media', { input: m.name, mode: 'playpause' }),
+    variants: [
+      { id: `media-stop:${m.name}`, short: 'Stopp', label: `${m.name} Stopp`, icon: 'tabler:player-stop', color: 'pink', actions: step('obs.media', { input: m.name, mode: 'stop' }) },
+      { id: `media-restart:${m.name}`, short: 'Von vorn', label: `${m.name} von vorn`, icon: 'tabler:player-skip-back', color: 'pink', actions: step('obs.media', { input: m.name, mode: 'restart' }) },
+    ],
+  }))
+
+  const defaultMediaEntries: PaletteEntry[] = [
+    {
+      id: 'ctl:media-control',
+      label: 'Medien abspielen / Pause',
+      sublabel: 'Medienquelle danach wählen',
+      icon: 'tabler:player-play',
+      color: 'pink',
+      actions: step('obs.media', def('obs.media')),
+      variants: [
+        { id: 'ctl:media-stop', short: 'Stopp', label: 'Medien Stopp', icon: 'tabler:player-stop', color: 'pink', actions: step('obs.media', { ...def('obs.media'), mode: 'stop' }) },
+        { id: 'ctl:media-restart', short: 'Von vorn', label: 'Medien von vorn', icon: 'tabler:player-skip-back', color: 'pink', actions: step('obs.media', { ...def('obs.media'), mode: 'restart' }) },
+      ],
+    },
+  ]
+
+  const liveProfiles: PaletteEntry[] = [
+    ...(obs?.sceneCollections ?? []).map((c) => ({ id: `collection:${c}`, label: c, sublabel: 'Szenensammlung', icon: 'tabler:stack-2', color: 'teal', actions: step('obs.collection', { collection: c }) })),
+    ...(obs?.profiles ?? []).map((p) => ({ id: `profile:${p}`, label: p, sublabel: 'Profil', icon: 'tabler:user-cog', color: 'teal', actions: step('obs.profile', { profile: p }) })),
+  ]
+
+  const defaultProfileEntries: PaletteEntry[] = [
+    { id: 'ctl:collection', label: 'Szenensammlung wechseln', sublabel: 'Sammlung danach wählen', icon: 'tabler:stack-2', color: 'teal', actions: step('obs.collection', def('obs.collection')) },
+    { id: 'ctl:profile', label: 'Profil wechseln', sublabel: 'Profil danach wählen', icon: 'tabler:user-cog', color: 'teal', actions: step('obs.profile', def('obs.profile')) },
+  ]
+
+  const liveTransitions: PaletteEntry[] = (obs?.transitions ?? []).map((t) => ({
+    id: `transition:${t}`,
+    label: t,
+    sublabel: 'Übergang wählen',
+    icon: 'tabler:transition-right',
+    color: 'indigo',
+    actions: step('obs.transition.set', { transition: t }),
+  }))
+
+  const defaultTransitionEntry: PaletteEntry = {
+    id: 'ctl:transition-set',
+    label: 'Übergang wählen',
+    sublabel: 'Übergang danach wählen',
+    icon: 'tabler:transition-right',
+    color: 'indigo',
+    actions: step('obs.transition.set', def('obs.transition.set')),
+  }
 
   const obsGroup: PaletteGroup = {
     id: 'obs',
@@ -56,67 +201,22 @@ export function buildPalette(obs: ObsSnapshot | null, catalog: Catalog | null): 
       {
         id: 'scenes',
         title: 'Szenen',
-        emptyHint: connected ? 'Keine Szenen.' : offlineHint,
-        entries: (obs?.scenes ?? []).map((s) => ({
-          id: `scene:${s.name}`,
-          label: s.name,
-          icon: 'tabler:layout-board',
-          color: 'violet',
-          actions: step('obs.scene.switch', { scene: s.name }),
-          variants: [{ id: `scene-preview:${s.name}`, short: 'Vorschau', label: `${s.name} (Vorschau)`, icon: 'tabler:eye', color: 'indigo', actions: step('obs.scene.preview', { scene: s.name }) }],
-        })),
+        entries: liveScenes.length > 0 ? liveScenes : defaultSceneEntries,
       },
       {
         id: 'sources',
         title: 'Quellen',
-        emptyHint: connected ? 'Keine Quellen.' : offlineHint,
-        entries: (obs?.scenes ?? []).flatMap((s) =>
-          s.items.map((i) => ({
-            id: `source:${s.name}:${i.id}`,
-            label: i.sourceName,
-            sublabel: s.name,
-            icon: i.isGroup ? 'tabler:folders' : browserInputs.has(i.sourceName) ? 'tabler:world' : 'tabler:photo',
-            color: 'sky',
-            actions: step('obs.source.visibility', { scene: s.name, source: i.sourceName, mode: 'toggle' }),
-            variants: browserInputs.has(i.sourceName)
-              ? [{ id: `refresh:${s.name}:${i.id}`, short: 'Neu laden', label: `${i.sourceName} neu laden`, icon: 'tabler:refresh', color: 'sky', actions: step('obs.source.refresh', { input: i.sourceName }) }]
-              : undefined,
-          })),
-        ),
+        entries: liveSources.length > 0 ? liveSources : defaultSourceEntries,
       },
       {
         id: 'audio',
         title: 'Audio',
-        emptyHint: connected ? 'Keine Audioquellen.' : offlineHint,
-        entries: (obs?.audioInputs ?? []).map((a) => ({
-          id: `audio:${a.name}`,
-          label: a.name,
-          sublabel: 'Stumm / Ton an',
-          icon: /mic|mikro/i.test(a.name) ? 'tabler:microphone' : 'tabler:volume',
-          color: 'emerald',
-          actions: step('obs.audio.mute', { input: a.name, mode: 'toggle' }),
-          variants: [
-            { id: `vol-up:${a.name}`, short: 'Lauter', label: `${a.name} +`, icon: 'tabler:volume-2', color: 'emerald', actions: step('obs.audio.volume', { input: a.name, mode: 'up', step: 3 }) },
-            { id: `vol-down:${a.name}`, short: 'Leiser', label: `${a.name} −`, icon: 'tabler:volume-3', color: 'emerald', actions: step('obs.audio.volume', { input: a.name, mode: 'down', step: 3 }) },
-          ],
-        })),
+        entries: liveAudio.length > 0 ? liveAudio : defaultAudioEntries,
       },
       {
         id: 'media',
         title: 'Medien',
-        emptyHint: connected ? 'Keine Medienquellen (Medien-/VLC-Quelle).' : offlineHint,
-        entries: (obs?.mediaInputs ?? []).map((m) => ({
-          id: `media:${m.name}`,
-          label: m.name,
-          sublabel: 'Abspielen / Pause',
-          icon: 'tabler:player-play',
-          color: 'pink',
-          actions: step('obs.media', { input: m.name, mode: 'playpause' }),
-          variants: [
-            { id: `media-stop:${m.name}`, short: 'Stopp', label: `${m.name} Stopp`, icon: 'tabler:player-stop', color: 'pink', actions: step('obs.media', { input: m.name, mode: 'stop' }) },
-            { id: `media-restart:${m.name}`, short: 'Von vorn', label: `${m.name} von vorn`, icon: 'tabler:player-skip-back', color: 'pink', actions: step('obs.media', { input: m.name, mode: 'restart' }) },
-          ],
-        })),
+        entries: liveMedia.length > 0 ? liveMedia : defaultMediaEntries,
       },
       {
         id: 'outputs',
@@ -138,24 +238,13 @@ export function buildPalette(obs: ObsSnapshot | null, catalog: Catalog | null): 
         entries: [
           { id: 'ctl:studio', label: 'Studio-Modus', icon: 'tabler:layout-columns', color: 'indigo', actions: step('obs.studio', def('obs.studio')) },
           { id: 'ctl:transition', label: 'Übergang auslösen', icon: 'tabler:arrows-exchange', color: 'indigo', actions: step('obs.studio.transition') },
-          ...(obs?.transitions ?? []).map((t) => ({
-            id: `transition:${t}`,
-            label: t,
-            sublabel: 'Übergang wählen',
-            icon: 'tabler:transition-right',
-            color: 'indigo',
-            actions: step('obs.transition.set', { transition: t }),
-          })),
+          ...(liveTransitions.length > 0 ? liveTransitions : [defaultTransitionEntry]),
         ],
       },
       {
         id: 'profiles',
         title: 'Profile & Sammlungen',
-        emptyHint: connected ? undefined : offlineHint,
-        entries: [
-          ...(obs?.sceneCollections ?? []).map((c) => ({ id: `collection:${c}`, label: c, sublabel: 'Szenensammlung', icon: 'tabler:stack-2', color: 'teal', actions: step('obs.collection', { collection: c }) })),
-          ...(obs?.profiles ?? []).map((p) => ({ id: `profile:${p}`, label: p, sublabel: 'Profil', icon: 'tabler:user-cog', color: 'teal', actions: step('obs.profile', { profile: p }) })),
-        ],
+        entries: liveProfiles.length > 0 ? liveProfiles : defaultProfileEntries,
       },
       {
         id: 'advanced',
@@ -178,6 +267,15 @@ export function buildPalette(obs: ObsSnapshot | null, catalog: Catalog | null): 
         title: 'Tasten & Navigation',
         entries: [
           { id: 'deck:multi', label: 'Multifunktion', sublabel: 'Mehrere Aktionen nacheinander', icon: 'tabler:stack-3', color: 'violet', actions: [], kind: 'multi' },
+          {
+            id: 'deck:multi-switch',
+            label: 'Multi-Aktionsschalter',
+            sublabel: 'Zwei Zustände mit eigenen Aktionen',
+            icon: 'tabler:toggle-right',
+            color: 'indigo',
+            actions: [{ type: 'deck.multiSwitch', params: { onSteps: [], offSteps: [], labelOff: '', iconOff: '' } }],
+            kind: 'multi-switch',
+          },
           { id: 'deck:folder', label: 'Ordner', icon: 'tabler:folder-plus', color: 'amber', actions: [], kind: 'folder' },
           { id: 'deck:back', label: 'Zurück', icon: 'tabler:arrow-back-up', color: 'slate', actions: step('deck.back') },
         ],
@@ -192,6 +290,23 @@ export function buildPalette(obs: ObsSnapshot | null, catalog: Catalog | null): 
     { metric: 'gpuTemp', label: 'GPU-Temperatur', icon: 'tabler:thermometer' },
     { metric: 'ramLoad', label: 'RAM-Auslastung', icon: 'tabler:database' },
   ]
+
+  // Alle aktiven Windows-Audiogeraete: Ausgaben (Lautsprecher, Kopfhoerer, virtuelle Geraete) und Eingaenge (Mikrofone).
+  const deviceEntry = (d: AudioDevice): PaletteEntry => ({
+    id: `win:${d.id}`,
+    label: d.name,
+    sublabel: d.isDefault ? 'Stumm / Ton an · Standard' : 'Stumm / Ton an',
+    icon: d.kind === 'input' ? 'tabler:microphone' : 'tabler:headphones',
+    color: 'cyan',
+    actions: step('system.mute', { device: d.id, mode: 'toggle' }),
+    variants: [
+      { id: `win-up:${d.id}`, short: 'Lauter', label: `${d.name} +`, icon: 'tabler:volume-2', color: 'cyan', actions: step('system.volume', { device: d.id, mode: 'up', step: 5 }) },
+      { id: `win-down:${d.id}`, short: 'Leiser', label: `${d.name} −`, icon: 'tabler:volume-3', color: 'cyan', actions: step('system.volume', { device: d.id, mode: 'down', step: 5 }) },
+    ],
+  })
+
+  const deviceHint = (what: string) =>
+    audioDevicesError ? `Geräteliste nicht ladbar: ${audioDevicesError}. Dienst neu starten (start.ps1).` : `Keine ${what} gefunden.`
 
   const systemGroup: PaletteGroup = {
     id: 'system',
@@ -214,6 +329,18 @@ export function buildPalette(obs: ObsSnapshot | null, catalog: Catalog | null): 
             ],
           },
         ],
+      },
+      {
+        id: 'win-outputs',
+        title: 'Audioquellen · Ausgabe',
+        entries: audioDevices.filter((d) => d.kind === 'output').map(deviceEntry),
+        emptyHint: deviceHint('Wiedergabegeräte'),
+      },
+      {
+        id: 'win-inputs',
+        title: 'Audioquellen · Eingang',
+        entries: audioDevices.filter((d) => d.kind === 'input').map(deviceEntry),
+        emptyHint: deviceHint('Aufnahmegeräte'),
       },
       {
         id: 'misc',
@@ -273,8 +400,37 @@ export function buildPalette(obs: ObsSnapshot | null, catalog: Catalog | null): 
     ],
   }))
 
+  // Twitch: Live-Werte als Anzeige-Kacheln und Aktionen (Anmeldung unter Einstellungen > Twitch)
+  const twitchGroup: PaletteGroup = {
+    id: 'twitch',
+    title: 'Twitch',
+    icon: 'tabler:brand-twitch',
+    sections: [
+      {
+        id: 'twitch-stats',
+        title: 'Anzeige',
+        entries: [
+          { id: 'twitch:viewers', label: 'Live-Zuschauer', sublabel: 'Live-Wert auf der Kachel', icon: 'tabler:eye', color: 'violet', actions: step('twitch.display', { metric: 'twitchViewers' }) },
+          { id: 'twitch:followers', label: 'Follower', sublabel: 'Gesamtzahl auf der Kachel', icon: 'tabler:heart', color: 'violet', actions: step('twitch.display', { metric: 'twitchFollowers' }) },
+          { id: 'twitch:subs', label: 'Abonnenten (Subs)', sublabel: 'Gesamtzahl auf der Kachel', icon: 'tabler:star', color: 'violet', actions: step('twitch.display', { metric: 'twitchSubs' }) },
+          { id: 'twitch:uptime', label: 'Stream-Zeit', sublabel: 'Wie lange du schon live bist', icon: 'tabler:clock', color: 'violet', actions: step('twitch.display', { metric: 'twitchUptime' }) },
+        ],
+      },
+      {
+        id: 'twitch-actions',
+        title: 'Aktionen',
+        entries: [
+          { id: 'twitch:clip', label: 'Clip erstellen', sublabel: 'Letzte Sekunden des Streams', icon: 'tabler:movie', color: 'violet', actions: step('twitch.clip', {}) },
+          { id: 'twitch:category', label: 'Kategorie setzen', sublabel: 'Spielname danach eintragen', icon: 'tabler:category', color: 'violet', actions: step('twitch.category', def('twitch.category')) },
+          { id: 'twitch:title', label: 'Titel setzen', sublabel: 'Stream-Titel danach eintragen', icon: 'tabler:letter-case', color: 'violet', actions: step('twitch.title', def('twitch.title')) },
+          { id: 'twitch:marker', label: 'Stream-Marker setzen', sublabel: 'Lesezeichen im Stream', icon: 'tabler:bookmark', color: 'violet', actions: step('twitch.marker', def('twitch.marker')) },
+        ],
+      },
+    ],
+  }
+
   // Reihenfolge: OBS, System, weitere Plugins - "Deck" (Navigation) bewusst zuletzt.
-  return [obsGroup, systemGroup, ...pluginGroups, deckGroup]
+  return [obsGroup, systemGroup, twitchGroup, ...pluginGroups, deckGroup]
 }
 
 function DragHandle({ item, children, className, onAdd, title }: { item: PaletteItem; children: React.ReactNode; className: string; onAdd: (item: PaletteItem) => void; title?: string }) {

@@ -1,8 +1,8 @@
 import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr'
-import { api, getToken } from '../api/client'
-import type { AppearanceSettings, AutomationState, Catalog, DeckModel, ObsSnapshot, SystemMonitorSnapshot } from '../api/types'
+import { api, errorMessage, getToken } from '../api/client'
+import type { AppearanceSettings, AudioDevice, NowPlaying, TwitchSnapshot, AutomationState, Catalog, DeckModel, ObsSnapshot, SystemMonitorSnapshot } from '../api/types'
 import { clearMeters, setMeters, type MeterPayload } from './meters'
-import { setState } from './store'
+import { getState, setState } from './store'
 
 let connection: HubConnection | null = null
 let systemMonitorWanted = false
@@ -19,6 +19,30 @@ export async function reloadAutomationStates() {
 
 export async function reloadHotkeyStatus() {
   setState({ hotkeys: await api<{ global: boolean; conflicts: string[] }>('/api/hotkeys/status') })
+}
+
+export async function reloadAudioDevices() {
+  try {
+    const list = await api<AudioDevice[]>('/api/audio-devices')
+    // Ein laufender, aelterer Dienst kennt die Route nicht und liefert stattdessen die Startseite (HTML) - das ist keine Liste.
+    if (!Array.isArray(list)) throw new Error('Der Dienst kennt die Geräteliste noch nicht (laufende Version ist älter als die App)')
+    setState({ audioDevices: list, audioDevicesError: null })
+  } catch (e) {
+    setState({ audioDevicesError: errorMessage(e) })
+    throw e
+  }
+}
+
+function applyNowPlaying(np: NowPlaying | null | undefined) {
+  setState({ nowPlaying: np ? { ...np, receivedAt: Date.now() } : null })
+}
+
+export async function reloadNowPlaying() {
+  applyNowPlaying(await api<NowPlaying | undefined>('/api/now-playing'))
+}
+
+export async function reloadTwitch() {
+  setState({ twitch: await api<TwitchSnapshot>('/api/twitch') })
 }
 
 export async function reloadCatalog() {
@@ -42,6 +66,9 @@ export async function startRealtime() {
   connection.on('obsState', (obs: ObsSnapshot) => setState({ obs }))
   connection.on('systemState', (systemMonitor: SystemMonitorSnapshot) => setState({ systemMonitor }))
   connection.on('meters', (payload: MeterPayload) => setMeters(payload))
+  connection.on('twitch', (t: TwitchSnapshot) => setState({ twitch: t }))
+  connection.on('nowPlaying', (np: NowPlaying | null) => applyNowPlaying(np))
+  connection.on('audioDevices', (devices: AudioDevice[]) => setState({ audioDevices: devices, audioDevicesError: null }))
   connection.on('decksChanged', () => void reloadDecks().catch(() => {}))
   connection.on('catalogChanged', () => void reloadCatalog().catch(() => {}))
   connection.on('pluginsChanged', () => window.dispatchEvent(new CustomEvent('deck:plugins')))
@@ -55,12 +82,16 @@ export async function startRealtime() {
     window.dispatchEvent(new CustomEvent('deck:automations'))
   })
   connection.on('appearanceChanged', () => void reloadAppearance().catch(() => {}))
+  connection.on('switchStates', (switchStates: Record<number, boolean>) => setState({ switchStates: switchStates ?? {} }))
+  connection.on('switchStateChanged', (buttonId: number, isOn: boolean) =>
+    setState({ switchStates: { ...getState().switchStates, [buttonId]: isOn } }),
+  )
 
   connection.onreconnecting(() => setState({ link: 'connecting' }))
   connection.onreconnected(async () => {
     setState({ link: 'online' })
     // Waehrend der Trennung verpasste Aenderungen nachholen.
-    await Promise.allSettled([reloadDecks(), reloadCatalog(), reloadAutomationStates(), reloadHotkeyStatus(), reloadAppearance()])
+    await Promise.allSettled([reloadDecks(), reloadCatalog(), reloadAutomationStates(), reloadHotkeyStatus(), reloadAppearance(), reloadAudioDevices(), reloadNowPlaying(), reloadTwitch()])
     if (systemMonitorWanted) await connection?.invoke('SetSystemMonitor', true).catch(() => {})
     if (metersWanted) await connection?.invoke('SetMeters', true).catch(() => {})
   })

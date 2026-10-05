@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { AppearanceSettings, AutomationState, Catalog, DeckModel, Me, ObsSnapshot, SystemMonitorSnapshot } from '../api/types'
+import type { AppearanceSettings, AudioDevice, NowPlaying, TwitchSnapshot, AutomationState, Catalog, DeckModel, Me, ObsSnapshot, SystemMonitorSnapshot } from '../api/types'
 
 export type LinkStatus = 'connecting' | 'online' | 'offline'
 
@@ -17,6 +17,16 @@ export interface AppState {
   version: string | null
   /** Globale Aussehen-Einstellungen (Zustandsanzeige-Standard, Tastendruckverhalten, Deck-Hintergrund). */
   appearance: AppearanceSettings | null
+  /** Schaltzustände für Multi-Aktionsschalter (buttonId -> isOn). */
+  switchStates: Record<number, boolean>
+  /** Alle aktiven Windows-Audiogeraete (Ausgaben + Mikrofone); live nur, solange ein Abo (Stumm-Taste/Display) laeuft. */
+  audioDevices: AudioDevice[]
+  /** Konkrete Fehlermeldung, falls die Geraeteliste nicht geladen werden konnte (sonst null). */
+  audioDevicesError: string | null
+  /** Laufende Wiedergabe; receivedAt = lokale Empfangszeit (ms), ab der die Anzeige selbst weiterrechnet. */
+  nowPlaying: (NowPlaying & { receivedAt: number }) | null
+  /** Twitch-Live-Zahlen des verbundenen Kanals (oeffentlicher Stand, keine Zugangsdaten). */
+  twitch: TwitchSnapshot | null
 }
 
 let state: AppState = {
@@ -30,6 +40,11 @@ let state: AppState = {
   link: 'connecting',
   version: null,
   appearance: null,
+  switchStates: {},
+  audioDevices: [],
+  audioDevicesError: null,
+  nowPlaying: null,
+  twitch: null,
 }
 
 const listeners = new Set<() => void>()

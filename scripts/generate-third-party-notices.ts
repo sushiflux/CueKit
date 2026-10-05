@@ -57,6 +57,11 @@ type NugetListing = { projects: { frameworks?: { topLevelPackages?: { id: string
 const nugetRoot = join(homedir(), '.nuget', 'packages')
 const seen = new Set<string>()
 // Der Dienst zuerst: Pakete, die beide Projekte nutzen, zaehlen als "Dienst"; nur Huellen-eigene (z.B. WebView2) als "Desktop-App".
+const KNOWN_LICENSES: Record<string, string> = {
+  hidsharp: 'Apache-2.0',
+  'mono.posix.netstandard': 'MIT',
+}
+
 const nugetProjects = [
   { dir: 'backend', component: 'Dienst' },
   { dir: join('desktop', 'Deck.Desktop'), component: 'Desktop-App' },
@@ -81,6 +86,8 @@ for (const project of nugetProjects) {
       license = expr ? expr[1] : file ? `Siehe Lizenzdatei (${file[1]})` : legacy ? `Siehe ${legacy[1]}` : license
       url = /<projectUrl>([^<]+)<\/projectUrl>/i.exec(xml)?.[1] ?? url
     }
+    // Pakete, deren nuspec nur auf eine Lizenzdatei/-URL verweist, obwohl die Lizenz bekannt ist (geprueft am Projekt-Repo).
+    if (license.startsWith('Siehe')) license = KNOWN_LICENSES[p.id.toLowerCase()] ?? license
     entries.push({ name: p.id, version: p.resolvedVersion, license, url, component: project.component, text: licenseText(dir) })
   }
   }

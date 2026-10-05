@@ -67,3 +67,6 @@ marketing/video/showcase*
 marketing/video/*.png
 
 
+
+# Hintergrund-Logs von start.ps1 -Detached
+.logs/

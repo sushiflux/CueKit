@@ -1,5 +1,7 @@
 {
   "productName": "CueKit",
   "tagline": "Dein Stream. Auf den Punkt.",
-  "company": "SushiFlux Develop"
+  "company": "SushiFlux Develop",
+  "releaseStage": "alpha",
+  "website": ""
 }

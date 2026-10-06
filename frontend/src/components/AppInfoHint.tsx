@@ -1,4 +1,4 @@
-import { branding } from '../config/branding'
+import { branding, versionWithStage } from '../config/branding'
 import { useStore } from '../state/store'
 import { MadeWith } from './MadeWith'
 
@@ -15,7 +15,7 @@ export function AppInfoHint() {
       <div className="text-xs font-medium text-ink-muted">
         <MadeWith />
       </div>
-      <div className="tabular mt-1.5 text-[11px] font-semibold text-brand">{version}</div>
+      <div className="tabular mt-1.5 text-[11px] font-semibold text-brand">{versionWithStage(version)}</div>
       <div className="mt-2 text-[11px] text-ink-faint">
         © {new Date().getFullYear()} {branding.company}
       </div>

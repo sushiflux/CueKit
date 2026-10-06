@@ -49,6 +49,10 @@
   .msg.err svg { color: var(--danger); flex: none; margin-top: 1px; }
   .retry { display: none; }
   .retry.show { display: flex; }
+  [hidden] { display: none !important; }
+  .steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 15px; color: var(--ink-muted); }
+  .steps b { color: var(--ink); font-weight: 600; }
+  .site { color: var(--ink); font-weight: 600; user-select: text; }
   footer { margin-top: auto; text-align: center; font-size: 12px; color: var(--ink-faint); padding-top: 8px; }
   footer .heart { color: var(--ok); }
 </style>
@@ -61,14 +65,31 @@
     <div><div class="name" id="name">CueKit</div><div class="tag" id="tagline"></div></div>
   </header>
 
-  <section>
+  <section id="gate" hidden>
+    <h1>Läuft <span class="pn">CueKit</span> schon auf deinem PC?</h1>
+    <p class="lead">Diese App ist die Fernbedienung. Die Software läuft auf deinem Windows-PC, dieses Gerät verbindet sich nur damit.</p>
+    <div class="stack" style="margin-top:18px">
+      <button class="opt primary" id="gateYes"><span class="ic"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10 -10"></path></svg></span><span><div class="t">Ja, jetzt verbinden</div><div class="s">Das Handy mit dem PC koppeln</div></span></button>
+      <button class="opt" id="gateNo"><span class="ic"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9h.01"></path><path d="M11 12h1v4h1"></path><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"></path></svg></span><span><div class="t">Noch nicht</div><div class="s">So bekommst du <span class="pn">CueKit</span> auf den PC</div></span></button>
+      <div class="manual" id="howto">
+        <ol class="steps">
+          <li>Installiere <b class="pn">CueKit</b> auf deinem Windows-PC. Du findest die Windows-Version im <b>Microsoft Store</b>.</li>
+          <li>Starte <span class="pn">CueKit</span> auf dem PC.</li>
+          <li>Komm zurück in diese App und wähle <b>„Ja, jetzt verbinden“</b>.</li>
+        </ol>
+        <div class="hint" id="siteLine">Mehr Informationen: <span class="site" id="site"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="pairHead">
     <h1>Mit deinem PC verbinden</h1>
     <p class="lead">Öffne auf dem PC <b>Geräte → Gerät koppeln</b>. Dort erscheint ein QR-Code. Das Handy muss im selben WLAN sein wie der PC.</p>
   </section>
 
   <div class="msg err" id="msg" role="alert"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"></path><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0"></path><path d="M12 16h.01"></path></svg><span id="msgText"></span></div>
 
-  <section class="stack">
+  <section class="stack" id="pairStack">
     <button class="opt retry" id="retry"><span class="ic"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"></path><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path></svg></span><span><div class="t">Erneut versuchen</div><div class="s">Mit dem zuletzt gekoppelten PC verbinden</div></span></button>
     <button class="opt primary" id="scan"><span class="ic"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4"></path><path d="M7 17l0 .01"></path><path d="M14 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4"></path><path d="M7 7l0 .01"></path><path d="M4 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4"></path><path d="M17 7l0 .01"></path><path d="M14 14l3 0"></path><path d="M20 14l0 .01"></path><path d="M14 14l0 3"></path><path d="M14 20l3 0"></path><path d="M17 17l3 0"></path><path d="M20 17l0 3"></path></svg></span><span><div class="t">QR-Code scannen</div><div class="s">Kamera auf den Code am PC richten</div></span></button>
     <button class="opt" id="image"><span class="ic"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 8h.01"></path><path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12"></path><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5"></path><path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3"></path></svg></span><span><div class="t">QR-Code aus Bild</div><div class="s">Screenshot oder Foto des Codes auswählen</div></span></button>
@@ -98,18 +119,29 @@
   window.cuekit = { onError: showError, onCancel: clearError }
 
   var q = new URLSearchParams(location.search)
+
+  // Erster Start: erst fragen, ob die Software schon auf dem PC laeuft. Nur Text, kein Kauf-Link (Google-Zahlungsrichtlinie).
+  var KEY = 'hasPc'
+  function hasPc() { try { return localStorage.getItem(KEY) === '1' } catch (e) { return false } }
+  function rememberPc() { try { localStorage.setItem(KEY, '1') } catch (e) {} }
+  function showPair(on) { $('gate').hidden = on; $('pairHead').hidden = !on; $('pairStack').hidden = !on }
+  Array.prototype.forEach.call(document.querySelectorAll('.pn'), function (el) { el.textContent = info.name || 'CueKit' })
+  if (info.website) $('site').textContent = info.website; else $('siteLine').hidden = true
+  showPair(hasPc() || !!q.get('error') || q.get('retry') === '1')
+  $('gateYes').onclick = function () { rememberPc(); showPair(true) }
+  $('gateNo').onclick = function () { $('howto').classList.toggle('open') }
   if (q.get('error')) showError(q.get('error'))
   if (q.get('retry') === '1') $('retry').classList.add('show')
 
-  $('scan').onclick = function () { clearError(); app.scan() }
-  $('image').onclick = function () { clearError(); app.pickImage() }
-  $('retry').onclick = function () { clearError(); app.retry() }
+  $('scan').onclick = function () { rememberPc(); clearError(); app.scan() }
+  $('image').onclick = function () { rememberPc(); clearError(); app.pickImage() }
+  $('retry').onclick = function () { rememberPc(); clearError(); app.retry() }
   $('toggle').onclick = function () { $('manual').classList.toggle('open'); if ($('manual').classList.contains('open')) $('addr').focus() }
   $('code').addEventListener('input', function () {
     var v = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
     this.value = v.length > 4 ? v.slice(0, 4) + '-' + v.slice(4) : v
   })
-  $('manual').onsubmit = function (e) { e.preventDefault(); clearError(); app.connect($('addr').value, $('code').value) }
+  $('manual').onsubmit = function (e) { e.preventDefault(); rememberPc(); clearError(); app.connect($('addr').value, $('code').value) }
 })()
 </script>
 </body>

@@ -180,7 +180,7 @@ class MainActivity : ComponentActivity() {
     private inner class Bridge {
         @JavascriptInterface
         fun info(): String = JSONObject()
-            .put("name", BuildConfig.PRODUCT).put("tagline", BuildConfig.TAGLINE)
+            .put("name", BuildConfig.PRODUCT).put("tagline", BuildConfig.TAGLINE).put("website", BuildConfig.WEBSITE)
             .put("company", BuildConfig.COMPANY).put("version", BuildConfig.VERSION_NAME)
             .put("savedBase", prefs.getString("base", "") ?: "")
             .toString()

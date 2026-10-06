@@ -26,6 +26,8 @@ android {
         buildConfigField("String", "PRODUCT", "\"${brand["productName"]}\"")
         buildConfigField("String", "TAGLINE", "\"${brand["tagline"]}\"")
         buildConfigField("String", "COMPANY", "\"${brand["company"]}\"")
+        // Webadresse der Produktseite (leer, solange es keine gibt) - wird nur als Text angezeigt, nie als Kauf-Link
+        buildConfigField("String", "WEBSITE", "\"${brand["website"] ?: ""}\"")
     }
 
     buildFeatures { buildConfig = true }

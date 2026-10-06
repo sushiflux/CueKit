@@ -7,7 +7,14 @@ release lives in `CHANGELOG.md`.
 
 # English
 
-## v2026.10.18 - 2026-10-05 23:30
+## v2026.10.19 - 2026-10-07 10:00
+
+Release stage label (Alpha) next to the version, and a first-start question in the Android app.
+
+- **Release stage** (`branding.json` `releaseStage`: `alpha` | `beta` | empty = final, currently `alpha`; `config/branding.ts` `versionWithStage()`): shown as "v2026.10.18 · Alpha" in the About card (`AboutCard`), the sidebar footer (`AppInfoHint`) and the connect page (`ConnectPage`). It is a product decision made only by the owner, independent of the commit words (Commit / RC / Release) and never part of the version number itself (installer / MSIX need plain numbers). Rule documented in CLAUDE.md.
+- **Android first start** (`assets/connect/index.html`, `MainActivity.Bridge.info()`, `app/build.gradle.kts`): before the pairing options the app asks "Is CueKit already running on your PC?". "Yes" reveals the existing QR / image / manual pairing and is remembered (localStorage `hasPc`, also set by scan / connect / retry; skipped for error and retry pages); "Not yet" shows a plain-text how-to (install the Windows version from the Microsoft Store, start it, come back). No clickable links, no price and no purchase prompt in the app (Google Play payments policy: apps may not lead users to a payment method outside Play billing). The optional product website (`branding.json` `website`, `BuildConfig.WEBSITE`, empty for now) is shown as selectable text only.
+
+## v2026.10.18 - 2026-10-05 22:35
 
 HDR keys: read and switch HDR with the Windows 11 24H2+ interface, verify the switch, refresh the key state reliably.
 
@@ -325,7 +332,14 @@ Initial scaffold of Baton - a free, community-extensible CueDeck for OBS.
 
 # Deutsch
 
-## v2026.10.18 - 2026-10-05 23:30
+## v2026.10.19 - 2026-10-07 10:00
+
+Reifegrad-Label (Alpha) neben der Version und eine Startfrage in der Android-App.
+
+- **Reifegrad** (`branding.json` `releaseStage`: `alpha` | `beta` | leer = final, derzeit `alpha`; `config/branding.ts` `versionWithStage()`): wird als „v2026.10.18 · Alpha“ in der Info-Karte (`AboutCard`), im Fuß der Seitenleiste (`AppInfoHint`) und auf der Verbindungsseite (`ConnectPage`) angezeigt. Es ist eine Produktentscheidung allein des Besitzers, unabhängig von den Commit-Wörtern (Commit / RC / Release) und nie Teil der Versionsnummer selbst (Installer / MSIX brauchen reine Zahlen). Regel in der CLAUDE.md festgehalten.
+- **Android-Erststart** (`assets/connect/index.html`, `MainActivity.Bridge.info()`, `app/build.gradle.kts`): Vor den Kopplungswegen fragt die App „Läuft CueKit schon auf deinem PC?“. „Ja“ zeigt die bisherige Kopplung (QR / Bild / manuell) und wird gemerkt (localStorage `hasPc`, auch durch Scan / Verbinden / Erneut versuchen gesetzt; bei Fehler- und Retry-Seiten übersprungen); „Noch nicht“ zeigt eine reine Text-Anleitung (Windows-Version aus dem Microsoft Store installieren, starten, zurückkommen). Keine anklickbaren Links, kein Preis und keine Kaufaufforderung in der App (Google-Play-Zahlungsrichtlinie: Apps dürfen nicht zu einem Zahlungsweg außerhalb von Play Billing führen). Die optionale Produktwebseite (`branding.json` `website`, `BuildConfig.WEBSITE`, vorerst leer) erscheint nur als markierbarer Text.
+
+## v2026.10.18 - 2026-10-05 22:35
 
 HDR-Tasten: HDR mit der Schnittstelle von Windows 11 24H2+ lesen und schalten, den Wechsel prüfen und den Tastenzustand zuverlässig aktualisieren.
 

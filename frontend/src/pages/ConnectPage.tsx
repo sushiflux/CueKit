@@ -3,7 +3,7 @@ import { motion } from 'motion/react'
 import { useState, type FormEvent } from 'react'
 import { api, errorMessage, setToken } from '../api/client'
 import { MadeWith } from '../components/MadeWith'
-import { branding } from '../config/branding'
+import { branding, versionWithStage } from '../config/branding'
 import { useStore } from '../state/store'
 
 const FEATURES = [
@@ -78,7 +78,7 @@ function BrandPanel() {
         </div>
 
         <div className="text-xs text-white/55">
-          <MadeWith onDark /> · © {new Date().getFullYear()} {branding.company} · <span className="tabular">{version}</span>
+          <MadeWith onDark /> · © {new Date().getFullYear()} {branding.company} · <span className="tabular">{versionWithStage(version)}</span>
         </div>
       </div>
     </div>

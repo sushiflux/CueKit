@@ -1,7 +1,7 @@
 import { IconChevronDown, IconInfoCircle, IconLicense, IconSearch, IconShieldLock } from '@tabler/icons-react'
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { errorMessage } from '../api/client'
-import { branding } from '../config/branding'
+import { branding, versionWithStage } from '../config/branding'
 import { useStore } from '../state/store'
 import { Modal } from './Modal'
 
@@ -94,7 +94,7 @@ export function AboutCard() {
         </span>
         <div>
           <h2 className="font-bold text-ink">Über {branding.productName}</h2>
-          <p className="tabular text-xs text-ink-faint">{version}</p>
+          <p className="tabular text-xs text-ink-faint">{versionWithStage(version)}</p>
         </div>
       </div>
       <div className="space-y-3 text-sm text-ink-muted">

@@ -7,7 +7,7 @@ release lives in `CHANGELOG.md`.
 
 # English
 
-## v2026.10.19 - 2026-10-07 10:00
+## v2026.10.19 - 2026-10-07 00:00
 
 Release stage label (Alpha) next to the version, and a first-start question in the Android app.
 
@@ -332,7 +332,7 @@ Initial scaffold of Baton - a free, community-extensible CueDeck for OBS.
 
 # Deutsch
 
-## v2026.10.19 - 2026-10-07 10:00
+## v2026.10.19 - 2026-10-07 00:00
 
 Reifegrad-Label (Alpha) neben der Version und eine Startfrage in der Android-App.
 

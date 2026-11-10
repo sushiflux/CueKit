@@ -62,7 +62,7 @@
     <Content Include="..\..\LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 
     <!-- Gebaute Oberflaeche (npm run build in ../../frontend) als wwwroot neben die Exe. Fehlt frontend/dist,
-         startet die Huelle trotzdem (Entwicklung: Startparameter dev-url auf den Vite-Server, siehe CLAUDE.md). -->
+         startet die Huelle trotzdem (Entwicklung: Startparameter dev-url auf den Vite-Server). -->
     <Content Include="..\..\frontend\dist\**\*" Link="wwwroot\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 

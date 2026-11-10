@@ -19,6 +19,11 @@ if (-not $isAdmin) {
 
 Write-Host "Starte CueKit Entwicklungsumgebung (als Administrator)..." -ForegroundColor Cyan
 
+# Git-Hooks verdrahten (Versionsstempel, Sicherung von intern/)
+if (Test-Path -LiteralPath (Join-Path $RootDir '.git')) {
+    try { & git -C $RootDir config core.hooksPath scripts/git-hooks 2>$null | Out-Null } catch { }
+}
+
 # Hilfsfunktion zum Beenden eines Prozessbaums (inkl. Child-Prozesse wie Node)
 function Kill-ProcessTree($procId) {
     if ($procId -and (Get-Process -Id $procId -ErrorAction SilentlyContinue)) {

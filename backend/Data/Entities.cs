@@ -126,7 +126,7 @@ public class InstalledPluginEntity
     public DateTimeOffset InstalledAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
-/// <summary>Datenbank-gestuetzte Einstellungen (siehe CLAUDE.md "Admin settings: database-backed").</summary>
+/// <summary>Datenbank-gestuetzte Einstellungen (Admin-Einstellungen liegen in der Datenbank, nicht in Dateien).</summary>
 public class SettingEntity
 {
     public string Key { get; set; } = "";

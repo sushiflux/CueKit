@@ -70,3 +70,6 @@ marketing/video/*.png
 
 # Hintergrund-Logs von start.ps1 -Detached
 .logs/
+
+# Private development documents: intern/ is backed up separately and never part of this repository.
+/intern/

@@ -17,7 +17,7 @@ public class ObsRequestException(string requestType, int code, string? comment)
 /// Schlanker Client fuer das obs-websocket-Protokoll v5 (seit OBS 28 fest in OBS eingebaut - kein
 /// Plugin noetig). Bewusst ohne Fremdbibliothek: das Protokoll ist klein (Hello/Identify/Request/
 /// Event), und so bleibt die Abhaengigkeit von einem evtl. unmaintained NuGet-Paket aus.
-/// Protokoll-Referenz: siehe QUELLEN.md.
+/// Protokoll-Referenz: obs-websocket v5, https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md
 /// </summary>
 public sealed class ObsWebSocketClient : IAsyncDisposable
 {

@@ -57,7 +57,7 @@ public sealed class NoSystemMonitor : ISystemMonitor
 /// <see cref="Computer.Open"/> braucht (je nach Sensor) erhoehte Rechte/den mitgelieferten
 /// Kernel-Treiber - schlaegt das fehl (z.B. eingeschraenkter Dienstkontext), bleibt der Dienst
 /// mit <see cref="SystemMonitorSnapshot.Available"/> = false nutzbar statt den Host mitzureissen
-/// (siehe CLAUDE.md: ein BackgroundService-Crash darf nie den ganzen Host toeten).
+/// (ein BackgroundService-Crash darf nie den ganzen Host toeten).
 /// </summary>
 [SupportedOSPlatform("windows")]
 public sealed class SystemMonitorService : ISystemMonitor, IDisposable
